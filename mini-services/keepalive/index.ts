@@ -61,7 +61,9 @@ async function ensurePdfService(): Promise<void> {
 
 async function ensureNextDev(): Promise<void> {
   if (await portOpen(3000)) return;
-  console.log("[keepalive] Next.js dev متوقف — إعادة التشغيل…");
+  console.log("[keepalive] Next.js dev متوقف — مسح كاش Turbopack (يَتلف عند القتل المفاجئ) وإعادة التشغيل…");
+  // كاش Turbopack يفسد عند SIGKILL → امسحه قبل كل إعادة تشغيل (إعادة تجميع أبطأ لكن مضمونة)
+  try { fs.rmSync(`${PROJECT}/.next`, { recursive: true, force: true }); } catch { /* تجاهل */ }
   spawnDetached("bun", ["run", "dev"], {
     cwd: PROJECT,
     env: { ...process.env, DATABASE_URL },
