@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id              Int      @id @default(autoincrement())
+  name            String
+  slug            String   @unique
+  firebaseOwnerId String?
+  createdAt       DateTime @default(now())
+}
+
+model Client {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String?
+  phone     String?
+  company   String?
+  address   String?
+  companyId Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("clients")
+}
+
+model Invoice {
+  id            Int      @id @default(autoincrement())
+  invoiceNumber String
+  companySlug   String?
+  clientId      Int?
+  companyId     Int?
+  clientName    String
+  clientEmail   String?
+  clientPhone   String?
+  clientAddress String?
+  issueDate     String
+  dueDate       String
+  status        String   @default("draft")
+  lineItems     String   @default("[]")
+  subtotal      Float    @default(0)
+  taxRate       Float    @default(0)
+  taxAmount     Float    @default(0)
+  total         Float    @default(0)
+  shipping      Float    @default(0)
+  paid          Float    @default(0)
+  notes         String?
+  source        String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("invoices")
+}
+
+model ProductCatalog {
+  id            Int      @id @default(autoincrement())
+  name          String
+  aliases       String   @default("[]")
+  purchasePrice Float?
+  sellingPrice  Float?
+  companySlug   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("product_catalog")
+}
+
+model PurchaseInvoice {
+  id               Int      @id @default(autoincrement())
+  num              String
+  date             String
+  supplier         String   @default("")
+  companySlug      String?
+  items            String   @default("[]")
+  sourceInvoiceIds String   @default("[]")
+  totalQty         Int      @default(0)
+  notes            String?
+  createdAt        DateTime @default(now())
+
+  @@map("purchase_invoices")
+}
