@@ -1,0 +1,9 @@
+{
+  "name": "keepalive",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Master infra supervisor: pg 5432, valkey 6379, pdf 3040, next 3000",
+  "scripts": {
+    "dev": "bun --hot index.ts"
+  }
+}

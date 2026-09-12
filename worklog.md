@@ -369,3 +369,37 @@ Unresolved issues / risks / next-phase priorities:
 - agent-browser follows window.open/wa.me popups — during automation use window.close() to return; app unaffected.
 - pdf-service must be re-started after sandbox restart (port 3040).
 - Next-phase ideas: client merge/dedupe tool, server-side dashboard aggregation endpoints, scheduled reminder automation (cron), per-period collection stats, invoice PDF direct-to-WhatsApp, multi-currency, NextAuth.
+
+---
+Task ID: r10
+Agent: main (Z.ai Code)
+Task: PostgreSQL فعلي + Valkey (بديل Redis) + صفحة DeepSeek API بموديلات مدفوعة وزر اختبار + شات ذكي متصل بكامل المشروع + زر Recovery بجانب النسخة الاحتياطية + رفع المشروع على GitHub (Garfix-space)
+
+Work Log:
+- بنية تحتية فعلية (بدون root): تنزيل حزم postgresql-17 deb واستخراجها إلى infra/pg + initdb مع unix_socket_directories=/tmp (إصلاح مشكلة /var/run/postgresql) + تشغيل على 127.0.0.1:5432 (role: garfix / db: garfix).
+- Valkey 8.1.1: تجميع من المصدر (jemalloc غير متاح → MALLOC=libc + بناء deps يدوياً: lua عبر أعلام valkey، hdr_histogram، fpconv، hiredis، fast_float) — يعمل على 127.0.0.1:6379 بإعداد LRU (maxmemory 256mb) وبيانات في db/valkey-data.
+- ترحيل قاعدة البيانات SQLite → PostgreSQL: تحويل provider في prisma/schema.prisma + .env + سكريبت scripts/migrate-sqlite-to-pg.ts (bun:sqlite → pg، تحويل أعمدة التاريخ من ملّي-ثانية إلى ISO، حفظ الids، إعادة ضبط sequences) — تم التحقق: تطابق كل الجداول (4 شركات، 14 فاتورة، 1 عميل، 6 كتالوج، 1 مشتريات).
+- ملاحظة مهمة: متغير DATABASE_URL القديم (sqlite) يطفو في بيئة الشل ويتفوق على .env — تشغيل next dev يجب أن يكون مع env صريح أو بدون المتغير نهائياً (الحارس keepalive يمرر القيمة الصحيحة).
+- نماذج Prisma جديدة: AiSetting (مزوّد deepseek: المفتاح/baseUrl/model/enabled/نتيجة آخر اختبار) + AiConversation + AiMessage (محادثات المساعد محفوظة لكل شركة).
+- طبقة الكاش src/lib/cache.ts: ioredis → Valkey مع fallback ذاكرة محلية عند تعطل الخدمة + إحصاءات (hits/misses/hitRate) + cacheWrap/get/set/del/delPattern (SCAN آمن) + دوال إبطال.
+- دمج الكاش في المسارات الساخنة: dashboard/stats (30s) + revenue-by-month (60s) + recent-invoices (30s) + invoices list (15s) + clients (30s) + catalog (60s) + settings (60s) + purchases (30s) + سياق المساعد ai:ctx (20s) — مع إبطال عند كل كتابة (POST/PUT/DELETE/payments/status/clients/catalog/settings/purchases).
+- BUG مكتشف وإصلاحه: الإبطال المحدد بالشركة كان يفوّت مفاتيح «all» (طلبات بلا companySlug ترى بيانات قديمة حتى انتهاء TTL) — أصبح الإبطال شاملاً دائماً؛ تم التحقق (حذف فاتورة → القائمة تتحدث فوراً 13→12 بلا انتظار).
+- مزوّد الذكاء الموحّد src/lib/ai-provider.ts: chatComplete + chatCompleteStream (SSE حقيقي من DeepSeek مع دعم reasoning_content للموديل المفكر) + testDeepSeek (GET /models + إكمال مصغّر + قياس زمن) + DEEPSEEK_MODELS (deepseek-chat V3 / deepseek-reasoner R1) + سقوط آمن تلقائي للمزوّد المدمج z-ai-web-dev-sdk عند أي فشل.
+- src/lib/ai-context.ts: بناء لقطة حيّة من كامل المشروع (شركات بلا _count → groupBy بديل بعد اكتشاف خطأ Prisma: Company بلا علاقات، أُصلح بالعدّ اليدوي) + تحويلها إلى system prompt عربي (مؤشرات، أعلى المديونيات، أحدث الفواتير، عينة الكتالوج، آخر التذكيرات).
+- مسارات جديدة: /api/ai/config (GET/PUT بمفتاح مقنّع + منع تفعيل بلا مفتاح) + /api/ai/test (اختبار فعلي يحفظ النتيجة) + /api/ai/chat (SSE: meta/delta/reasoning/error/done + حفظ الرسائل والمحادثات) + /api/ai/conversations(+[id]) + /api/backup (تنزيل نسخة كاملة، بدون مفتاح DeepSeek لأمان) + /api/recovery (استعادة استبدالية ذرّية داخل transaction مع إعادة ضبط sequences وحدود أمان).
+- /api/ai/process-items: يمر الآن عبر المزوّد الموحّد (DeepSeek عند التفعيل + json mode) بدل ZAI المباشر.
+- /api/healthz موسّع: حالة PostgreSQL (زمن الاستجابة) + حالة Valkey (المحرك/nسبة الإصابة/آخر خطأ).
+- واجهة (3 تبويبات جديدة في App.jsx): 💬 المساعد الذكي (SmartChat.jsx: بث SSE بمؤشر كتابة، فقاعات RTL، markdown، سلسلة تفكير قابلة للطي، محادثات جانبية محفوظة + حذف، اقتراحات جاهزة، إيقاف البث، عنوان صفحة ديناميكي) — 🧠 DeepSeek (DeepSeekSettings.jsx: بطاقة حالة، إدخال مفتاح مع إظهار/إخفاء، اختيار موديل ببطاقات وأشرطة سرعة/عمق، أزرار حفظ/اختبار/تفعيل بتأكيد مزدوج، نتيجة اختبار مفصلة بالزمن والموديلات، شرح التوجيه) — 💾 النظام (BackupRecovery.jsx: تنزيل نسخة + معاينة ملف الاستعادة وعدّاداته + كتابة كلمة «استعادة» للتأكيد + شريط نتيجة + مراقبة حيّة لـ PostgreSQL/Valkey كل 15 ثانية) — التبويبان DeepSeek والنظام للمدير فقط، والشات للجميع.
+- mini-services جديدة: postgres (مشرِف pg_isready كل 5s) + valkey (مشرِف يعيد valkey-server) + keepalive (الحارس الرئيسي: يفحص 5432/6379/3040/3000 كل 8s ويعيد تشغيل أي خدمة متوقفة detached — أثبت نفسه بإعادة next dev تلقائياً بعد سقوطه).
+- اكتشاف سلوك بيئة: العمليات الخلفية تُقتل عشوائياً عند نهايات استدعاءات — الحل المعمول: double-fork `( setsid nohup … & )` + حارس keepalive دائم؛ postgres نجا دائماً (pg_ctl يانعنِف بشكل صحيح).
+- رفع GitHub: .gitignore موسّع (db/ infra/ download/ upload/ tool-results/ agent-ctx/ examples/ tests/ logs) + .env.example + commit (40 ملفاً، +2915) + push ناجح بBranch main جديد على github.com/ahmedezzatelsayad/Garfix-space بالتوكن مرة واحدة عبر URL صريح (لم يُخزّن في git config).
+
+Stage Summary:
+- الجولة 10 مكتملة: النظام الآن يعمل على PostgreSQL 17 فعلي + كاش Valkey 8.1 فعلي (بديل Redis) مع سقوط آمن للذاكرة، وكل مميزات الذكاء الاصطناعي (المساعد الذكي + معالجة العناصر) تمر عبر DeepSeek عند تفعيله (اختبار الاتصال وزر التفعيل واختيار الموديل المدفوع V3/R1 يعملان فعلياً — تم التحقق بمفتاح وهمي: 401 Authentication Fails ظهر كما هو متوقع) وإلا بالمزوّد المدمج. المساعد الذكي يجيب ببيانات حقيقية (10 فواتير، 92.900 د.ك، مديونيات بالأرقام والهواتف). زر Recovery بجانب النسخة الاحتياطية يعمل E2E كاملاً (حذف فاتورتين → رفع النسخة → 14 فاتورة رجعت + sequences سليمة id=18 بعد الاستعادة). الحارس keepalive يضمن بقاء الخدمات الأربع. المشروع مرفوع على GitHub. QA شامل: login → شركة → كل التبويبات الجديدة → شات SSE → اختبار DeepSeek → استعادة → وضع ليلي → موبايل 390px (صفر overflow برمجياً) → lint نظيف → dev.log نظيف (200/201/204 فقط). VLM أكد سلامة الوضع الليلي بصرياً.
+
+Unresolved issues / risks / next-phase priorities:
+- مفتاح DeepSeek الحقيقي غير مضبوط بعد (المستخدم يدخله من تبويب 🧠 DeepSeek → لصق → اختبار الاتصال → تفعيل) — كل شيء جاهز ومختبر عدا ذلك.
+- مزود DeepSeek إذا انقطع أثناء البث: الجزء المُرسل يبقى ثم يظهر خطأ — لا استئناف جزئي (مقبول).
+- الحارس keepalive نفسه قد يُقتل من البيئة بعد فترة طويلة — عند أي توقف شامل: شغّل `cd mini-services/keepalive && ( setsid nohup bun run dev > service.log 2>&1 < /dev/null & )` وسيعيد كل الخدمات تلقائياً (مهم بعد أي restart للـ sandbox: نفس الأمر يكفي).
+- الـ cron webDevReview كل 15 دقيقة مسؤول عن الجولات القادمة (QA مستمر + تطوير).
+- أفكار المرحلة القادمة: أدوات فعلية للمساعد (إنشاء فاتورة/تذكير من الشات مباشرة)، دمج العملاء المكررين (phKey)، ضبط إطار زمني للتقارير في الشات، صفحة إعدادات لكل شركة داخل النظام، NextAuth للتوثيق الفعلي على الخادم، تصدير CSV/Excel من صفحة النظام.
