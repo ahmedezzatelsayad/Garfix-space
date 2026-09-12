@@ -24,7 +24,9 @@ function mergeItems(salesInvoices) {
   return Array.from(map.values());
 }
 
-function printPurchaseInvoice(pi, company) {
+// ── Purchase invoice document HTML (shared by print + PDF export) ──
+// Tajawal font link matches the other documents so the pdf-service can inline it deterministically.
+function buildPurchaseHTML(pi, company) {
   const col = company?.color || "#1e3a5f";
   const totalQty = pi.items?.reduce((s, r) => s + (r.qty || 0), 0) || 0;
   const rows = (pi.items || []).map((r, i) => `
@@ -36,12 +38,12 @@ function printPurchaseInvoice(pi, company) {
       <td style="padding:10px 14px;text-align:right;font-weight:700;">${(r.qty * pN(r.purchasePrice)).toFixed(3)} KD</td>` : `<td colspan="2"></td>`}
     </tr>`).join("");
   const totalCost = (pi.items || []).reduce((s, r) => s + r.qty * pN(r.purchasePrice || 0), 0);
-  const html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8">
+  return `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8">
 <title>فاتورة مشتريات ${pi.num}</title>
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Cairo',sans-serif;background:#fff;color:#111;padding:28px;font-size:13px}
+body{font-family:'Tajawal','Cairo',Arial,sans-serif;background:#fff;color:#111;padding:28px;font-size:13px;direction:rtl}
 .hdr{text-align:center;margin-bottom:24px;border-bottom:3px solid ${col};padding-bottom:16px}
 .hdr h1{font-size:22px;font-weight:900;color:${col};margin-bottom:4px}
 .meta{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}
@@ -86,6 +88,12 @@ tfoot td{padding:12px 14px;font-size:14px}
 ${pi.notes ? `<div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#555"><b>ملاحظات:</b> ${pi.notes}</div>` : ""}
 <div class="footer">تم الإنشاء: ${new Date().toLocaleDateString("ar-KW", { year: "numeric", month: "long", day: "numeric" })} | نظام المشتريات المتكامل</div>
 </body></html>`;
+  return html;
+}
+
+// ── Print (opens a browser window + print dialog) ──
+function printPurchaseInvoice(pi, company) {
+  const html = buildPurchaseHTML(pi, company);
   const w = window.open("", "_blank", "width=900,height=700");
   if (!w) { alert("يرجى السماح بالـ Popups في المتصفح"); return; }
   w.document.write(html);
@@ -108,8 +116,30 @@ export default function PurchasesTab({ company, invoices = [], preSelectIds = []
   const [selIds, setSelIds] = useState([]);
   const [merged, setMerged] = useState([]);
   const [mForm, setMForm] = useState({ supplier: "", date: today(), notes: "" });
+  const [pdfBusy, setPdfBusy] = useState(false); // purchase-invoice PDF export
 
   const toast_ = msg => { setToast(msg); setTimeout(() => setToast(null), 2800); };
+
+  // ── PDF export (HTML → PDF via /api/pdf, downloads a real .pdf file) ──
+  const exportPurchasePdf = async pi => {
+    if (pdfBusy) return;
+    try {
+      setPdfBusy(true);
+      const html = buildPurchaseHTML(pi, company);
+      const base = "فاتورة_مشتريات_" + (pi.num || pi.id);
+      const blob = await api.exportPdf(html, base);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = base + ".pdf";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      toast_("✅ تم تصدير فاتورة المشتريات " + (pi.num || "") + " إلى PDF");
+    } catch (e) {
+      toast_((e && e.message) || "فشل تصدير PDF", "err");
+    } finally {
+      setPdfBusy(false);
+    }
+  };
 
   const loadPurchases = useCallback(async () => {
     if (!company) return;
@@ -247,6 +277,9 @@ export default function PurchasesTab({ company, invoices = [], preSelectIds = []
                   <div style={{ flex: 1 }} />
                   <button style={{ ...btn(col), padding: "5px 10px", fontSize: "12px" }}
                     onClick={e => { e.stopPropagation(); printPurchaseInvoice(pi, company); }}>🖨️ طباعة</button>
+                  <button style={{ ...btn("#dc2626"), padding: "5px 10px", fontSize: "12px" }} disabled={pdfBusy}
+                    title="تصدير فاتورة المشتريات إلى ملف PDF"
+                    onClick={e => { e.stopPropagation(); exportPurchasePdf(pi); }}>{pdfBusy ? "⏳…" : "📄 PDF"}</button>
                   <button style={{ ...btn("#dc2626"), padding: "5px 10px", fontSize: "12px" }}
                     onClick={e => { e.stopPropagation(); setConfirmDel(pi); }}>🗑️</button>
                   <span style={{ color: "var(--ia-muted)", fontSize: "12px" }}>{expanded ? "▲" : "▼"}</span>

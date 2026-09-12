@@ -119,6 +119,47 @@ function logReminderSent(inv, company, href){
 function dbGet(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch{return null;}}
 function dbSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
 
+// ── Per-company payment-gateway link template (KNET / KPay / MyFatoorah) ──
+// Stored in localStorage as tw_paylink_{companyId}; supports {amount}, {invoice}, {phone} placeholders.
+function getPayLinkTpl(companyId){ try{ return localStorage.getItem("tw_paylink_"+(companyId||"")) || ""; }catch{ return ""; } }
+function setPayLinkTpl(companyId, tpl){ try{ localStorage.setItem("tw_paylink_"+(companyId||""), String(tpl||"").trim()); }catch{} }
+function buildPayLink(tpl, inv, amount){
+  if(!tpl) return "";
+  return String(tpl)
+    .replace(/\{amount\}/g, String(amount))
+    .replace(/\{invoice\}/g, encodeURIComponent(inv?.invNum||""))
+    .replace(/\{phone\}/g, encodeURIComponent(inv?.clientPhone||""));
+}
+
+// ── WhatsApp payment-request message (used when no gateway link is configured) ──
+function payRequestMessage(inv, company, amount, link){
+  const lines=[
+    `عميلنا العزيز ${inv.clientName||""}،`,
+    `طلب دفع من ${company.nameAr} 💳`,
+    `📄 الفاتورة رقم ${inv.invNum} بتاريخ ${fDate(inv.date)}`,
+    `💰 المبلغ المطلوب: ${fKWD(amount)}`,
+    link?`🔗 للسداد الإلكتروني (كي نت):\n${link}`:"",
+    `شكراً لتعاونكم 🌹`,
+    `${company.nameAr} — ${company.phone}`,
+  ].filter(Boolean);
+  return lines.join("\n");
+}
+const waHrefWithText=(phone,text)=>`https://wa.me/965${norm(phone||"").replace(/^\+?965/,"")}?text=${encodeURIComponent(text)}`;
+
+// ── Per-company client credit limits: localStorage tw_credit_{companyId} → { [phone]: limitKD } ──
+function loadCreditMap(companyId){ try{ const v=JSON.parse(localStorage.getItem("tw_credit_"+(companyId||""))||"{}"); return (v&&typeof v==="object")?v:{}; }catch{ return {}; } }
+function saveCreditMap(companyId,map){ try{ localStorage.setItem("tw_credit_"+(companyId||""),JSON.stringify(map||{})); }catch{} }
+// Outstanding balance for one client phone (non-cancelled invoices, remaining after payments)
+function outstandingOf(invoices, phone){
+  const ph=norm(phone||"");
+  if(!ph) return 0;
+  return invoices.reduce((s,inv)=>{
+    if(inv.status==="cancelled") return s;
+    if(norm(inv.clientPhone||"")!==ph) return s;
+    return s+Math.max(0,iT(inv)-pN(inv.paid||0));
+  },0);
+}
+
 // ─── Aliphia CSV Parser ───────────────────────────────────────────
 /**
 
@@ -1443,6 +1484,25 @@ const [sort,setSort]=useState("spent");
 const [showImport,setShowImport]=useState(false);
 const [selCustomer,setSelCustomer]=useState(null);
 const [stmtBusy,setStmtBusy]=useState(false);
+// ── Credit limits (per-company, localStorage) ──
+const [creditMap,setCreditMap]=useState(()=>loadCreditMap(company?.id));
+const [creditCo,setCreditCo]=useState(company?.id);
+const [creditInput,setCreditInput]=useState("");
+const [creditFor,setCreditFor]=useState(null);
+// render-time sync when company or selected customer changes (lint-clean pattern, like `company` derivation)
+if(creditCo!==company?.id){ setCreditCo(company?.id); setCreditMap(loadCreditMap(company?.id)); setCreditInput(""); }
+if(selCustomer&&creditFor!==norm(selCustomer.phone)){ setCreditFor(norm(selCustomer.phone)); setCreditInput(""); }
+
+const saveCredit=()=>{
+  const ph=norm(selCustomer?.phone||"");
+  if(!ph)return;
+  const map={...creditMap};
+  const v=pN(creditInput);
+  if(v>0)map[ph]=v; else delete map[ph];
+  setCreditMap(map);
+  saveCreditMap(company.id,map);
+  toast_(v>0?`✅ تم تعيين حد الائتمان ${fKWD(v)}`:"🗑️ تم إزالة حد الائتمان");
+};
 
 // ── Client account statement PDF (كشف حساب) ──
 const exportStatement=async cust=>{
@@ -1555,6 +1615,59 @@ onClose={()=>setShowImport(false)}
       </div>
     </div>
 
+    {/* Credit limit & outstanding */}
+    {selCustomer.phone&&(()=>{
+      const ph=norm(selCustomer.phone);
+      const limit=pN(creditMap[ph]||0);
+      const hasLimit=limit>0;
+      const out=outstandingOf(invoices,selCustomer.phone);
+      const pct=hasLimit?Math.min(999,out/limit*100):0;
+      const over=hasLimit&&out>limit;
+      const barColor=!hasLimit?"var(--ia-border2)":pct<50?"#16a34a":pct<80?"#d97706":pct<100?"#ea580c":"#dc2626";
+      const chip=over
+        ?{t:`⛔ تجاوز الحد بمقدار ${fKWD(out-limit)}`,c:"var(--ia-red-tx)",bg:"var(--ia-red-bg)",bd:"var(--ia-red-bd)"}
+        :hasLimit&&pct>=80
+        ?{t:"🔴 قارب استنفاد الحد",c:"var(--ia-red-tx)",bg:"var(--ia-red-bg)",bd:"var(--ia-red-bd)"}
+        :hasLimit&&pct>=50
+        ?{t:"🟡 استهلاك متوسط للحد",c:"var(--ia-warn-tx)",bg:"var(--ia-warn-bg)",bd:"#fde68a66"}
+        :hasLimit
+        ?{t:"🟢 ضمن الحد الآمن",c:"var(--ia-ok-tx)",bg:"var(--ia-ok-bg)",bd:"#86efac55"}
+        :null;
+      const shown=creditInput!==""?creditInput:(hasLimit?String(creditMap[ph]||""):"");
+      return(
+      <div style={{background:"var(--ia-soft)",border:"1px solid var(--ia-border)",borderRadius:"10px",padding:"13px 15px",marginBottom:"16px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"9px",flexWrap:"wrap"}}>
+          <div style={{fontSize:"11px",fontWeight:900,color:"var(--ia-sub)",textTransform:"uppercase",letterSpacing:".5px"}}>💳 حد الائتمان</div>
+          {chip&&<span style={{fontSize:"11px",fontWeight:800,color:chip.c,background:chip.bg,border:`1px solid ${chip.bd}`,borderRadius:"20px",padding:"2px 10px"}}>{chip.t}</span>}
+          <div style={{flex:1}}/>
+          <div style={{direction:"rtl",display:"flex",gap:"10px",alignItems:"baseline"}}>
+            <span style={{fontSize:"13px",fontWeight:900,color:over?"var(--ia-red-tx)":"var(--ia-text)"}}>{fKWD(out)}</span>
+            <span style={{fontSize:"10px",color:"var(--ia-muted)"}}>مستحق</span>
+            {hasLimit&&<><span style={{color:"var(--ia-muted)"}}>/</span><span style={{fontSize:"13px",fontWeight:800,color:colTx}}>{fKWD(limit)}</span><span style={{fontSize:"10px",color:"var(--ia-muted)"}}>الحد</span></>}
+          </div>
+        </div>
+        {/* utilization bar */}
+        {hasLimit&&(
+          <div style={{marginBottom:"10px"}}>
+            <div style={{height:"8px",background:"var(--ia-border2)",borderRadius:"50px",overflow:"hidden",direction:"ltr"}}>
+              <div style={{height:"100%",width:Math.min(100,pct)+"%",background:barColor,borderRadius:"50px",transition:"width .3s,background .3s"}}/>
+            </div>
+            <div style={{fontSize:"10px",color:"var(--ia-muted)",marginTop:"3px",textAlign:"left",direction:"ltr"}}>{pct.toFixed(0)}% مستخدم{over?` — الرجاء التحصيل قبل فتح فواتير جديدة`:""}</div>
+          </div>
+        )}
+        {/* limit editor */}
+        <div style={{display:"flex",gap:"8px",alignItems:"center"}}>
+          <input className="inp" style={{width:"130px",direction:"ltr",textAlign:"right",padding:"7px 10px",fontSize:"12px"}} type="number" step="0.5" min="0"
+            placeholder="حد ائتمان (KD)" value={shown} onChange={e=>setCreditInput(e.target.value)}
+            title="الحد الأقصى للديون المسموح بها لهذا العميل"/>
+          <button className="btn" style={{background:col,color:"#fff",fontSize:"12px",padding:"7px 14px"}} onClick={saveCredit}>💾 حفظ الحد</button>
+          {hasLimit&&<button className="btn btn-ghost" style={{fontSize:"11.5px",padding:"7px 12px"}} onClick={()=>{setCreditInput("0");}}>🗑️ إزالة</button>}
+          {!hasLimit&&<span style={{fontSize:"10.5px",color:"var(--ia-muted)"}}>بدون حد — يُستخدم للتنبيه عند إنشاء فواتير جديدة</span>}
+        </div>
+      </div>
+      );
+    })()}
+
     {/* Products purchased */}
     {selCustomer.products.length>0&&(
       <div style={{marginBottom:"16px"}}>
@@ -1614,11 +1727,15 @@ onClick={()=>setShowImport(true)}
 </button>
 {!!perms.export_data&&<button className="btn" style={{background:col,color:"#fff",whiteSpace:"nowrap"}} onClick={()=>exportMetaAudience(invoices)}>⬇️ تصدير Excel للميتا</button>}
 </div>
-<div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"10px",marginBottom:"14px"}}>
+<div style={{display:"grid",gridTemplateColumns:customers.some(c=>pN(creditMap[norm(c.phone)]||0)>0)?"repeat(auto-fit,minmax(150px,1fr))":"repeat(3,1fr)",gap:"10px",marginBottom:"14px"}}>
 {[
 {l:"إجمالي العملاء",v:customers.length+" عميل",c:colTx,bg:cardBg},
 {l:"إجمالي الإنفاق",v:fKWD(customers.reduce((s,c)=>s+c.totalSpent,0)),c:txAdapt("#16a34a",dark),bg:softAdapt("#dcfce7",dark)},
 {l:"متوسط الإنفاق / عميل",v:fKWD(customers.length?customers.reduce((s,c)=>s+c.totalSpent,0)/customers.length:0),c:txAdapt("#7c3aed",dark),bg:softAdapt("#ede9fe",dark)},
+...(customers.some(c=>pN(creditMap[norm(c.phone)]||0)>0)?[(()=>{
+  const overN=customers.filter(c=>{const l=pN(creditMap[norm(c.phone)]||0);return l>0&&outstandingOf(invoices,c.phone)>l;}).length;
+  return{l:"متجاوزو حد الائتمان",v:overN+" عميل",c:overN>0?txAdapt("#dc2626",dark):txAdapt("#16a34a",dark),bg:overN>0?softAdapt("#fee2e2",dark):softAdapt("#dcfce7",dark)};
+})()]:[]),
 ].map(s=>(
 <div key={s.l} style={{background:s.bg,borderRadius:"10px",padding:"12px 16px",border:`1px solid ${s.c}22`}}>
 <div style={{fontSize:"10px",color:"var(--ia-sub)",fontWeight:700,textTransform:"uppercase",marginBottom:"4px"}}>{s.l}</div>
@@ -1632,8 +1749,8 @@ onClick={()=>setShowImport(true)}
 <div className="card" style={{overflow:"hidden"}}>
 <table style={{width:"100%",borderCollapse:"collapse"}}>
 <thead><tr style={{background:"var(--ia-soft)",borderBottom:"2px solid var(--ia-border2)"}}>
-{["العميل","التلفون","إجمالي الإنفاق","عدد الفواتير","آخر شراء","المنتجات","للميتا"].map(h=>(
-<th key={h} style={{padding:"10px 12px",fontSize:"11px",fontWeight:700,color:"var(--ia-sub)",textAlign:"right",textTransform:"uppercase",letterSpacing:".3px"}}>{h}</th>
+{["العميل","التلفون","إجمالي الإنفاق","عدد الفواتير","آخر شراء","الرصيد المستحق","المنتجات","للميتا"].map(h=>(
+<th key={h} className={h==="الرصيد المستحق"?"col-credit":undefined} style={{padding:"10px 12px",fontSize:"11px",fontWeight:700,color:"var(--ia-sub)",textAlign:"right",textTransform:"uppercase",letterSpacing:".3px"}}>{h}</th>
 ))}
 </tr></thead>
 <tbody>
@@ -1646,6 +1763,18 @@ className="trow">
 <td style={{padding:"11px 12px",fontWeight:700,color:colTx}}>{fKWD(c.totalSpent)}</td>
 <td style={{padding:"11px 12px",textAlign:"center"}}><span style={{background:"var(--ia-blue-bg)",color:"var(--ia-blue-tx)",borderRadius:"20px",padding:"2px 8px",fontSize:"11px",fontWeight:700}}>{c.count}</span></td>
 <td style={{padding:"11px 12px",color:"var(--ia-sub)",fontSize:"12px"}}>{fDate(c.lastDate)}</td>
+<td className="col-credit" style={{padding:"11px 12px"}}>{(()=>{
+  const out=outstandingOf(invoices,c.phone);
+  const lim=pN(creditMap[norm(c.phone)]||0);
+  const over=lim>0&&out>lim;
+  return(
+  <span style={{fontSize:"12px",fontWeight:800,color:out<=0?"var(--ia-muted)":over?"var(--ia-red-tx)":"var(--ia-warn-tx)"}}>
+    {out>0?fKWD(out):"—"}
+    {lim>0&&<span style={{fontSize:"10px",color:"var(--ia-muted)",fontWeight:600}}> / {fKWD(lim)}</span>}
+    {over&&<span style={{background:"var(--ia-red-bg)",color:"var(--ia-red-tx)",border:"1px solid var(--ia-red-bd)",borderRadius:"20px",padding:"0 7px",fontSize:"10px",fontWeight:800,marginRight:"5px",display:"inline-block"}}>⛔</span>}
+  </span>
+  );
+})()}</td>
 <td style={{padding:"11px 12px",fontSize:"11px",color:"var(--ia-sub)",maxWidth:"160px"}}><div style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.products.join("، ")}</div></td>
 <td style={{padding:"11px 12px"}}><span style={{background:"var(--ia-sky-bg)",color:"var(--ia-sky-tx)",borderRadius:"6px",padding:"2px 8px",fontSize:"11px",fontWeight:700,direction:"ltr",display:"inline-block"}}>+965{c.phone.replace(/^\+?965/,"")}</span></td>
 </tr>
@@ -1665,6 +1794,118 @@ className="trow">
   onRefresh={refreshClients}
   toast_={toast_}
 />
+</div>
+</div>
+);
+}
+
+// ─── KNET payment-link modal (single invoice) ──────────────────────
+function PayLinkModal({ inv, company, onClose, toast_ }) {
+const { dark } = useTheme();
+const remaining = Math.max(0, iT(inv) - pN(inv.paid || 0));
+const [amount, setAmount] = useState(String(remaining.toFixed(3)));
+const [tpl, setTpl] = useState(() => getPayLinkTpl(company?.id));
+const [showCfg, setShowCfg] = useState(false);
+const [copied, setCopied] = useState(false);
+const amt = pN(amount) || 0;
+const link = buildPayLink(tpl, inv, amt);
+const msg = payRequestMessage(inv, company, amt, link);
+const waHref = waHrefWithText(inv.clientPhone, msg);
+const hasPhone = !!norm(inv.clientPhone||"");
+const teal = "#0d9488", tealTx = txAdapt(teal, dark);
+const tealBg = softAdapt("#ccfbf1", dark);
+
+const copyLink = async () => {
+  if (!link) { toast_("لا يوجد رابط دفع مُعد — أضف قالب بوابة الدفع أولاً", "warn"); return; }
+  try { await navigator.clipboard.writeText(link); }
+  catch {
+    const ta = document.createElement("textarea");
+    ta.value = link; document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); } catch {}
+    ta.remove();
+  }
+  setCopied(true); setTimeout(() => setCopied(false), 1800);
+  toast_("📋 تم نسخ رابط الدفع");
+};
+
+const saveTpl = () => {
+  setPayLinkTpl(company?.id, tpl);
+  toast_(tpl.trim() ? "✅ تم حفظ قالب بوابة الدفع" : "🗑️ تم مسح قالب بوابة الدفع");
+};
+
+return(
+<div style={{position:"fixed",inset:0,background:"var(--ia-overlay)",zIndex:2600,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",direction:"rtl"}} onClick={onClose}>
+<div className="card" style={{width:"100%",maxWidth:"480px",overflow:"hidden",display:"flex",flexDirection:"column",animation:"fadeUp .25s"}} onClick={e=>e.stopPropagation()}>
+
+  {/* Header */}
+  <div style={{background:"linear-gradient(135deg,#0f766e,#0d9488)",padding:"16px 20px",display:"flex",alignItems:"center",gap:"12px",flexShrink:0}}>
+    <div style={{width:"42px",height:"42px",background:"rgba(255,255,255,.18)",borderRadius:"12px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"20px"}}>💳</div>
+    <div style={{flex:1,minWidth:0}}>
+      <div style={{color:"#fff",fontWeight:900,fontSize:"15px"}}>رابط الدفع الإلكتروني</div>
+      <div style={{color:"rgba(255,255,255,.8)",fontSize:"12px"}}>فاتورة <b>{inv.invNum}</b> — المتبقي <b>{fKWD(remaining)}</b></div>
+    </div>
+    <button onClick={onClose} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"8px",padding:"6px 12px",color:"#fff",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>✕</button>
+  </div>
+
+  <div style={{overflowY:"auto",flex:1,padding:"16px 20px"}}>
+
+    {/* Amount */}
+    <label style={{fontSize:"11px",color:"var(--ia-sub)",fontWeight:700,display:"block",marginBottom:"5px"}}>💰 المبلغ المطلوب (KD)</label>
+    <div style={{display:"flex",gap:"8px",marginBottom:"14px"}}>
+      <input className="inp" style={{direction:"ltr",textAlign:"right",fontWeight:800,fontSize:"15px"}} type="number" step="0.001" min="0" value={amount} onChange={e=>setAmount(e.target.value)}/>
+      <button className="btn" style={{background:tealBg,color:tealTx,whiteSpace:"nowrap",fontSize:"12px"}} onClick={()=>setAmount(remaining.toFixed(3))} title="إرجاع المبلغ إلى المتبقي الفعلي على الفاتورة">↺ المتبقي</button>
+    </div>
+
+    {/* Generated link */}
+    {link ? (
+      <div style={{marginBottom:"14px"}}>
+        <div style={{fontSize:"11px",color:"var(--ia-sub)",fontWeight:700,marginBottom:"5px"}}>🔗 رابط الدفع الجاهز</div>
+        <div dir="ltr" style={{background:tealBg,border:"1px solid #0d948844",borderRadius:"8px",padding:"10px 12px",fontSize:"11.5px",fontFamily:"monospace",color:tealTx,wordBreak:"break-all",userSelect:"all"}}>{link}</div>
+      </div>
+    ) : (
+      <div style={{background:"var(--ia-warn-bg)",border:"1px solid #fde68a66",borderRadius:"10px",padding:"12px 14px",marginBottom:"14px",fontSize:"12.5px",color:"var(--ia-warn-tx)",lineHeight:1.7}}>
+        <b>⚙️ لم يُضبط رابط بوابة الدفع بعد.</b><br/>
+        أضف قالب رابط بوابة الدفع (KPay / MyFatoorah / kNET…) مرة واحدة، وسيتولّى النظام توليد الروابط تلقائياً لكل فاتورة. يمكنك أيضاً إرسال طلب دفع عبر واتساب بدون رابط.
+        <button className="btn" style={{background:"var(--ia-warn-bg)",border:"1px solid var(--ia-warn-tx)",color:"var(--ia-warn-tx)",fontSize:"11.5px",marginTop:"8px"}} onClick={()=>setShowCfg(true)}>⚙️ إعداد الآن</button>
+      </div>
+    )}
+
+    {/* Gateway template configuration (collapsible) */}
+    {showCfg && (
+      <div style={{background:"var(--ia-soft)",border:"1px dashed var(--ia-border2)",borderRadius:"10px",padding:"12px 14px",marginBottom:"14px"}}>
+        <div style={{fontSize:"12px",fontWeight:900,color:"var(--ia-text)",marginBottom:"4px"}}>⚙️ قالب رابط بوابة الدفع</div>
+        <div style={{fontSize:"11px",color:"var(--ia-sub)",lineHeight:1.7,marginBottom:"8px"}}>
+          الصق رابط بوابة الدفع الخاص بالشركة واستخدم العناصر البديلة:
+          <span dir="ltr" style={{fontFamily:"monospace",color:tealTx}}>{"{amount}"}</span> للمبلغ،
+          <span dir="ltr" style={{fontFamily:"monospace",color:tealTx}}>{"{invoice}"}</span> لرقم الفاتورة.
+        </div>
+        <div style={{display:"flex",gap:"8px"}}>
+          <input className="inp" dir="ltr" style={{fontFamily:"monospace",fontSize:"11.5px"}} placeholder="https://kpay.com.kw/pay/XXXX?amt={amount}" value={tpl} onChange={e=>setTpl(e.target.value)}/>
+          <button className="btn" style={{background:teal,color:"#fff",whiteSpace:"nowrap"}} onClick={saveTpl}>💾 حفظ</button>
+        </div>
+        <div style={{fontSize:"10.5px",color:"var(--ia-muted)",marginTop:"6px"}}>يُحفظ محلياً لهذه الشركة فقط ({company?.nameAr})</div>
+      </div>
+    )}
+    {!showCfg && link && (
+      <button className="btn btn-ghost" style={{fontSize:"11.5px",marginBottom:"14px",padding:"6px 12px"}} onClick={()=>setShowCfg(true)}>⚙️ تعديل قالب بوابة الدفع</button>
+    )}
+
+    {/* WhatsApp preview */}
+    <div style={{background:softAdapt("#dcfce7",dark),border:"1px solid #86efac55",borderRadius:"10px",padding:"11px 14px",fontSize:"12px",color:"var(--ia-text2)",whiteSpace:"pre-wrap",lineHeight:1.8,maxHeight:"170px",overflowY:"auto"}}>
+      <div style={{fontSize:"11px",fontWeight:900,color:txAdapt("#15803d",dark),marginBottom:"4px"}}>📣 معاينة رسالة الطلب (واتساب)</div>
+      {msg}
+    </div>
+  </div>
+
+  {/* Footer actions */}
+  <div style={{padding:"14px 20px",borderTop:"1px solid var(--ia-border)",display:"flex",gap:"8px",flexShrink:0,flexWrap:"wrap"}}>
+    <button className="btn" style={{background:teal,color:"#fff",flex:1,justifyContent:"center"}} onClick={copyLink}>{copied?"✅ تم النسخ":"📋 نسخ رابط الدفع"}</button>
+    {hasPhone && (
+      <a href={waHref} target="_blank" rel="noopener noreferrer" className="btn wa-btn" style={{color:"#fff",textDecoration:"none",flex:1,justifyContent:"center"}}
+        onClick={()=>logReminderSent(inv,company,waHref)}>📣 إرسال واتساب</a>
+    )}
+    <button className="btn btn-ghost" onClick={onClose}>إغلاق</button>
+  </div>
 </div>
 </div>
 );
@@ -1814,6 +2055,7 @@ const [sortKey,setSortKey]=useState("date_desc");
 const [clients,setClients]=useState([]);
 const [invLoading,setInvLoading]=useState(false);
 const [showBulkWa,setShowBulkWa]=useState(false); // bulk WhatsApp reminders modal
+const [payLinkInv,setPayLinkInv]=useState(null); // KNET payment-link modal invoice
 const { dark, toggle } = useTheme();   // light/dark theme (hooks must run before early returns)
 
 const emptyForm=()=>({clientName:"",clientPhone:"",clientAddress:"",items:[{name:"",desc:"",qty:1,price:""}],shipping:0,date:today(),dueDate:addD(today(),30),paid:0,notes:""});
@@ -2081,7 +2323,7 @@ const cardBg = softAdapt(company.cardBg, dark); // soft tinted surface (KPI/summ
 
 return(
 <div dir="rtl" style={{minHeight:"100vh",background:"var(--ia-bg)",fontFamily:"'Cairo','Tajawal',sans-serif",color:"var(--ia-text)",display:"flex",flexDirection:"column"}}>
-<style>{`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap'); *{box-sizing:border-box} .inp{width:100%;border:1.5px solid var(--ia-border2);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:13px;background:var(--ia-inp-bg);color:var(--ia-text);outline:none;transition:border .15s,box-shadow .15s} .inp:focus{border-color:${col};box-shadow:0 0 0 3px ${col}1a} .inp:hover{border-color:var(--ia-muted)} .inp::placeholder{color:var(--ia-muted)} .btn{border:none;border-radius:8px;padding:9px 16px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap} .btn:hover{filter:brightness(1.06);box-shadow:0 2px 10px rgba(0,0,0,.12)} .btn:active{opacity:.85;transform:scale(.97)} .btn-ghost{background:var(--ia-ghost-bg);color:var(--ia-ghost-tx)} .btn-outline{background:transparent;border:1.5px solid var(--ia-border2);color:var(--ia-text2)} .btn-outline:hover{border-color:${col};color:${colTx}} .btn-red{background:#dc2626;color:#fff} .card{background:var(--ia-card);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);border:1px solid var(--ia-border)} [data-theme="dark"] .card{box-shadow:0 1px 3px rgba(0,0,0,.35)} .trow{transition:background .12s} .trow:hover,.trow:active{background:var(--ia-hover);cursor:pointer} .inv-table tbody tr:last-child td{border-bottom:none} .b-paid{background:var(--ia-ok-bg);color:var(--ia-ok-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-paid::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-ok-tx);margin-left:5px;vertical-align:middle} .b-part{background:var(--ia-warn-bg);color:var(--ia-warn-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-part::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-warn-tx);margin-left:5px;vertical-align:middle} .b-unp{background:var(--ia-red-bg);color:var(--ia-red-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-unp::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-red-tx);margin-left:5px;vertical-align:middle} .b-cancel{background:var(--ia-chip);color:var(--ia-sub);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;text-decoration:line-through} .b-inv{background:var(--ia-blue-bg);color:var(--ia-blue-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;letter-spacing:.3px} @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}} @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}} .navbar{background:${col};position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,.25)} .navbar-top{display:flex;align-items:center;padding:0 12px;height:48px;gap:6px} .navbar-tabs{display:flex;overflow-x:auto;padding:4px 12px 6px;gap:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none} .navbar-tabs::-webkit-scrollbar{display:none} .aliphia-btn{background:#0f766e;} .nav-tab{background:transparent;color:rgba(255,255,255,.7);border:1px solid transparent;border-radius:6px;padding:5px 11px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s} .nav-tab:hover{color:#fff;background:rgba(255,255,255,.08)} .nav-tab.active{background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.25)} .nav-tab:active{background:rgba(255,255,255,.2)} .inv-table{width:100%;border-collapse:collapse} .inv-table th{padding:10px 10px;font-size:11px;font-weight:700;color:var(--ia-sub);text-align:right;text-transform:uppercase;letter-spacing:.3px} .inv-table td{padding:10px 10px;border-bottom:1px solid var(--ia-border3);font-size:13px} .col-addr,.col-date,.col-phone{display:none} @media(min-width:500px){.col-phone{display:table-cell}} @media(min-width:680px){.col-date{display:table-cell}} .form-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px} .form-3col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px} .item-row{display:grid;grid-template-columns:2fr 65px 110px auto;gap:7px;margin-bottom:7px;align-items:center} @media(max-width:500px){.form-2col{grid-template-columns:1fr}.form-3col{grid-template-columns:1fr 1fr}.item-row{grid-template-columns:1fr 55px 90px auto}} .kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px} .kpi-grid>div{transition:transform .18s,box-shadow .18s} .kpi-grid>div:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.08)} @media(min-width:600px){.kpi-grid{grid-template-columns:repeat(4,1fr)}} .chart-grid{display:grid;grid-template-columns:1fr;gap:12px} @media(min-width:680px){.chart-grid{grid-template-columns:1.7fr 1fr}} .print-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end} @media(max-width:480px){.print-grid{grid-template-columns:1fr 1fr;} .print-grid .print-btn{grid-column:1/-1}} .cust-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px} @media(max-width:480px){.cust-stats{grid-template-columns:1fr}} .aliphia-btn{background:linear-gradient(135deg,#0f766e,#0d9488)!important;border:none;box-shadow:0 2px 8px rgba(15,118,110,.3);transition:all .2s!important} .aliphia-btn:hover{box-shadow:0 4px 14px rgba(15,118,110,.45)!important;transform:translateY(-1px)} ::-webkit-scrollbar{width:9px;height:9px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:var(--ia-border2);border-radius:8px;border:2px solid var(--ia-bg)} ::-webkit-scrollbar-thumb:hover{background:var(--ia-muted)} .sk{position:relative;overflow:hidden;background:var(--ia-skel);border-radius:6px} .sk::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.65),transparent);animation:shimmer 1.4s infinite} [data-theme="dark"] .sk::after{background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent)} @keyframes shimmer{100%{transform:translateX(100%)}} .sk-sm{height:11px} .sk-lg{height:22px} .btn:focus-visible,.inp:focus-visible{outline:2.5px solid ${col};outline-offset:2px} .nav-tab:focus-visible{outline:2.5px solid #fff;outline-offset:1px} .wa-btn{background:#16a34a!important;transition:all .18s!important} .wa-btn:hover{background:#15803d!important;box-shadow:0 4px 14px rgba(22,163,74,.4)!important;transform:translateY(-1px)} select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:left 10px center;padding-left:26px} .chart-grid>div{transition:box-shadow .18s} .chart-grid>div:hover{box-shadow:0 4px 16px rgba(0,0,0,.06)} [data-theme="dark"] .chart-grid>div:hover{box-shadow:0 4px 16px rgba(0,0,0,.4)} [data-theme="dark"] .kpi-grid>div:hover{box-shadow:0 6px 18px rgba(0,0,0,.45)} [data-theme="dark"] .btn:hover{filter:brightness(1.15)}`}</style>
+<style>{`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap'); *{box-sizing:border-box} .inp{width:100%;border:1.5px solid var(--ia-border2);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:13px;background:var(--ia-inp-bg);color:var(--ia-text);outline:none;transition:border .15s,box-shadow .15s} .inp:focus{border-color:${col};box-shadow:0 0 0 3px ${col}1a} .inp:hover{border-color:var(--ia-muted)} .inp::placeholder{color:var(--ia-muted)} .btn{border:none;border-radius:8px;padding:9px 16px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap} .btn:hover{filter:brightness(1.06);box-shadow:0 2px 10px rgba(0,0,0,.12)} .btn:active{opacity:.85;transform:scale(.97)} .btn-ghost{background:var(--ia-ghost-bg);color:var(--ia-ghost-tx)} .btn-outline{background:transparent;border:1.5px solid var(--ia-border2);color:var(--ia-text2)} .btn-outline:hover{border-color:${col};color:${colTx}} .btn-red{background:#dc2626;color:#fff} .card{background:var(--ia-card);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);border:1px solid var(--ia-border)} [data-theme="dark"] .card{box-shadow:0 1px 3px rgba(0,0,0,.35)} .trow{transition:background .12s} .trow:hover,.trow:active{background:var(--ia-hover);cursor:pointer} .inv-table tbody tr:last-child td{border-bottom:none} .b-paid{background:var(--ia-ok-bg);color:var(--ia-ok-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-paid::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-ok-tx);margin-left:5px;vertical-align:middle} .b-part{background:var(--ia-warn-bg);color:var(--ia-warn-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-part::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-warn-tx);margin-left:5px;vertical-align:middle} .b-unp{background:var(--ia-red-bg);color:var(--ia-red-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-unp::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-red-tx);margin-left:5px;vertical-align:middle} .b-cancel{background:var(--ia-chip);color:var(--ia-sub);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;text-decoration:line-through} .b-inv{background:var(--ia-blue-bg);color:var(--ia-blue-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;letter-spacing:.3px} @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}} @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}} .navbar{background:${col};position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,.25)} .navbar-top{display:flex;align-items:center;padding:0 12px;height:48px;gap:6px} .navbar-tabs{display:flex;overflow-x:auto;padding:4px 12px 6px;gap:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none} .navbar-tabs::-webkit-scrollbar{display:none} .aliphia-btn{background:#0f766e;} .nav-tab{background:transparent;color:rgba(255,255,255,.7);border:1px solid transparent;border-radius:6px;padding:5px 11px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s} .nav-tab:hover{color:#fff;background:rgba(255,255,255,.08)} .nav-tab.active{background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.25)} .nav-tab:active{background:rgba(255,255,255,.2)} .inv-table{width:100%;border-collapse:collapse} .inv-table th{padding:10px 10px;font-size:11px;font-weight:700;color:var(--ia-sub);text-align:right;text-transform:uppercase;letter-spacing:.3px} .inv-table td{padding:10px 10px;border-bottom:1px solid var(--ia-border3);font-size:13px} .col-addr,.col-date,.col-phone,.col-credit{display:none} @media(min-width:500px){.col-phone{display:table-cell}} @media(min-width:680px){.col-date{display:table-cell}.col-credit{display:table-cell}} .form-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px} .form-3col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px} .item-row{display:grid;grid-template-columns:2fr 65px 110px auto;gap:7px;margin-bottom:7px;align-items:center} @media(max-width:500px){.form-2col{grid-template-columns:1fr}.form-3col{grid-template-columns:1fr 1fr}.item-row{grid-template-columns:1fr 55px 90px auto}} .kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px} .kpi-grid>div{transition:transform .18s,box-shadow .18s} .kpi-grid>div:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.08)} @media(min-width:600px){.kpi-grid{grid-template-columns:repeat(4,1fr)}} .chart-grid{display:grid;grid-template-columns:1fr;gap:12px} @media(min-width:680px){.chart-grid{grid-template-columns:1.7fr 1fr}} .print-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end} @media(max-width:480px){.print-grid{grid-template-columns:1fr 1fr;} .print-grid .print-btn{grid-column:1/-1}} .cust-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px} @media(max-width:480px){.cust-stats{grid-template-columns:1fr}} .aliphia-btn{background:linear-gradient(135deg,#0f766e,#0d9488)!important;border:none;box-shadow:0 2px 8px rgba(15,118,110,.3);transition:all .2s!important} .aliphia-btn:hover{box-shadow:0 4px 14px rgba(15,118,110,.45)!important;transform:translateY(-1px)} ::-webkit-scrollbar{width:9px;height:9px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:var(--ia-border2);border-radius:8px;border:2px solid var(--ia-bg)} ::-webkit-scrollbar-thumb:hover{background:var(--ia-muted)} .sk{position:relative;overflow:hidden;background:var(--ia-skel);border-radius:6px} .sk::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.65),transparent);animation:shimmer 1.4s infinite} [data-theme="dark"] .sk::after{background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent)} @keyframes shimmer{100%{transform:translateX(100%)}} .sk-sm{height:11px} .sk-lg{height:22px} .btn:focus-visible,.inp:focus-visible{outline:2.5px solid ${col};outline-offset:2px} .nav-tab:focus-visible{outline:2.5px solid #fff;outline-offset:1px} .wa-btn{background:#16a34a!important;transition:all .18s!important} .wa-btn:hover{background:#15803d!important;box-shadow:0 4px 14px rgba(22,163,74,.4)!important;transform:translateY(-1px)} select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:left 10px center;padding-left:26px} .chart-grid>div{transition:box-shadow .18s} .chart-grid>div:hover{box-shadow:0 4px 16px rgba(0,0,0,.06)} [data-theme="dark"] .chart-grid>div:hover{box-shadow:0 4px 16px rgba(0,0,0,.4)} [data-theme="dark"] .kpi-grid>div:hover{box-shadow:0 6px 18px rgba(0,0,0,.45)} [data-theme="dark"] .btn:hover{filter:brightness(1.15)}`}</style>
 
   {/* Admin Dashboard Modal */}
   {showAdmin&&<AdminDashboard onClose={()=>setShowAdmin(false)}/>}
@@ -2132,6 +2374,16 @@ return(
       overdue={overdueList}
       company={company}
       onClose={()=>setShowBulkWa(false)}
+      toast_={toast_}
+    />
+  )}
+
+  {/* KNET payment-link modal */}
+  {payLinkInv&&(
+    <PayLinkModal
+      inv={payLinkInv}
+      company={company}
+      onClose={()=>setPayLinkInv(null)}
       toast_={toast_}
     />
   )}
@@ -2386,6 +2638,13 @@ return(
               </a>
             ):null;
           })()}
+          {iT(selInv)-pN(selInv.paid||0)>0&&(
+            <button className="btn" title="توليد رابط دفع إلكتروني (كي نت) وإرساله للعميل"
+              style={{background:"#0d9488",color:"#fff"}}
+              onClick={()=>setPayLinkInv(selInv)}>
+              💳 رابط الدفع
+            </button>
+          )}
           {overdueDays(selInv)>0&&(
             <span style={{fontSize:"12px",fontWeight:800,color:"var(--ia-red-tx)",background:"var(--ia-red-bg)",border:"1px solid var(--ia-red-bd)",borderRadius:"20px",padding:"5px 14px"}}>⏰ متأخرة {overdueDays(selInv)} يوم عن الاستحقاق</span>
           )}
@@ -2455,6 +2714,25 @@ return(
             <span>المجموع: <b>{fKWD(sub)}</b></span>{ship>0&&<span>التوصيل: <b>{fKWD(ship)}</b></span>}
             <span style={{fontWeight:900,color:colTx}}>الإجمالي: <b>{fKWD(tot)}</b></span>
           </div>);})()}
+        {/* Live credit-limit warning for the entered client phone */}
+        {(()=>{const ph=norm(form.clientPhone||"");
+          if(!ph)return null;
+          const lim=pN(loadCreditMap(company.id)[ph]||0);
+          if(lim<=0)return null;
+          const out=outstandingOf(invoices,ph);
+          const sub=form.items.reduce((s,it)=>s+(parseInt(toW(it.qty))||1)*pN(it.price),0)+pN(form.shipping);
+          const tot=out+sub;
+          const pct=tot/lim*100;
+          if(pct<80)return null;
+          const over=tot>lim;
+          return(
+          <div role="alert" style={{background:over?"var(--ia-red-bg)":"var(--ia-warn-bg)",border:`1.5px solid ${over?"var(--ia-red-bd)":"#fde68a66"}`,borderRadius:"10px",padding:"11px 15px",marginBottom:"14px",fontSize:"12.5px",fontWeight:700,lineHeight:1.8,color:over?"var(--ia-red-tx)":"var(--ia-warn-tx)"}}>
+            {over
+              ?`⛔ تجاوز حد الائتمان — الرصيد الحالي ${fKWD(out)} + هذه الفاتورة ${fKWD(sub)} = ${fKWD(tot)} (الحد ${fKWD(lim)}) بفارق ${fKWD(tot-lim)}. يُنصح بالتحصيل أولاً.`
+              :`⚠️ اقتراب من حد الائتمان — ${fKWD(tot)} من ${fKWD(lim)} (${pct.toFixed(0)}%) بعد إضافة هذه الفاتورة.`}
+          </div>
+          );
+        })()}
         <div style={{display:"flex",gap:"8px"}}>
           <button className="btn" style={{background:"#16a34a",color:"#fff",flex:1,fontSize:"14px",padding:"11px"}} onClick={saveInvoice}>💾 حفظ الفاتورة</button>
           <button className="btn btn-ghost" onClick={()=>{setForm(emptyForm());setView("list");}}>إلغاء</button>

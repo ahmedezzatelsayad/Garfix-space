@@ -272,3 +272,37 @@ Unresolved issues / risks / next-phase priorities:
 - Reminders activity strip is company-wide (not period-scoped) — the period selector doesn't filter it yet (aging IS period-scoped via `scoped` invoices).
 - Auth still localStorage-only (demo-grade; NextAuth remains the production gap).
 - Next-phase ideas: KNET payment links, server-side dashboard/report aggregation endpoints, client merge/dedupe tool, scheduled reminder automation (cron), statement WhatsApp send (statement PDF + wa.me), purchase-invoice PDF export, multi-currency, per-client credit limit warnings.
+
+---
+Task ID: r8 (cron webDevReview round 8 — 2026-09-13)
+Agent: main (Z.ai Code)
+Task: Scheduled QA round + 3 new features (purchase-invoice PDF export, KNET payment-link generator, client credit limits & warnings)
+
+Work Log:
+- Read full worklog (r1–r7 history). State check: pdf-service healthy (fonts inlined), Next healthz ok, dev.log clean — the only ReferenceError visible in dev.log was the historical r7 TDZ error (already fixed; verified the useEffect sits after the `company` derivation in current code, followed by 200s). Lint 0.
+- QA smoke via agent-browser (named session r8-qa): login (real-keystroke workaround for React value-tracker quirk — `fill` alone doesn't fire onChange) → company selector → Tawfeer → ALL tabs click-through (dashboard/invoices/customers/reports/bulk/AI/print/purchases + invoice detail view) — ZERO console errors; dark toggle ok; mobile 390px no overflow. Judged stable → new features.
+- New feature 1 — 📦 PURCHASE-INVOICE PDF EXPORT (the last document type without PDF):
+  * PurchasesTab.jsx: refactored `printPurchaseInvoice` into pure `buildPurchaseHTML(pi, company)` (returns HTML string) + thin print wrapper; font switched Cairo→Tajawal link + `'Tajawal','Cairo',Arial` stack so pdf-service inlines it deterministically (matches invoice/statement docs); new `exportPurchasePdf()` (blob download via api.exportPdf, busy state, toasts) + red "📄 PDF" button next to 🖨️ طباعة in each purchase row (disabled/⏳ while busy).
+  * E2E: clicked 📄 on PUR-AI-97910 → POST /api/pdf 200 (570ms) → فاتورة_مشتريات_PUR-AI-979107.pdf (49KB) downloaded; pdftotext confirms full Arabic doc (فاتورة مشتريات، توفير اونلاين شوب، 12/09/2026، 4 منتج، 20 قطعة...). Print window verified via window.open patch (fires exactly once).
+- New feature 2 — 💳 KNET PAYMENT-LINK GENERATOR (r8's top next-phase idea):
+  * Module helpers: `getPayLinkTpl/setPayLinkTpl` (localStorage `tw_paylink_{companyId}`), `buildPayLink` (placeholders {amount}/{invoice}/{phone}), `payRequestMessage` (Arabic payment-request text), `waHrefWithText`.
+  * New `PayLinkModal` component: teal-gradient header with inv# + remaining; editable amount with "↺ المتبقي" reset; generated-link box (monospace, user-select:all) when template configured; amber onboarding card with "⚙️ إعداد الآن" when not; collapsible gateway-template editor (monospace ltr input, placeholder docs, per-company persistence note); green WhatsApp message preview; footer: 📋 نسخ رابط الدفع (clipboard + execCommand fallback, ✅ state), 📣 إرسال واتساب (logs to reminder audit via logReminderSent), إغلاق.
+  * Wired: teal "💳 رابط الدفع" button in invoice-detail toolbar (only when remaining > 0), state `payLinkInv`.
+  * E2E: opened on INV10010 (المتبقي 6.000 KD) → configured template `https://kpay.com.kw/pay/TWF123?amt={amount}&ref={invoice}` → saved (localStorage verified) → generated link `...amt=6&ref=INV10010` → WA message contains full payment request incl. the link → copy button flips to "✅ تم النسخ". VLM read back all elements correctly in dark mode. Test template cleaned afterward.
+- New feature 3 — 💳 CLIENT CREDIT LIMITS & WARNINGS (credit control):
+  * Module helpers: `loadCreditMap/saveCreditMap` (localStorage `tw_credit_{companyId}` → {phone: limitKD}), `outstandingOf(invoices, phone)` (sum of non-cancelled remaining, phone-normalized).
+  * Customers component: render-time state sync pattern (lint-clean, mirrors `company` derivation) for creditMap + per-customer input buffer; customer-detail modal gained a "💳 حد الائتمان" card: outstanding/limit figures, color-coded utilization bar (green<50/yellow<80/orange<100/red≥100 with width+color transitions), status chip (🟢 ضمن الحد الآمن / 🟡 استهلاك متوسط / 🔴 قارب استنفاد / ⛔ تجاوز الحد بمقدار X), limit input + 💾 حفظ الحد + 📦 إزالة.
+  * Customers table: new "الرصيد المستحق" column (class `col-credit`, hidden <680px like col-date) showing outstanding / limit + ⛔ chip when over; stats grid gained conditional 4th card "متجاوزو حد الائتمان" (auto-fit layout when present).
+  * New-invoice form: live `role=alert` banner (amber ≥80% / red over-limit) computing existing outstanding + current form total vs the entered phone's limit.
+  * E2E: set limit 15.000 for خالد المطيري (outstanding 20.000) → chip "⛔ تجاوز الحد بمقدار 5.000 KD", bar 100% red (VLM: 9/10 polish) → table cell "20.000 KD / 15.000 KD⛔" → stat card "متجاوزو حد الائتمان 1 عميل" → new-form phone 94422110 → banner "⛔ تجاوز حد الائتمان — الرصيد الحالي 20.000 KD + هذه الفاتورة 0.000 KD = 20.000 KD (الحد 15.000 KD) بفارق 5.000 KD…". Test localStorage key cleaned.
+- Final regression: all 8 tabs zero console errors (light+dark); mobile 390px no horizontal overflow; credit column correctly display:none at 390px; `bun run lint` 0 problems; dev.log 200-only; DB verified at documented state (10 Tawfeer invoices/14 total, 0 clients, 0 payments, 0 reminders, 1 purchase demo, 6 catalog).
+
+Stage Summary:
+- Round 8 complete: every document type in the system is now exportable to PDF (sales invoices, statements since r6/r7, purchase invoices now); collections gained a KNET payment-link generator (per-company gateway template with {amount}/{invoice} placeholders, WhatsApp payment request + audit log); and the system gained real credit-control (per-client limits with utilization bar, over-limit chips in directory/table, live warning banner on new-invoice creation). All E2E-verified with zero console errors; localStorage + DB left at clean documented state; lint clean.
+
+Unresolved issues / risks / next-phase priorities:
+- Pay-link template is per-browser localStorage (per company) — not synced to DB/backend; a settings model in Prisma would make it company-wide across devices.
+- Credit limits likewise localStorage-only, keyed by normalized phone (same multi-spelling caveat as statement aggregation); no hard block on invoice save (warning-only by design).
+- PayLinkModal logs a reminder on WA send — a dedicated "payment_request" channel value could distinguish requests from reminders in the audit log (channel whitelist currently whatsapp|call|manual).
+- Auth still localStorage-only (NextAuth remains the production gap). pdf-service must be re-started after sandbox restart (`cd mini-services/pdf-service && bun run dev`, port 3040).
+- Next-phase ideas: server-side dashboard/report aggregation endpoints, client merge/dedupe tool, scheduled reminder automation (cron + reminder log), multi-currency, per-client statement WhatsApp send, KNET payment-link per-company persisted in DB, credit-limit hard-block option for non-admin roles.
