@@ -120,3 +120,75 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   Invoice App theme — light + dark (used by components/invoice-app)
+   Light values are the original hardcoded colors (pixel-identical).
+   Switching: <html data-theme="dark"> (set by theme.js / layout script).
+   ═══════════════════════════════════════════════════════════════ */
+:root {
+  --ia-bg: #f3f4f6;          /* page background */
+  --ia-card: #ffffff;        /* card surface */
+  --ia-thead: #f8fafc;       /* table header / soft box */
+  --ia-soft: #f8fafc;        /* soft info box */
+  --ia-row-alt: #fafafa;     /* zebra table row */
+  --ia-chip: #f3f4f6;        /* count chip / neutral pill */
+  --ia-text: #111827;        /* primary text */
+  --ia-text2: #374151;       /* strong secondary text */
+  --ia-sub: #6b7280;         /* secondary text */
+  --ia-muted: #9ca3af;       /* muted text */
+  --ia-border: #e5e7eb;      /* light border */
+  --ia-border2: #d1d5db;     /* stronger border (inputs) */
+  --ia-border3: #f3f4f6;     /* faint row separator */
+  --ia-hover: #f0f4ff;       /* row hover */
+  --ia-ghost-bg: #e5e7eb;    /* btn-ghost background */
+  --ia-ghost-tx: #374151;    /* btn-ghost text */
+  --ia-inp-bg: #ffffff;      /* input background */
+  --ia-skel: #e5e7eb;        /* skeleton shimmer base */
+  --ia-overlay: rgba(0, 0, 0, .55);   /* modal overlay */
+  --ia-link: #2563eb;        /* phone link */
+  --ia-ok-bg: #dcfce7;   --ia-ok-tx: #15803d;  --ia-ok-tx2: #166534;
+  --ia-warn-bg: #fef3c7; --ia-warn-tx: #b45309; --ia-warn-tx2: #92400e; --ia-warn-bd: #fde68a;
+  --ia-red-bg: #fee2e2;  --ia-red-tx: #b91c1c; --ia-red-bd: #fecaca;
+  --ia-blue-bg: #dbeafe; --ia-blue-tx: #1d4ed8; --ia-blue-tx2: #1e40af; --ia-blue-bd: #93c5fd44;
+  --ia-vio-bg: #ede9fe;  --ia-vio-tx: #7c3aed; --ia-vio-bd: #ddd6fe;
+  --ia-teal-bg: #ccfbf1; --ia-teal-tx: #0f766e;
+  --ia-sky-bg: #f0f9ff;  --ia-sky-tx: #0369a1; --ia-sky-tx2: #0c4a6e; --ia-sky-bd: #bae6fd;
+  --ia-green-bd: #86efac44;
+  color-scheme: light;
+}
+[data-theme="dark"] {
+  --ia-bg: #0f1420;
+  --ia-card: #1a2130;
+  --ia-thead: #161d2b;
+  --ia-soft: #1f2736;
+  --ia-row-alt: #202839;
+  --ia-chip: #263044;
+  --ia-text: #eef2f9;
+  --ia-text2: #dfe6f1;
+  --ia-sub: #9aa7bd;
+  --ia-muted: #6b7793;
+  --ia-border: #273042;
+  --ia-border2: #39445e;
+  --ia-border3: #232c3e;
+  --ia-hover: #243048;
+  --ia-ghost-bg: #273042;
+  --ia-ghost-tx: #dfe6f1;
+  --ia-inp-bg: #121826;
+  --ia-skel: #232c3e;
+  --ia-overlay: rgba(2, 6, 16, .72);
+  --ia-link: #93c5fd;
+  --ia-ok-bg: #16a34a1f;   --ia-ok-tx: #4ade80;  --ia-ok-tx2: #86efac;
+  --ia-warn-bg: #d977061f; --ia-warn-tx: #fbbf24; --ia-warn-tx2: #fcd34d; --ia-warn-bd: #b4530966;
+  --ia-red-bg: #dc26261f;  --ia-red-tx: #f87171; --ia-red-bd: #dc262666;
+  --ia-blue-bg: #1d4ed81f; --ia-blue-tx: #93c5fd; --ia-blue-tx2: #bfdbfe; --ia-blue-bd: #1d4ed866;
+  --ia-vio-bg: #7c3aed1f;  --ia-vio-tx: #c4b5fd; --ia-vio-bd: #7c3aed66;
+  --ia-teal-bg: #0f766e1f; --ia-teal-tx: #5eead4;
+  --ia-sky-bg: #0c4a6e40;  --ia-sky-tx: #7dd3fc; --ia-sky-tx2: #bae6fd; --ia-sky-bd: #0369a166;
+  --ia-green-bd: #16a34a55;
+  color-scheme: dark;
+}
+/* dark-mode arrow for custom select.inp (stroke color only) */
+[data-theme="dark"] select.inp {
+  background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239aa7bd' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+}

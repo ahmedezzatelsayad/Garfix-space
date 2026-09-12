@@ -35,9 +35,9 @@ const ROLE_PERM_PRESETS: Record<string, Record<string, number>> = {
 };
 
 const ROLES = [
-  { value:"viewer",   label:"عرض فقط 👁️",      desc:"يشوف الفواتير والعملاء فقط",    color:"#b45309" },
-  { value:"employee", label:"موظف طلبات 👤",    desc:"صلاحيات مخصصة قابلة للتعديل",  color:"#7c3aed" },
-  { value:"editor",   label:"وصول كامل ✏️",     desc:"إنشاء وتعديل وحذف وتصدير",     color:"#15803d" },
+  { value:"viewer",   label:"عرض فقط 👁️",      desc:"يشوف الفواتير والعملاء فقط",    color:"var(--ia-warn-tx)" },
+  { value:"employee", label:"موظف طلبات 👤",    desc:"صلاحيات مخصصة قابلة للتعديل",  color:"var(--ia-vio-tx)" },
+  { value:"editor",   label:"وصول كامل ✏️",     desc:"إنشاء وتعديل وحذف وتصدير",     color:"var(--ia-ok-tx)" },
 ];
 
 interface CreateUserModalProps {
@@ -102,7 +102,7 @@ export default function CreateUserModal({ onClose, onCreated }: CreateUserModalP
       fontFamily:"'Cairo','Tajawal',sans-serif",direction:"rtl",
     }} onClick={onClose}>
       <div style={{
-        background:"#fff",borderRadius:"18px",width:"100%",maxWidth:"560px",
+        background:"var(--ia-card)",borderRadius:"18px",width:"100%",maxWidth:"560px",
         maxHeight:"92vh",overflow:"hidden",display:"flex",flexDirection:"column",
         boxShadow:"0 24px 64px rgba(0,0,0,.35)",
       }} onClick={e=>e.stopPropagation()}>
@@ -130,7 +130,7 @@ export default function CreateUserModal({ onClose, onCreated }: CreateUserModalP
               <label style={lbl}>كلمة المرور *</label>
               <div style={{position:"relative"}}>
                 <input style={{...inp,paddingLeft:"40px"}} type={showPass?"text":"password"} placeholder="6 أحرف على الأقل" value={form.password} onChange={e=>{setForm(f=>({...f,password:e.target.value}));setErr("");}}/>
-                <span onClick={()=>setShowPass(p=>!p)} style={{position:"absolute",left:"12px",top:"50%",transform:"translateY(-50%)",cursor:"pointer",fontSize:"15px",color:"#9ca3af"}}>{showPass?"🙈":"👁️"}</span>
+                <span onClick={()=>setShowPass(p=>!p)} style={{position:"absolute",left:"12px",top:"50%",transform:"translateY(-50%)",cursor:"pointer",fontSize:"15px",color:"var(--ia-muted)"}}>{showPass?"🙈":"👁️"}</span>
               </div>
             </div>
 
@@ -140,19 +140,19 @@ export default function CreateUserModal({ onClose, onCreated }: CreateUserModalP
                 {ALL_COMPANIES.map((id: string)=>{
                   const active=form.companies.includes(id);
                   return(
-                    <div key={id} onClick={()=>toggleCompany(id)} style={{border:`2px solid ${active?"#1e3a5f":"#e5e7eb"}`,borderRadius:"10px",padding:"9px 12px",cursor:"pointer",background:active?"#eff6ff":"#fafafa",transition:"all .15s",display:"flex",alignItems:"center",gap:"8px"}}>
-                      <div style={{width:"16px",height:"16px",borderRadius:"4px",border:`2px solid ${active?"#1e3a5f":"#d1d5db"}`,background:active?"#1e3a5f":"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                    <div key={id} onClick={()=>toggleCompany(id)} style={{border:`2px solid `,borderRadius:"10px",padding:"9px 12px",cursor:"pointer",background:active?"var(--ia-blue-bg)":"var(--ia-row-alt)",transition:"all .15s",display:"flex",alignItems:"center",gap:"8px"}}>
+                      <div style={{width:"16px",height:"16px",borderRadius:"4px",border:`2px solid `,background:active?"#1e3a5f":"var(--ia-card)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
                         {active&&<span style={{color:"#fff",fontSize:"10px",fontWeight:900}}>✓</span>}
                       </div>
-                      <span style={{fontSize:"12px",fontWeight:active?700:400,color:active?"#1e3a5f":"#374151"}}>{COMPANY_LABELS[id]}</span>
+                      <span style={{fontSize:"12px",fontWeight:active?700:400,color:active?"var(--ia-blue-tx)":"var(--ia-text2)"}}>{COMPANY_LABELS[id]}</span>
                     </div>
                   );
                 })}
               </div>
               <div style={{marginTop:"6px",display:"flex",gap:"8px"}}>
-                <button onClick={()=>setForm(f=>({...f,companies:ALL_COMPANIES}))} style={{fontSize:"11px",color:"#2563eb",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:0}}>تحديد الكل</button>
-                <span style={{color:"#d1d5db"}}>|</span>
-                <button onClick={()=>setForm(f=>({...f,companies:[]}))} style={{fontSize:"11px",color:"#dc2626",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:0}}>إلغاء الكل</button>
+                <button onClick={()=>setForm(f=>({...f,companies:ALL_COMPANIES}))} style={{fontSize:"11px",color:"var(--ia-link)",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:0}}>تحديد الكل</button>
+                <span style={{color:"var(--ia-muted)"}}>|</span>
+                <button onClick={()=>setForm(f=>({...f,companies:[]}))} style={{fontSize:"11px",color:"var(--ia-red-tx)",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:0}}>إلغاء الكل</button>
               </div>
             </div>
 
@@ -162,9 +162,9 @@ export default function CreateUserModal({ onClose, onCreated }: CreateUserModalP
                 {ROLES.map(r=>{
                   const active=form.role===r.value;
                   return(
-                    <div key={r.value} onClick={()=>setRole(r.value)} style={{border:`2px solid ${active?r.color:"#e5e7eb"}`,borderRadius:"10px",padding:"11px 10px",cursor:"pointer",background:active?r.color+"12":"#fafafa",transition:"all .15s"}}>
-                      <div style={{fontWeight:700,fontSize:"12px",color:active?r.color:"#374151",marginBottom:"3px"}}>{r.label}</div>
-                      <div style={{fontSize:"10px",color:"#9ca3af",lineHeight:1.4}}>{r.desc}</div>
+                    <div key={r.value} onClick={()=>setRole(r.value)} style={{border:`2px solid `,borderRadius:"10px",padding:"11px 10px",cursor:"pointer",background:active?r.color+"12":"var(--ia-row-alt)",transition:"all .15s"}}>
+                      <div style={{fontWeight:700,fontSize:"12px",color:active?r.color:"var(--ia-text2)",marginBottom:"3px"}}>{r.label}</div>
+                      <div style={{fontSize:"10px",color:"var(--ia-muted)",lineHeight:1.4}}>{r.desc}</div>
                     </div>
                   );
                 })}
@@ -172,32 +172,32 @@ export default function CreateUserModal({ onClose, onCreated }: CreateUserModalP
             </div>
 
             {form.role==="employee"&&(
-              <div style={{background:"#faf5ff",borderRadius:"12px",padding:"14px",border:"1.5px solid #ddd6fe"}}>
-                <div style={{fontSize:"11px",fontWeight:800,color:"#7c3aed",letterSpacing:".5px",textTransform:"uppercase",marginBottom:"10px"}}>⚙️ الصلاحيات التفصيلية</div>
+              <div style={{background:"var(--ia-vio-bg)",borderRadius:"12px",padding:"14px",border:"1.5px solid var(--ia-vio-bd)"}}>
+                <div style={{fontSize:"11px",fontWeight:800,color:"var(--ia-vio-tx)",letterSpacing:".5px",textTransform:"uppercase",marginBottom:"10px"}}>⚙️ الصلاحيات التفصيلية</div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"6px"}}>
                   {PERM_LIST.map(p=>{
                     const active=!!form.permissions[p.key];
                     return(
-                      <div key={p.key} onClick={()=>togglePerm(p.key)} style={{display:"flex",alignItems:"center",gap:"8px",padding:"7px 10px",borderRadius:"8px",cursor:"pointer",background:active?"#ede9fe":"#fff",border:`1.5px solid ${active?"#7c3aed":"#e5e7eb"}`,transition:"all .12s"}}>
-                        <div style={{width:"16px",height:"16px",borderRadius:"4px",border:`2px solid ${active?"#7c3aed":"#d1d5db"}`,background:active?"#7c3aed":"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                      <div key={p.key} onClick={()=>togglePerm(p.key)} style={{display:"flex",alignItems:"center",gap:"8px",padding:"7px 10px",borderRadius:"8px",cursor:"pointer",background:active?"var(--ia-vio-bg)":"var(--ia-card)",border:`1.5px solid `,transition:"all .12s"}}>
+                        <div style={{width:"16px",height:"16px",borderRadius:"4px",border:`2px solid `,background:active?"#7c3aed":"var(--ia-card)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
                           {active&&<span style={{color:"#fff",fontSize:"10px",fontWeight:900}}>✓</span>}
                         </div>
-                        <span style={{fontSize:"11.5px",fontWeight:active?700:400,color:active?"#5b21b6":"#6b7280"}}>{p.icon} {p.label}</span>
+                        <span style={{fontSize:"11.5px",fontWeight:active?700:400,color:active?"var(--ia-vio-tx)":"var(--ia-sub)"}}>{p.icon} {p.label}</span>
                       </div>
                     );
                   })}
                 </div>
                 <div style={{marginTop:"8px",display:"flex",gap:"8px"}}>
-                  <button onClick={()=>setForm(f=>({...f,permissions:Object.fromEntries(PERM_LIST.map(p=>[p.key,1]))}))} style={{fontSize:"11px",color:"#7c3aed",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:0}}>تفعيل الكل</button>
-                  <span style={{color:"#d1d5db"}}>|</span>
-                  <button onClick={()=>setForm(f=>({...f,permissions:Object.fromEntries(PERM_LIST.map(p=>[p.key,0]))}))} style={{fontSize:"11px",color:"#dc2626",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:0}}>إلغاء الكل</button>
+                  <button onClick={()=>setForm(f=>({...f,permissions:Object.fromEntries(PERM_LIST.map(p=>[p.key,1]))}))} style={{fontSize:"11px",color:"var(--ia-vio-tx)",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:0}}>تفعيل الكل</button>
+                  <span style={{color:"var(--ia-muted)"}}>|</span>
+                  <button onClick={()=>setForm(f=>({...f,permissions:Object.fromEntries(PERM_LIST.map(p=>[p.key,0]))}))} style={{fontSize:"11px",color:"var(--ia-red-tx)",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:0}}>إلغاء الكل</button>
                 </div>
               </div>
             )}
 
-            {err&&<div style={{background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:"8px",padding:"9px 14px",color:"#b91c1c",fontSize:"13px"}}>❌ {err}</div>}
+            {err&&<div style={{background:"var(--ia-red-bg)",border:"1px solid var(--ia-red-bd)",borderRadius:"8px",padding:"9px 14px",color:"var(--ia-red-tx)",fontSize:"13px"}}>❌ {err}</div>}
 
-            <button onClick={handleCreate} disabled={loading} style={{width:"100%",border:"none",borderRadius:"10px",padding:"13px",background:loading?"#e5e7eb":"#1e3a5f",color:loading?"#9ca3af":"#fff",fontFamily:"inherit",fontSize:"15px",fontWeight:700,cursor:loading?"not-allowed":"pointer"}}>
+            <button onClick={handleCreate} disabled={loading} style={{width:"100%",border:"none",borderRadius:"10px",padding:"13px",background:loading?"var(--ia-ghost-bg)":"#1e3a5f",color:loading?"var(--ia-muted)":"#fff",fontFamily:"inherit",fontSize:"15px",fontWeight:700,cursor:loading?"not-allowed":"pointer"}}>
               {loading?"جارٍ الإنشاء...":"✅ إنشاء الموظف"}
             </button>
 
@@ -208,5 +208,5 @@ export default function CreateUserModal({ onClose, onCreated }: CreateUserModalP
   );
 }
 
-const lbl: React.CSSProperties = { fontSize:"12px",color:"#6b7280",display:"block",marginBottom:"5px",fontWeight:700 };
-const inp: React.CSSProperties = { width:"100%",border:"1.5px solid #d1d5db",borderRadius:"8px",padding:"10px 14px",fontFamily:"'Cairo','Tajawal',sans-serif",fontSize:"13px",background:"#fff",outline:"none" };
+const lbl: React.CSSProperties = { fontSize:"12px",color:"var(--ia-sub)",display:"block",marginBottom:"5px",fontWeight:700 };
+const inp: React.CSSProperties = { width:"100%",border:"1.5px solid var(--ia-border2)",borderRadius:"8px",padding:"10px 14px",fontFamily:"'Cairo','Tajawal',sans-serif",fontSize:"13px",background:"var(--ia-card)",outline:"none" };

@@ -11,6 +11,7 @@ import PurchasesTab from "./components/PurchasesTab";
 import AIBulkProcessor from "./components/AIBulkProcessor";
 import ReportsTab from "./components/ReportsTab";
 import PaymentsPanel from "./components/PaymentsPanel";
+import { useTheme, txAdapt, softAdapt, chartColors, lighten } from "./theme";
 
 // ─── Companies Config ─────────────────────────────────────────────
 const COMPANIES = {
@@ -222,6 +223,8 @@ const [skipDup, setSkipDup] = useState(true);
 const [importedCount, setImportedCount] = useState(0);
 const fileRef = useRef();
 const col = company.color;
+const { dark } = useTheme();
+const colTx = txAdapt(col, dark);
 
 const existingNums = new Set(existingInvoices.map(i => i.invNum));
 
@@ -284,12 +287,12 @@ onImport(newInvs);
 
 return (
 <div style={{
-position:"fixed",inset:0,background:"rgba(0,0,0,.55)",zIndex:2000,
+position:"fixed",inset:0,background:"var(--ia-overlay)",zIndex:2000,
 display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",
 fontFamily:"'Cairo','Tajawal',sans-serif",direction:"rtl"
 }} onClick={onClose}>
 <div style={{
-background:"#fff",borderRadius:"18px",width:"100%",maxWidth:"620px",
+background:"var(--ia-card)",borderRadius:"18px",width:"100%",maxWidth:"620px",
 maxHeight:"88vh",overflow:"hidden",display:"flex",flexDirection:"column",
 boxShadow:"0 24px 64px rgba(0,0,0,.35)",animation:"fadeUp .25s"
 }} onClick={e=>e.stopPropagation()}>
@@ -304,7 +307,7 @@ boxShadow:"0 24px 64px rgba(0,0,0,.35)",animation:"fadeUp .25s"
     </div>
 
     {/* Steps indicator */}
-    <div style={{display:"flex",borderBottom:"1px solid #e5e7eb",background:"#fafafa",padding:"0 22px",flexShrink:0}}>
+    <div style={{display:"flex",borderBottom:"1px solid #e5e7eb",background:"var(--ia-row-alt)",padding:"0 22px",flexShrink:0}}>
       {["رفع الملف","معاينة البيانات","تم الاستيراد"].map((s,i) => (
         <div key={i} style={{padding:"10px 16px",fontSize:"12px",fontWeight:700,borderBottom:`2px solid ${step===i?col:"transparent"}`,color:step===i?col:step>i?"#16a34a":"#9ca3af",cursor:"pointer",transition:"all .2s"}} onClick={()=>i<step&&setStep(i)}>
           {step>i?"✓ ":""}{s}
@@ -317,9 +320,9 @@ boxShadow:"0 24px 64px rgba(0,0,0,.35)",animation:"fadeUp .25s"
       {/* STEP 0 — Upload */}
       {step===0&&(
         <div>
-          <div style={{background:"#f0f9ff",border:"1.5px solid #bae6fd",borderRadius:"10px",padding:"14px 16px",marginBottom:"18px"}}>
-            <div style={{fontWeight:700,color:"#0369a1",marginBottom:"6px",fontSize:"13px"}}>📋 كيف تصدّر من Aliphia؟</div>
-            <ol style={{fontSize:"12px",color:"#0c4a6e",paddingRight:"18px",lineHeight:"1.9",margin:0}}>
+          <div style={{background:"var(--ia-sky-bg)",border:"1.5px solid var(--ia-sky-bd)",borderRadius:"10px",padding:"14px 16px",marginBottom:"18px"}}>
+            <div style={{fontWeight:700,color:"var(--ia-sky-tx)",marginBottom:"6px",fontSize:"13px"}}>📋 كيف تصدّر من Aliphia؟</div>
+            <ol style={{fontSize:"12px",color:"var(--ia-sky-tx2)",paddingRight:"18px",lineHeight:"1.9",margin:0}}>
               <li>ادخل على حسابك في <b>aliphia.com</b></li>
               <li>اذهب إلى <b>الفواتير</b> أو <b>العملاء</b></li>
               <li>اضغط على زر <b>تصدير / Export</b></li>
@@ -341,19 +344,19 @@ boxShadow:"0 24px 64px rgba(0,0,0,.35)",animation:"fadeUp .25s"
             onMouseLeave={e=>{e.currentTarget.style.background=`${col}07`;e.currentTarget.style.borderColor=`${col}66`;}}
           >
             <div style={{fontSize:"44px",marginBottom:"10px"}}>📂</div>
-            <div style={{fontWeight:700,fontSize:"15px",color:"#111",marginBottom:"5px"}}>اسحب ملف CSV هنا</div>
-            <div style={{color:"#6b7280",fontSize:"12px",marginBottom:"14px"}}>أو اضغط للاختيار من جهازك</div>
+            <div style={{fontWeight:700,fontSize:"15px",color:"var(--ia-text)",marginBottom:"5px"}}>اسحب ملف CSV هنا</div>
+            <div style={{color:"var(--ia-sub)",fontSize:"12px",marginBottom:"14px"}}>أو اضغط للاختيار من جهازك</div>
             <div style={{display:"inline-block",background:col,color:"#fff",padding:"9px 22px",borderRadius:"8px",fontWeight:700,fontSize:"13px"}}>اختر ملف CSV</div>
           </div>
           <input ref={fileRef} type="file" accept=".csv,.txt" style={{display:"none"}} onChange={e=>handleFile(e.target.files[0])}/>
 
           {errors.length>0&&(
-            <div style={{background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:"8px",padding:"10px 14px",color:"#b91c1c",fontSize:"12px"}}>
+            <div style={{background:"var(--ia-red-bg)",border:"1px solid #fca5a5",borderRadius:"8px",padding:"10px 14px",color:"var(--ia-red-tx)",fontSize:"12px"}}>
               ❌ {errors.join(" | ")}
             </div>
           )}
 
-          <div style={{background:"#f8f9fa",borderRadius:"8px",padding:"12px 16px",marginTop:"14px",fontSize:"11px",color:"#6b7280",lineHeight:"1.8"}}>
+          <div style={{background:"var(--ia-soft)",borderRadius:"8px",padding:"12px 16px",marginTop:"14px",fontSize:"11px",color:"var(--ia-sub)",lineHeight:"1.8"}}>
             <b>الأعمدة المدعومة:</b> رقم الفاتورة، التاريخ، اسم العميل، الهاتف، العنوان، اسم المنتج، الكمية، السعر، التوصيل، المدفوع، الملاحظات
           </div>
         </div>
@@ -364,31 +367,31 @@ boxShadow:"0 24px 64px rgba(0,0,0,.35)",animation:"fadeUp .25s"
         <div>
           <div style={{display:"flex",gap:"10px",marginBottom:"14px",flexWrap:"wrap",alignItems:"center"}}>
             <div style={{flex:1}}>
-              <div style={{fontWeight:700,fontSize:"14px",color:"#111"}}>
-                تم تحليل <span style={{color:col}}>{parsed.length}</span> فاتورة
-                {dupCount>0&&<span style={{color:"#b45309",marginRight:"6px",fontSize:"12px"}}>({dupCount} مكررة)</span>}
+              <div style={{fontWeight:700,fontSize:"14px",color:"var(--ia-text)"}}>
+                تم تحليل <span style={{color:colTx}}>{parsed.length}</span> فاتورة
+                {dupCount>0&&<span style={{color:"var(--ia-warn-tx)",marginRight:"6px",fontSize:"12px"}}>({dupCount} مكررة)</span>}
               </div>
-              <div style={{fontSize:"12px",color:"#6b7280",marginTop:"3px"}}>الأعمدة المكتشفة: {detectedCols.slice(0,6).join("، ")}{detectedCols.length>6?"...":""}</div>
+              <div style={{fontSize:"12px",color:"var(--ia-sub)",marginTop:"3px"}}>الأعمدة المكتشفة: {detectedCols.slice(0,6).join("، ")}{detectedCols.length>6?"...":""}</div>
             </div>
-            <label style={{display:"flex",alignItems:"center",gap:"6px",cursor:"pointer",fontSize:"12px",fontWeight:700,color:"#374151",background:"#f3f4f6",padding:"7px 12px",borderRadius:"8px",border:"1px solid #e5e7eb"}}>
+            <label style={{display:"flex",alignItems:"center",gap:"6px",cursor:"pointer",fontSize:"12px",fontWeight:700,color:"var(--ia-text2)",background:"var(--ia-chip)",padding:"7px 12px",borderRadius:"8px",border:"1px solid var(--ia-border)"}}>
               <input type="checkbox" checked={skipDup} onChange={e=>setSkipDup(e.target.checked)} style={{accentColor:col}}/>
               تخطى المكررة
             </label>
           </div>
 
           {errors.length>0&&(
-            <div style={{background:"#fef3c7",border:"1px solid #fde68a",borderRadius:"8px",padding:"10px 14px",color:"#92400e",fontSize:"12px",marginBottom:"12px"}}>
+            <div style={{background:"var(--ia-warn-bg)",border:"1px solid var(--ia-warn-bd)",borderRadius:"8px",padding:"10px 14px",color:"var(--ia-warn-tx2)",fontSize:"12px",marginBottom:"12px"}}>
               ⚠️ {errors.join(" | ")}
             </div>
           )}
 
           {/* Preview table */}
-          <div style={{border:"1px solid #e5e7eb",borderRadius:"10px",overflow:"hidden",marginBottom:"14px",maxHeight:"320px",overflowY:"auto"}}>
+          <div style={{border:"1px solid var(--ia-border)",borderRadius:"10px",overflow:"hidden",marginBottom:"14px",maxHeight:"320px",overflowY:"auto"}}>
             <table style={{width:"100%",borderCollapse:"collapse",fontSize:"12px"}}>
               <thead>
-                <tr style={{background:"#f8fafc",borderBottom:"2px solid #e5e7eb",position:"sticky",top:0}}>
+                <tr style={{background:"var(--ia-soft)",borderBottom:"2px solid var(--ia-border2)",position:"sticky",top:0}}>
                   {["#","العميل","الهاتف","المنتجات","المبلغ","التاريخ","حالة"].map(h=>(
-                    <th key={h} style={{padding:"9px 10px",fontWeight:700,color:"#6b7280",textAlign:"right",fontSize:"11px"}}>{h}</th>
+                    <th key={h} style={{padding:"9px 10px",fontWeight:700,color:"var(--ia-sub)",textAlign:"right",fontSize:"11px"}}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -397,17 +400,17 @@ boxShadow:"0 24px 64px rgba(0,0,0,.35)",animation:"fadeUp .25s"
                   const tot = inv.items.reduce((s,it)=>s+it.qty*it.price,0)+inv.shipping;
                   const isDup = existingNums.has(inv.invNum);
                   return (
-                    <tr key={i} style={{borderBottom:"1px solid #f3f4f6",background:isDup?"#fffbeb":i%2===0?"#fff":"#fafafa",opacity:isDup&&skipDup?.7:1}}>
-                      <td style={{padding:"8px 10px",fontWeight:700,color:col}}>{inv.invNum}</td>
+                    <tr key={i} style={{borderBottom:"1px solid var(--ia-border3)",background:isDup?"var(--ia-warn-bg)":i%2===0?"var(--ia-card)":"var(--ia-row-alt)",opacity:isDup&&skipDup?.7:1}}>
+                      <td style={{padding:"8px 10px",fontWeight:700,color:colTx}}>{inv.invNum}</td>
                       <td style={{padding:"8px 10px",fontWeight:600}}>{inv.clientName}</td>
-                      <td style={{padding:"8px 10px",direction:"ltr",textAlign:"right",color:"#2563eb"}}>{inv.clientPhone||"—"}</td>
-                      <td style={{padding:"8px 10px",color:"#555",maxWidth:"140px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{inv.items.map(it=>it.name).join("، ")}</td>
+                      <td style={{padding:"8px 10px",direction:"ltr",textAlign:"right",color:"var(--ia-link)"}}>{inv.clientPhone||"—"}</td>
+                      <td style={{padding:"8px 10px",color:"var(--ia-sub)",maxWidth:"140px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{inv.items.map(it=>it.name).join("، ")}</td>
                       <td style={{padding:"8px 10px",fontWeight:700}}>{fKWD(tot)}</td>
-                      <td style={{padding:"8px 10px",color:"#6b7280"}}>{fDate(inv.date)}</td>
+                      <td style={{padding:"8px 10px",color:"var(--ia-sub)"}}>{fDate(inv.date)}</td>
                       <td style={{padding:"8px 10px"}}>
                         {isDup
-                          ? <span style={{background:"#fef3c7",color:"#b45309",borderRadius:"20px",padding:"2px 8px",fontSize:"10px",fontWeight:700}}>مكرر</span>
-                          : <span style={{background:"#dcfce7",color:"#15803d",borderRadius:"20px",padding:"2px 8px",fontSize:"10px",fontWeight:700}}>جديد</span>
+                          ? <span style={{background:"var(--ia-warn-bg)",color:"var(--ia-warn-tx)",borderRadius:"20px",padding:"2px 8px",fontSize:"10px",fontWeight:700}}>مكرر</span>
+                          : <span style={{background:"var(--ia-ok-bg)",color:"var(--ia-ok-tx)",borderRadius:"20px",padding:"2px 8px",fontSize:"10px",fontWeight:700}}>جديد</span>
                         }
                       </td>
                     </tr>
@@ -419,13 +422,13 @@ boxShadow:"0 24px 64px rgba(0,0,0,.35)",animation:"fadeUp .25s"
 
           <div style={{display:"flex",gap:"8px"}}>
             <button
-              style={{flex:1,background:toImport.length===0?"#e5e7eb":col,color:toImport.length===0?"#9ca3af":"#fff",border:"none",borderRadius:"9px",padding:"12px",fontFamily:"inherit",fontSize:"14px",fontWeight:700,cursor:toImport.length===0?"not-allowed":"pointer",transition:"all .2s"}}
+              style={{flex:1,background:toImport.length===0?"var(--ia-ghost-bg)":col,color:toImport.length===0?"var(--ia-muted)":"#fff",border:"none",borderRadius:"9px",padding:"12px",fontFamily:"inherit",fontSize:"14px",fontWeight:700,cursor:toImport.length===0?"not-allowed":"pointer",transition:"all .2s"}}
               onClick={doImport}
               disabled={importing||toImport.length===0}
             >
               {importing?"⏳ جارٍ الاستيراد...":`💾 استيراد ${toImport.length} فاتورة`}
             </button>
-            <button style={{background:"#e5e7eb",color:"#374151",border:"none",borderRadius:"9px",padding:"12px 18px",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}} onClick={()=>setStep(0)}>← رجوع</button>
+            <button style={{background:"var(--ia-ghost-bg)",color:"var(--ia-ghost-tx)",border:"none",borderRadius:"9px",padding:"12px 18px",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}} onClick={()=>setStep(0)}>← رجوع</button>
           </div>
         </div>
       )}
@@ -434,10 +437,10 @@ boxShadow:"0 24px 64px rgba(0,0,0,.35)",animation:"fadeUp .25s"
       {step===2&&(
         <div style={{textAlign:"center",padding:"32px 20px"}}>
           <div style={{fontSize:"64px",marginBottom:"12px"}}>✅</div>
-          <div style={{fontSize:"20px",fontWeight:900,color:"#111",marginBottom:"8px"}}>تم الاستيراد بنجاح!</div>
-          <div style={{fontSize:"14px",color:"#6b7280",marginBottom:"24px"}}>
-            تم إضافة <span style={{fontWeight:900,color:col,fontSize:"18px"}}>{importedCount}</span> فاتورة من Aliphia
-            {dupCount>0&&skipDup&&<div style={{marginTop:"4px",color:"#b45309",fontSize:"12px"}}>تم تخطى {dupCount} فاتورة مكررة</div>}
+          <div style={{fontSize:"20px",fontWeight:900,color:"var(--ia-text)",marginBottom:"8px"}}>تم الاستيراد بنجاح!</div>
+          <div style={{fontSize:"14px",color:"var(--ia-sub)",marginBottom:"24px"}}>
+            تم إضافة <span style={{fontWeight:900,color:colTx,fontSize:"18px"}}>{importedCount}</span> فاتورة من Aliphia
+            {dupCount>0&&skipDup&&<div style={{marginTop:"4px",color:"var(--ia-warn-tx)",fontSize:"12px"}}>تم تخطى {dupCount} فاتورة مكررة</div>}
           </div>
           <button style={{background:col,color:"#fff",border:"none",borderRadius:"9px",padding:"12px 32px",fontFamily:"inherit",fontSize:"14px",fontWeight:700,cursor:"pointer"}} onClick={onClose}>
             عرض الفواتير ←
@@ -633,6 +636,51 @@ function downloadCSV(csv, filename) {
   a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url);
 }
+// Parse ONE CSV line honoring double-quoted fields ("" escapes a quote)
+function parseCSVLine(line) {
+  const out = []; let cur = "", inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQ) {
+      if (ch === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else inQ = false; }
+      else cur += ch;
+    } else {
+      if (ch === '"') inQ = true;
+      else if (ch === ",") { out.push(cur); cur = ""; }
+      else cur += ch;
+    }
+  }
+  out.push(cur);
+  return out.map(s => s.trim());
+}
+// Parse a clients CSV: flexible Arabic/English headers, returns {rows, errors}
+function parseClientsCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) return { rows: [], errors: ["الملف فارغ أو غير صحيح"] };
+  const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase());
+  const find = (...names) => headers.findIndex(h => names.some(n => h === n || h.includes(n)));
+  const iName = find("الاسم", "name");
+  const iPhone = find("التلفون", "الهاتف", "الجوال", "phone", "mobile");
+  const iEmail = find("الايميل", "البريد", "email");
+  const iAddr = find("العنوان", "address", "المنطقة");
+  if (iName < 0 || iPhone < 0) return { rows: [], errors: ["الأعمدة المطلوبة: الاسم + التلفون"] };
+  const rows = [], errors = [];
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const cells = parseCSVLine(lines[i]);
+    const name = (cells[iName] || "").trim();
+    const phone = norm(cells[iPhone] || "");
+    if (!name && !phone) continue;
+    if (!phone) { errors.push(`سطر ${i + 1}: بدون تلفون — تم تخطيه`); continue; }
+    rows.push({
+      name: name || phone,
+      phone,
+      email: iEmail >= 0 ? (cells[iEmail] || "").trim() || null : null,
+      address: iAddr >= 0 ? (cells[iAddr] || "").trim() || null : null,
+    });
+  }
+  return { rows, errors };
+}
 function exportMetaAudience(invoices){
 const map={};
 [...invoices].sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt)).forEach(inv=>{
@@ -663,12 +711,14 @@ setTimeout(()=>downloadCSV(toCSV(fullHeaders, fullRows), `Customers_${today()}.c
 // ─── Company Selector ─────────────────────────────────────────────
 function CompanySelector({ onSelect, companies }) {
 const { profile, isAdmin } = useAuth();
+const { dark, toggle } = useTheme();
 const cols = companies && companies.length > 0 ? companies : Object.values(COMPANIES);
 const gridCols = cols.length === 1 ? "repeat(1,1fr)" : cols.length === 2 ? "repeat(2,1fr)" : "repeat(2,1fr)";
 return (
 <div style={{minHeight:"100vh",background:"#0a0a0f",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Cairo','Tajawal',sans-serif",direction:"rtl",padding:"20px",position:"relative",overflow:"hidden"}}>
 <style>{`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap'); *{box-sizing:border-box} @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}} @keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}} .co-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:28px 20px;cursor:pointer;transition:all .3s cubic-bezier(.4,0,.2,1);text-align:center;animation:fadeUp .5s ease both;position:relative;overflow:hidden;} .co-card::before{content:"";position:absolute;inset:0;opacity:0;transition:opacity .3s;background:radial-gradient(circle at 50% 0%,var(--co-color) 0%,transparent 70%);} .co-card:hover,.co-card:active{transform:translateY(-4px) scale(1.02);border-color:var(--co-color);box-shadow:0 20px 60px rgba(0,0,0,.5),0 0 0 1px var(--co-color)} .co-card:hover::before,.co-card:active::before{opacity:.15} .co-icon{font-size:40px;margin-bottom:12px;display:block;animation:float 3s ease-in-out infinite} .co-grid{display:grid;gap:14px} @media(min-width:600px){.co-grid{grid-template-columns:repeat(4,1fr)}}`}</style>
 <div style={{position:"fixed",inset:0,backgroundImage:"linear-gradient(rgba(255,255,255,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px)",backgroundSize:"60px 60px",pointerEvents:"none"}}/>
+<button onClick={toggle} title={dark?"التبديل إلى الوضع النهاري":"التبديل إلى الوضع الليلي"} aria-label="تبديل السمة" style={{position:"fixed",top:"16px",insetInlineEnd:"16px",background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.15)",borderRadius:"8px",padding:"7px 12px",fontSize:"14px",cursor:"pointer",zIndex:10,transition:"all .2s"}}>{dark?"☀️":"🌙"}</button>
 <div style={{width:"100%",maxWidth:"900px",animation:"fadeUp .4s"}}>
 <div style={{textAlign:"center",marginBottom:"36px"}}>
 <div style={{fontSize:"12px",fontWeight:700,letterSpacing:"3px",textTransform:"uppercase",color:"rgba(255,255,255,.3)",marginBottom:"12px"}}>نظام إدارة الفواتير</div>
@@ -743,7 +793,12 @@ return(
 }
 
 function Dashboard({invoices, company, onNavigate}){
-const now=new Date();
+const { dark } = useTheme();
+const ch = chartColors(dark);
+const col = company.color;
+const colTx = txAdapt(col, dark);
+const cardBg = softAdapt(company.cardBg, dark);
+const now = new Date();
 const mk=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
 const tm=mk(now);const pm=mk(new Date(now.getFullYear(),now.getMonth()-1));
 const tInvs=invoices.filter(i=>i.date?.startsWith(tm));
@@ -757,7 +812,6 @@ const avg=invoices.length?totR/invoices.length:0;
 const gPct=pR>0?((tR-pR)/pR*100):tR>0?100:0;
 const gUp=gPct>=0;
 const uniqueC=new Set(invoices.map(i=>i.clientPhone).filter(Boolean)).size;
-const col = company.color;
 const months6=Array.from({length:6}).map((_,i)=>{
 const d=new Date(now);d.setMonth(d.getMonth()-5+i);
 const key=mk(d);const label=d.toLocaleDateString("ar",{month:"short"});
@@ -766,10 +820,10 @@ const cnt=invoices.filter(x=>x.date?.startsWith(key)).length;
 return{label,rev,cnt};
 });
 const kpis=[
-{icon:"💰",label:"إجمالي الإيرادات",val:fKWD(totR),sub:`${invoices.length} فاتورة`,c:col,bg:company.cardBg,go:{view:"list",status:"all"}},
-{icon:"📅",label:"إيرادات هذا الشهر",val:fKWD(tR),sub:`${tInvs.length} فاتورة`,c:"#16a34a",bg:"#dcfce7",badge:`${gUp?"▲":"▼"} ${Math.abs(gPct).toFixed(1)}%`,badgeC:gUp?"#16a34a":"#dc2626"},
-{icon:"⏳",label:"مستحقات غير مدفوعة",val:fKWD(unpaidA),sub:`${unpaid.length} فاتورة`,c:"#b45309",bg:"#fef3c7",go:{view:"list",status:"unp"}},
-{icon:"👥",label:"إجمالي العملاء",val:uniqueC+" عميل",sub:`متوسط ${fKWD(avg)}`,c:"#7c3aed",bg:"#ede9fe",go:{view:"customers"}},
+{icon:"💰",label:"إجمالي الإيرادات",val:fKWD(totR),sub:`${invoices.length} فاتورة`,c:colTx,bg:cardBg,go:{view:"list",status:"all"}},
+{icon:"📅",label:"إيرادات هذا الشهر",val:fKWD(tR),sub:`${tInvs.length} فاتورة`,c:txAdapt("#16a34a",dark),bg:softAdapt("#dcfce7",dark),badge:`${gUp?"▲":"▼"} ${Math.abs(gPct).toFixed(1)}%`,badgeC:txAdapt(gUp?"#16a34a":"#dc2626",dark)},
+{icon:"⏳",label:"مستحقات غير مدفوعة",val:fKWD(unpaidA),sub:`${unpaid.length} فاتورة`,c:txAdapt("#b45309",dark),bg:softAdapt("#fef3c7",dark),go:{view:"list",status:"unp"}},
+{icon:"👥",label:"إجمالي العملاء",val:uniqueC+" عميل",sub:`متوسط ${fKWD(avg)}`,c:txAdapt("#7c3aed",dark),bg:softAdapt("#ede9fe",dark),go:{view:"customers"}},
 ];
 return(
 <div>
@@ -779,42 +833,42 @@ return(
   onClick={k.go&&onNavigate?()=>onNavigate(k.go):undefined}
   title={k.go?"اضغط للعرض":""}>
 <div style={{fontSize:"22px",marginBottom:"6px"}}>{k.icon}</div>
-<div style={{fontSize:"10px",color:"#6b7280",fontWeight:700,textTransform:"uppercase",letterSpacing:".4px",marginBottom:"3px",display:"flex",alignItems:"center",gap:"5px"}}>{k.label}{k.go&&onNavigate&&<span style={{fontSize:"9px",opacity:.55,fontWeight:900,transform:"scaleX(-1)",display:"inline-block"}}>↩</span>}</div>
+<div style={{fontSize:"10px",color:"var(--ia-sub)",fontWeight:700,textTransform:"uppercase",letterSpacing:".4px",marginBottom:"3px",display:"flex",alignItems:"center",gap:"5px"}}>{k.label}{k.go&&onNavigate&&<span style={{fontSize:"9px",opacity:.55,fontWeight:900,transform:"scaleX(-1)",display:"inline-block"}}>↩</span>}</div>
 <div style={{fontSize:"17px",fontWeight:900,color:k.c,direction:"ltr",textAlign:"right"}}>{k.val}</div>
 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"5px"}}>
-<span style={{fontSize:"11px",color:"#6b7280"}}>{k.sub}</span>
+<span style={{fontSize:"11px",color:"var(--ia-sub)"}}>{k.sub}</span>
 {k.badge&&<span style={{fontSize:"11px",fontWeight:700,color:k.badgeC,background:k.badgeC+"1a",padding:"1px 8px",borderRadius:"20px"}}>{k.badge}</span>}
 </div>
 </div>
 ))}
 </div>
 <div className="chart-grid">
-<div style={{background:"#fff",borderRadius:"14px",padding:"18px 20px",border:"1.5px solid #e5e7eb"}}>
-<div style={{fontSize:"13px",fontWeight:700,color:col,marginBottom:"14px"}}>📈 الإيرادات الشهرية</div>
+<div style={{background:"var(--ia-card)",borderRadius:"14px",padding:"18px 20px",border:"1.5px solid var(--ia-border)"}}>
+<div style={{fontSize:"13px",fontWeight:700,color:colTx,marginBottom:"14px"}}>📈 الإيرادات الشهرية</div>
 <ResponsiveContainer width="100%" height={170}>
 <BarChart data={months6} margin={{top:0,right:4,bottom:0,left:0}}>
-<CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false}/>
-<XAxis dataKey="label" tick={{fontSize:11,fill:"#6b7280",fontFamily:"Cairo"}} axisLine={false} tickLine={false}/>
-<YAxis tick={{fontSize:10,fill:"#9ca3af"}} axisLine={false} tickLine={false}/>
-<Tooltip formatter={v=>[fKWD(v),"الإيرادات"]} contentStyle={{fontFamily:"Cairo",fontSize:12,borderRadius:8,direction:"rtl"}}/>
-<Bar dataKey="rev" fill={col} radius={[5,5,0,0]}/>
+<CartesianGrid strokeDasharray="3 3" stroke={ch.grid} vertical={false}/>
+<XAxis dataKey="label" tick={{fontSize:11,fill:ch.axis,fontFamily:"Cairo"}} axisLine={false} tickLine={false}/>
+<YAxis tick={{fontSize:10,fill:ch.axis2}} axisLine={false} tickLine={false}/>
+<Tooltip formatter={v=>[fKWD(v),"الإيرادات"]} contentStyle={{fontFamily:"Cairo",fontSize:12,borderRadius:8,direction:"rtl",background:"var(--ia-card)",border:"1px solid var(--ia-border)",color:"var(--ia-text)"}}/>
+<Bar dataKey="rev" fill={dark?lighten(col,0.65):col} radius={[5,5,0,0]}/>
 </BarChart>
 </ResponsiveContainer>
 </div>
-<div style={{background:"#fff",borderRadius:"14px",padding:"18px 20px",border:"1.5px solid #e5e7eb",display:"flex",flexDirection:"column"}}>
-<div style={{fontSize:"13px",fontWeight:700,color:col,marginBottom:"14px"}}>🧾 عدد الفواتير شهرياً</div>
+<div style={{background:"var(--ia-card)",borderRadius:"14px",padding:"18px 20px",border:"1.5px solid var(--ia-border)",display:"flex",flexDirection:"column"}}>
+<div style={{fontSize:"13px",fontWeight:700,color:colTx,marginBottom:"14px"}}>🧾 عدد الفواتير شهرياً</div>
 <ResponsiveContainer width="100%" height={130}>
 <LineChart data={months6} margin={{top:4,right:8,bottom:0,left:0}}>
-<CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false}/>
-<XAxis dataKey="label" tick={{fontSize:11,fill:"#6b7280",fontFamily:"Cairo"}} axisLine={false} tickLine={false}/>
-<YAxis tick={{fontSize:10,fill:"#9ca3af"}} axisLine={false} tickLine={false} allowDecimals={false}/>
-<Tooltip formatter={v=>[v+" فاتورة","عدد"]} contentStyle={{fontFamily:"Cairo",fontSize:12,borderRadius:8}}/>
-<Line type="monotone" dataKey="cnt" stroke="#16a34a" strokeWidth={3} dot={{r:4,fill:"#16a34a"}} activeDot={{r:6}}/>
+<CartesianGrid strokeDasharray="3 3" stroke={ch.grid} vertical={false}/>
+<XAxis dataKey="label" tick={{fontSize:11,fill:ch.axis,fontFamily:"Cairo"}} axisLine={false} tickLine={false}/>
+<YAxis tick={{fontSize:10,fill:ch.axis2}} axisLine={false} tickLine={false} allowDecimals={false}/>
+<Tooltip formatter={v=>[v+" فاتورة","عدد"]} contentStyle={{fontFamily:"Cairo",fontSize:12,borderRadius:8,background:"var(--ia-card)",border:"1px solid var(--ia-border)",color:"var(--ia-text)"}}/>
+<Line type="monotone" dataKey="cnt" stroke={ch.green} strokeWidth={3} dot={{r:4,fill:ch.green}} activeDot={{r:6}}/>
 </LineChart>
 </ResponsiveContainer>
 <div style={{marginTop:"auto",paddingTop:"10px"}}>
-<div style={{textAlign:"center",background:gUp?"#dcfce7":"#fee2e2",borderRadius:"8px",padding:"7px"}}>
-<span style={{fontWeight:900,fontSize:"13px",color:gUp?"#16a34a":"#dc2626"}}>{gUp?"▲":"▼"} نمو {Math.abs(gPct).toFixed(1)}% عن الشهر الماضي</span>
+<div style={{textAlign:"center",background:gUp?softAdapt("#dcfce7",dark):softAdapt("#fee2e2",dark),borderRadius:"8px",padding:"7px"}}>
+<span style={{fontWeight:900,fontSize:"13px",color:txAdapt(gUp?"#16a34a":"#dc2626",dark)}}>{gUp?"▲":"▼"} نمو {Math.abs(gPct).toFixed(1)}% عن الشهر الماضي</span>
 </div>
 </div>
 </div>
@@ -925,7 +979,7 @@ const [busy,setBusy]=useState(false);
 const isEdit=!!initial?.id;
 
 return(
-<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",zIndex:2100,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",direction:"rtl"}} onClick={busy?undefined:onClose}>
+<div style={{position:"fixed",inset:0,background:"var(--ia-overlay)",zIndex:2100,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",direction:"rtl"}} onClick={busy?undefined:onClose}>
   <div className="card" style={{width:"100%",maxWidth:"460px",overflow:"hidden",display:"flex",flexDirection:"column",animation:"fadeUp .25s"}} onClick={e=>e.stopPropagation()}>
 
     <div style={{background:isEdit?"#f59e0b":col,padding:"15px 20px",display:"flex",alignItems:"center",gap:"12px",flexShrink:0}}>
@@ -941,21 +995,21 @@ return(
 
     <div style={{padding:"18px 20px"}}>
       <div className="form-2col" style={{marginBottom:"10px"}}>
-        <div><label style={{fontSize:"11px",color:"#6b7280",display:"block",marginBottom:"4px"}}>الاسم *</label>
+        <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>الاسم *</label>
           <input className="inp" placeholder="مثال: عبدالله حسن" value={name} onChange={e=>setName(e.target.value)} autoFocus/></div>
-        <div><label style={{fontSize:"11px",color:"#6b7280",display:"block",marginBottom:"4px"}}>التلفون *</label>
+        <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>التلفون *</label>
           <input className="inp" style={{direction:"ltr",textAlign:"right"}} placeholder="9xxxxxxx" value={phone} onChange={e=>setPhone(e.target.value)}/></div>
       </div>
       <div style={{marginBottom:"10px"}}>
-        <label style={{fontSize:"11px",color:"#6b7280",display:"block",marginBottom:"4px"}}>البريد الإلكتروني (اختياري)</label>
+        <label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>البريد الإلكتروني (اختياري)</label>
         <input className="inp" style={{direction:"ltr",textAlign:"right"}} placeholder="name@example.com" value={email} onChange={e=>setEmail(e.target.value)}/>
       </div>
       <div style={{marginBottom:"14px"}}>
-        <label style={{fontSize:"11px",color:"#6b7280",display:"block",marginBottom:"4px"}}>العنوان (اختياري)</label>
+        <label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>العنوان (اختياري)</label>
         <input className="inp" placeholder="المنطقة / العنوان" value={address} onChange={e=>setAddress(e.target.value)}/>
       </div>
 
-      {err&&<div style={{background:"#fee2e2",border:"1px solid #fecaca",color:"#b91c1c",borderRadius:"8px",padding:"8px 12px",fontSize:"12px",fontWeight:700,marginBottom:"12px"}}>⚠️ {err}</div>}
+      {err&&<div style={{background:"var(--ia-red-bg)",border:"1px solid var(--ia-red-bd)",color:"var(--ia-red-tx)",borderRadius:"8px",padding:"8px 12px",fontSize:"12px",fontWeight:700,marginBottom:"12px"}}>⚠️ {err}</div>}
 
       <div style={{display:"flex",gap:"8px"}}>
         <button className="btn" disabled={busy} style={{background:isEdit?"#f59e0b":col,color:"#fff",flex:1,fontSize:"14px",padding:"10px",opacity:busy?.7:1}} 
@@ -981,9 +1035,47 @@ return(
 }
 
 function ClientDirectory({clients, invoices, company, canEdit, onRefresh, toast_}){
-const col=company.color;
+const { dark } = useTheme();
+const col = company.color;
+const colTx = txAdapt(col, dark);
+const cardBg = softAdapt(company.cardBg, dark);
 const [modal,setModal]=useState(null); // {mode:'add'} | {mode:'edit', client}
 const [del,setDel]=useState(null);
+const [imp,setImp]=useState(null);   // clients-CSV import preview: {rows, errors, file}
+const [impBusy,setImpBusy]=useState(false);
+const impFileRef=useRef();
+
+// ── CSV export of the saved-client directory ──
+const exportClientsCSV = () => {
+  if (!clients.length) { toast_("لا يوجد عملاء محفوظون للتصدير","warn"); return; }
+  const headers = ["الاسم","التلفون","البريد","العنوان"];
+  const rows = clients.map(c => ({
+    "الاسم": c.name || "", "التلفون": c.phone || "",
+    "البريد": c.email || "", "العنوان": c.address || "",
+  }));
+  downloadCSV(toCSV(headers, rows), `Clients_${company.id}_${today()}.csv`);
+  toast_("⬇️ تم تنزيل دليل العملاء (" + clients.length + " عميل)");
+};
+
+// ── CSV import (dedupes by phone against the current directory) ──
+const doImportClients = async () => {
+  if (!imp?.rows?.length) return;
+  setImpBusy(true);
+  const existing = new Set(clients.map(c => norm(c.phone || "")));
+  const seen = new Set();
+  let added = 0, skipped = 0;
+  for (const r of imp.rows) {
+    const ph = norm(r.phone);
+    if (existing.has(ph) || seen.has(ph)) { skipped++; continue; }
+    seen.add(ph);
+    try { await api.createClient({ name: r.name, phone: ph, email: r.email || null, address: r.address || null, company: company.id }); added++; }
+    catch { skipped++; }
+  }
+  setImpBusy(false);
+  setImp(null);
+  onRefresh();
+  toast_(added ? `✅ تم استيراد ${added} عميل${skipped ? ` — تخطّي ${skipped} مكرر/غير صالح` : ""}` : "لم يُضف أي عميل جديد (كله مكرر)", added ? "ok" : "warn");
+};
 
 // Spend stats per normalized phone, derived from the company invoices
 const stats={};
@@ -1017,18 +1109,33 @@ toast_("🗑️ تم حذف "+(del.name||"العميل")+" من الدليل","w
 return(
 <div className="card" style={{overflow:"hidden",animation:"fadeUp .25s"}}>
   {/* Section header */}
-  <div style={{display:"flex",alignItems:"center",gap:"10px",padding:"14px 18px",borderBottom:"1.5px solid #f0f0f0",background:"linear-gradient(135deg,#f8fafc,#fff)",flexWrap:"wrap"}}>
-    <div style={{width:"38px",height:"38px",background:company.cardBg,border:`1.5px solid ${col}33`,borderRadius:"10px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"18px",flexShrink:0}}>📇</div>
+  <div style={{display:"flex",alignItems:"center",gap:"10px",padding:"14px 18px",borderBottom:"1.5px solid var(--ia-border3)",background:"linear-gradient(135deg,var(--ia-soft),var(--ia-card))",flexWrap:"wrap"}}>
+    <div style={{width:"38px",height:"38px",background:cardBg,border:`1.5px solid ${col}33`,borderRadius:"10px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"18px",flexShrink:0}}>📇</div>
     <div style={{flex:1,minWidth:"150px"}}>
-      <div style={{fontSize:"14px",fontWeight:900,color:"#111827"}}>دليل العملاء المحفوظين</div>
-      <div style={{fontSize:"11px",color:"#9ca3af",fontWeight:600}}>للاستخدام السريع عند إنشاء الفواتير — يُحفظ لكل شركة على حدة</div>
+      <div style={{fontSize:"14px",fontWeight:900,color:"var(--ia-text)"}}>دليل العملاء المحفوظين</div>
+      <div style={{fontSize:"11px",color:"var(--ia-muted)",fontWeight:600}}>للاستخدام السريع عند إنشاء الفواتير — يُحفظ لكل شركة على حدة</div>
     </div>
-    <span style={{background:"#dbeafe",color:"#1d4ed8",borderRadius:"20px",padding:"3px 11px",fontSize:"11px",fontWeight:800}}>{clients.length} محفوظ</span>
+    <span style={{background:"var(--ia-blue-bg)",color:"var(--ia-blue-tx)",borderRadius:"20px",padding:"3px 11px",fontSize:"11px",fontWeight:800}}>{clients.length} محفوظ</span>
+    <button className="btn" title="تنزيل الدليل كملف CSV (يفتح في Excel)" style={{background:"var(--ia-ghost-bg)",color:"var(--ia-ghost-tx)",padding:"7px 11px",fontSize:"12px"}} onClick={exportClientsCSV}>⬇️ CSV</button>
+    {canEdit&&<button className="btn" title="استيراد عملاء من ملف CSV (الاسم + التلفون مطلوبان)" style={{background:"#0f766e",color:"#fff",padding:"7px 11px",fontSize:"12px"}} onClick={()=>impFileRef.current?.click()}>⬆️ استيراد</button>}
+    <input ref={impFileRef} type="file" accept=".csv,.txt" style={{display:"none"}} onChange={e=>{
+      const file=e.target.files[0];
+      e.target.value="";
+      if(!file)return;
+      const reader=new FileReader();
+      reader.onload=()=>{
+        const res=parseClientsCSV(String(reader.result||""));
+        if(!res.rows.length){toast_("❌ "+(res.errors[0]||"ملف غير صالح"),"warn");return;}
+        setImp(res);
+      };
+      reader.onerror=()=>toast_("❌ تعذّر قراءة الملف","warn");
+      reader.readAsText(file,"utf-8");
+    }}/>
     {canEdit&&<button className="btn" style={{background:col,color:"#fff",padding:"7px 13px",fontSize:"12px"}} onClick={()=>setModal({mode:"add"})}>➕ عميل جديد</button>}
   </div>
 
   {clients.length===0?(
-    <div style={{padding:"34px",textAlign:"center",color:"#9ca3af"}}>
+    <div style={{padding:"34px",textAlign:"center",color:"var(--ia-muted)"}}>
       <div style={{fontSize:"34px",marginBottom:"8px"}}>📇</div>
       <div style={{fontWeight:700,fontSize:"13px",marginBottom:"4px"}}>لا يوجد عملاء محفوظون بعد</div>
       <div style={{fontSize:"12px",marginBottom:"14px"}}>أضف عميلك الأول ليظهر هنا، أو سيُضاف تلقائياً عند إنشاء أول فاتورة له</div>
@@ -1037,9 +1144,9 @@ return(
   ):(
     <div style={{overflowX:"auto"}}>
       <table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr style={{background:"#f8fafc",borderBottom:"2px solid #e5e7eb"}}>
+        <thead><tr style={{background:"var(--ia-soft)",borderBottom:"2px solid var(--ia-border2)"}}>
           {["العميل","التلفون","العنوان","إجمالي الإنفاق","الفواتير","آخر شراء",""].map(h=>(
-            <th key={h} style={{padding:"10px 12px",fontSize:"11px",fontWeight:700,color:"#6b7280",textAlign:"right",textTransform:"uppercase",letterSpacing:".3px",whiteSpace:"nowrap"}}>{h}</th>
+            <th key={h} style={{padding:"10px 12px",fontSize:"11px",fontWeight:700,color:"var(--ia-sub)",textAlign:"right",textTransform:"uppercase",letterSpacing:".3px",whiteSpace:"nowrap"}}>{h}</th>
           ))}
         </tr></thead>
         <tbody>
@@ -1047,28 +1154,28 @@ return(
             const ph=norm(c.phone||"");
             const st=stats[ph];
             return(
-              <tr key={c.id} className="trow" style={{borderBottom:"1px solid #f3f4f6",background:i%2===0?"#fff":"#fafafa"}}>
+              <tr key={c.id} className="trow" style={{borderBottom:"1px solid var(--ia-border3)",background:i%2===0?"var(--ia-card)":"var(--ia-row-alt)"}}>
                 <td style={{padding:"10px 12px"}}>
                   <div style={{display:"flex",alignItems:"center",gap:"9px"}}>
-                    <div style={{width:"32px",height:"32px",background:company.cardBg,border:`1px solid ${col}33`,color:col,borderRadius:"9px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"13px",fontWeight:900,flexShrink:0}}>
+                    <div style={{width:"32px",height:"32px",background:cardBg,border:`1px solid ${col}33`,color:colTx,borderRadius:"9px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"13px",fontWeight:900,flexShrink:0}}>
                       {(c.name||"؟").trim().charAt(0)}
                     </div>
                     <div style={{minWidth:0}}>
                       <div style={{fontWeight:700,fontSize:"13px"}}>{c.name}</div>
-                      {c.email&&<div style={{fontSize:"10.5px",color:"#9ca3af",direction:"ltr",textAlign:"right"}}>{c.email}</div>}
+                      {c.email&&<div style={{fontSize:"10.5px",color:"var(--ia-muted)",direction:"ltr",textAlign:"right"}}>{c.email}</div>}
                     </div>
                   </div>
                 </td>
-                <td style={{padding:"10px 12px",direction:"ltr",textAlign:"right",color:"#2563eb",fontSize:"12.5px",fontWeight:600,whiteSpace:"nowrap"}}>{c.phone||"—"}</td>
-                <td style={{padding:"10px 12px",color:"#6b7280",fontSize:"12px",maxWidth:"150px"}}>
+                <td style={{padding:"10px 12px",direction:"ltr",textAlign:"right",color:"var(--ia-link)",fontSize:"12.5px",fontWeight:600,whiteSpace:"nowrap"}}>{c.phone||"—"}</td>
+                <td style={{padding:"10px 12px",color:"var(--ia-sub)",fontSize:"12px",maxWidth:"150px"}}>
                   <div style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.address||"—"}</div>
                 </td>
-                <td style={{padding:"10px 12px",fontWeight:800,color:st?col:"#9ca3af",whiteSpace:"nowrap"}}>{st?fKWD(st.spent):"—"}</td>
+                <td style={{padding:"10px 12px",fontWeight:800,color:st?colTx:"var(--ia-muted)",whiteSpace:"nowrap"}}>{st?fKWD(st.spent):"—"}</td>
                 <td style={{padding:"10px 12px",textAlign:"center"}}>
-                  {st?<span style={{background:"#dbeafe",color:"#1d4ed8",borderRadius:"20px",padding:"2px 9px",fontSize:"11px",fontWeight:700}}>{st.count}</span>
+                  {st?<span style={{background:"var(--ia-blue-bg)",color:"var(--ia-blue-tx)",borderRadius:"20px",padding:"2px 9px",fontSize:"11px",fontWeight:700}}>{st.count}</span>
                      :<span style={{color:"#d1d5db",fontSize:"11px"}}>جديد</span>}
                 </td>
-                <td style={{padding:"10px 12px",color:"#6b7280",fontSize:"11.5px",whiteSpace:"nowrap"}}>{st?fDate(st.lastDate):"—"}</td>
+                <td style={{padding:"10px 12px",color:"var(--ia-sub)",fontSize:"11.5px",whiteSpace:"nowrap"}}>{st?fDate(st.lastDate):"—"}</td>
                 <td style={{padding:"10px 12px"}} onClick={e=>e.stopPropagation()}>
                   {canEdit&&(
                     <div style={{display:"flex",gap:"4px"}}>
@@ -1095,15 +1202,61 @@ return(
     />
   )}
 
+  {/* CSV import preview / confirm */}
+  {imp&&(
+    <div style={{position:"fixed",inset:0,background:"var(--ia-overlay)",zIndex:2100,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",direction:"rtl"}} onClick={()=>impBusy?undefined:setImp(null)}>
+      <div className="card" style={{width:"100%",maxWidth:"480px",maxHeight:"85vh",overflow:"hidden",display:"flex",flexDirection:"column",animation:"fadeUp .25s"}} onClick={e=>e.stopPropagation()}>
+        <div style={{background:"#0f766e",padding:"14px 18px",display:"flex",alignItems:"center",gap:"11px",flexShrink:0}}>
+          <div style={{width:"38px",height:"38px",background:"rgba(255,255,255,.18)",borderRadius:"10px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"18px"}}>⬆️</div>
+          <div style={{flex:1,color:"#fff"}}>
+            <div style={{fontWeight:900,fontSize:"14.5px"}}>استيراد عملاء من CSV</div>
+            <div style={{fontSize:"11.5px",opacity:.8}}>{imp.rows.length} صف صالح — سيُتخطى المكرر تلقائياً</div>
+          </div>
+          <button onClick={()=>setImp(null)} disabled={impBusy} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"8px",padding:"6px 12px",color:"#fff",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>✕</button>
+        </div>
+        <div style={{overflowY:"auto",flex:1,padding:"14px 18px"}}>
+          {imp.errors.length>0&&(
+            <div style={{background:"var(--ia-warn-bg)",border:"1px solid var(--ia-warn-bd)",color:"var(--ia-warn-tx2)",borderRadius:"8px",padding:"8px 12px",fontSize:"11.5px",marginBottom:"10px",lineHeight:1.7}}>⚠️ {imp.errors.slice(0,4).join(" | ")}{imp.errors.length>4?` (+${imp.errors.length-4})`:""}</div>
+          )}
+          <div style={{border:"1px solid var(--ia-border)",borderRadius:"9px",overflow:"hidden"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:"12px"}}>
+              <thead><tr style={{background:"var(--ia-soft)"}}>
+                {["#","الاسم","التلفون","البريد","العنوان"].map(h=>(<th key={h} style={{padding:"7px 10px",fontSize:"10.5px",fontWeight:800,color:"var(--ia-sub)",textAlign:"right"}}>{h}</th>))}
+              </tr></thead>
+              <tbody>
+                {imp.rows.slice(0,30).map((r,i)=>(
+                  <tr key={i} style={{borderBottom:"1px solid var(--ia-border3)",background:i%2===0?"var(--ia-card)":"var(--ia-row-alt)"}}>
+                    <td style={{padding:"6px 10px",color:"var(--ia-muted)",fontWeight:700}}>{i+1}</td>
+                    <td style={{padding:"6px 10px",fontWeight:700}}>{r.name}</td>
+                    <td style={{padding:"6px 10px",direction:"ltr",textAlign:"right",color:"var(--ia-link)",fontWeight:600}}>{r.phone}</td>
+                    <td style={{padding:"6px 10px",direction:"ltr",textAlign:"right",color:"var(--ia-muted)",fontSize:"11px"}}>{r.email||"—"}</td>
+                    <td style={{padding:"6px 10px",color:"var(--ia-sub)",fontSize:"11px",maxWidth:"110px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.address||"—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {imp.rows.length>30&&<div style={{textAlign:"center",fontSize:"11px",color:"var(--ia-muted)",marginTop:"8px"}}>… و {imp.rows.length-30} عميل آخر</div>}
+        </div>
+        <div style={{display:"flex",gap:"9px",padding:"13px 18px",borderTop:"1px solid var(--ia-border3)",background:"var(--ia-soft)",flexShrink:0}}>
+          <button className="btn" disabled={impBusy} style={{background:"#0f766e",color:"#fff",flex:1,fontSize:"13.5px",padding:"10px",opacity:impBusy?.7:1}} onClick={doImportClients}>
+            {impBusy?"⏳ جارٍ الاستيراد...":`💾 استيراد ${imp.rows.length} عميل`}
+          </button>
+          <button className="btn" disabled={impBusy} style={{background:"var(--ia-ghost-bg)",color:"var(--ia-ghost-tx)",fontSize:"13px",padding:"10px 14px"}} onClick={()=>setImp(null)}>إلغاء</button>
+        </div>
+      </div>
+    </div>
+  )}
+
   {/* Delete confirmation */}
   {del&&(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",zIndex:2100,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",direction:"rtl"}} onClick={()=>setDel(null)}>
+    <div style={{position:"fixed",inset:0,background:"var(--ia-overlay)",zIndex:2100,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",direction:"rtl"}} onClick={()=>setDel(null)}>
       <div className="card" style={{padding:"26px 30px",textAlign:"center",maxWidth:"330px",animation:"fadeUp .2s"}} onClick={e=>e.stopPropagation()}>
         <div style={{fontSize:"36px",marginBottom:"8px"}}>🗑️</div>
         <div style={{fontWeight:800,fontSize:"14.5px",marginBottom:"6px"}}>حذف العميل من الدليل؟</div>
-        <div style={{color:"#6b7280",fontSize:"12.5px",marginBottom:"16px",lineHeight:1.7}}>
+        <div style={{color:"var(--ia-sub)",fontSize:"12.5px",marginBottom:"16px",lineHeight:1.7}}>
           سيتم حذف <b>{del.name}</b> من دليل العملاء.<br/>
-          <span style={{fontSize:"11px",color:"#9ca3af"}}>فواتيره السابقة لن تتأثر.</span>
+          <span style={{fontSize:"11px",color:"var(--ia-muted)"}}>فواتيره السابقة لن تتأثر.</span>
         </div>
         <div style={{display:"flex",gap:"9px",justifyContent:"center"}}>
           <button className="btn btn-red" onClick={confirmDelClient}>نعم، احذف</button>
@@ -1119,11 +1272,14 @@ return(
 // ─── Customers ────────────────────────────────────────────────────
 function Customers({invoices, company, onImportDone, onOpenInvoice, clients, refreshClients, toast_}){
 const { perms } = useAuth();
+const { dark } = useTheme();
+const col = company.color;
+const colTx = txAdapt(col, dark);
+const cardBg = softAdapt(company.cardBg, dark);
 const [search,setSearch]=useState("");
 const [sort,setSort]=useState("spent");
 const [showImport,setShowImport]=useState(false);
 const [selCustomer,setSelCustomer]=useState(null);
-const col = company.color;
 
 const map={};
 [...invoices].sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt)).forEach(inv=>{
@@ -1152,7 +1308,7 @@ onClose={()=>setShowImport(false)}
 
 {/* ── Customer Detail Modal ── */}
 {selCustomer&&(
-<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",direction:"rtl"}} onClick={()=>setSelCustomer(null)}>
+<div style={{position:"fixed",inset:0,background:"var(--ia-overlay)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",direction:"rtl"}} onClick={()=>setSelCustomer(null)}>
 <div className="card" style={{width:"100%",maxWidth:"640px",maxHeight:"90vh",overflow:"hidden",display:"flex",flexDirection:"column",animation:"fadeUp .25s"}} onClick={e=>e.stopPropagation()}>
 
   {/* Modal header */}
@@ -1178,7 +1334,7 @@ onClose={()=>setShowImport(false)}
         </>
       )}
       {selCustomer.address&&(
-        <div style={{display:"inline-flex",alignItems:"center",gap:"6px",background:"#f8fafc",border:"1px solid #e5e7eb",borderRadius:"8px",padding:"9px 14px",fontSize:"12px",color:"#374151",fontWeight:600,flex:1,minWidth:"140px"}}>
+        <div style={{display:"inline-flex",alignItems:"center",gap:"6px",background:"var(--ia-soft)",border:"1px solid var(--ia-border)",borderRadius:"8px",padding:"9px 14px",fontSize:"12px",color:"var(--ia-text2)",fontWeight:600,flex:1,minWidth:"140px"}}>
           📍 {selCustomer.address}
         </div>
       )}
@@ -1186,43 +1342,43 @@ onClose={()=>setShowImport(false)}
 
     {/* Stats */}
     <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:"8px",marginBottom:"16px"}}>
-      <div style={{background:company.cardBg,borderRadius:"10px",padding:"10px 14px",border:`1px solid ${col}22`}}>
-        <div style={{fontSize:"10px",color:"#6b7280",fontWeight:700,marginBottom:"3px"}}>إجمالي الإنفاق</div>
-        <div style={{fontSize:"16px",fontWeight:900,color:col}}>{fKWD(selCustomer.totalSpent)}</div>
+      <div style={{background:cardBg,borderRadius:"10px",padding:"10px 14px",border:`1px solid ${col}22`}}>
+        <div style={{fontSize:"10px",color:"var(--ia-sub)",fontWeight:700,marginBottom:"3px"}}>إجمالي الإنفاق</div>
+        <div style={{fontSize:"16px",fontWeight:900,color:colTx}}>{fKWD(selCustomer.totalSpent)}</div>
       </div>
-      <div style={{background:"#dbeafe",borderRadius:"10px",padding:"10px 14px",border:"1px solid #93c5fd44"}}>
-        <div style={{fontSize:"10px",color:"#1e40af",fontWeight:700,marginBottom:"3px"}}>عدد الفواتير</div>
-        <div style={{fontSize:"16px",fontWeight:900,color:"#1d4ed8"}}>{selCustomer.count} فاتورة</div>
+      <div style={{background:"var(--ia-blue-bg)",borderRadius:"10px",padding:"10px 14px",border:"1px solid #93c5fd44"}}>
+        <div style={{fontSize:"10px",color:"var(--ia-blue-tx2)",fontWeight:700,marginBottom:"3px"}}>عدد الفواتير</div>
+        <div style={{fontSize:"16px",fontWeight:900,color:"var(--ia-blue-tx)"}}>{selCustomer.count} فاتورة</div>
       </div>
-      <div style={{background:"#dcfce7",borderRadius:"10px",padding:"10px 14px",border:"1px solid #86efac44"}}>
-        <div style={{fontSize:"10px",color:"#166534",fontWeight:700,marginBottom:"3px"}}>أول شراء</div>
-        <div style={{fontSize:"13px",fontWeight:800,color:"#15803d"}}>{fDate(selCustomer.firstDate)}</div>
+      <div style={{background:"var(--ia-ok-bg)",borderRadius:"10px",padding:"10px 14px",border:"1px solid #86efac44"}}>
+        <div style={{fontSize:"10px",color:"var(--ia-ok-tx2)",fontWeight:700,marginBottom:"3px"}}>أول شراء</div>
+        <div style={{fontSize:"13px",fontWeight:800,color:"var(--ia-ok-tx)"}}>{fDate(selCustomer.firstDate)}</div>
       </div>
-      <div style={{background:"#fef3c7",borderRadius:"10px",padding:"10px 14px",border:"1px solid #fde68a44"}}>
-        <div style={{fontSize:"10px",color:"#92400e",fontWeight:700,marginBottom:"3px"}}>آخر شراء</div>
-        <div style={{fontSize:"13px",fontWeight:800,color:"#b45309"}}>{fDate(selCustomer.lastDate)}</div>
+      <div style={{background:"var(--ia-warn-bg)",borderRadius:"10px",padding:"10px 14px",border:"1px solid #fde68a44"}}>
+        <div style={{fontSize:"10px",color:"var(--ia-warn-tx2)",fontWeight:700,marginBottom:"3px"}}>آخر شراء</div>
+        <div style={{fontSize:"13px",fontWeight:800,color:"var(--ia-warn-tx)"}}>{fDate(selCustomer.lastDate)}</div>
       </div>
     </div>
 
     {/* Products purchased */}
     {selCustomer.products.length>0&&(
       <div style={{marginBottom:"16px"}}>
-        <div style={{fontSize:"11px",fontWeight:900,color:"#6b7280",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"8px"}}>🛍️ المنتجات المشتراة ({selCustomer.products.length})</div>
+        <div style={{fontSize:"11px",fontWeight:900,color:"var(--ia-sub)",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"8px"}}>🛍️ المنتجات المشتراة ({selCustomer.products.length})</div>
         <div style={{display:"flex",gap:"6px",flexWrap:"wrap"}}>
           {selCustomer.products.map(p=>(
-            <span key={p} style={{background:"#f3f4f6",border:"1px solid #e5e7eb",borderRadius:"20px",padding:"4px 12px",fontSize:"11.5px",color:"#374151",fontWeight:600}}>{p}</span>
+            <span key={p} style={{background:"var(--ia-chip)",border:"1px solid var(--ia-border)",borderRadius:"20px",padding:"4px 12px",fontSize:"11.5px",color:"var(--ia-text2)",fontWeight:600}}>{p}</span>
           ))}
         </div>
       </div>
     )}
 
     {/* Invoice history */}
-    <div style={{fontSize:"11px",fontWeight:900,color:"#6b7280",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"8px"}}>🧾 سجل الفواتير — اضغط لعرض الفاتورة</div>
-    <div style={{border:"1px solid #e5e7eb",borderRadius:"10px",overflow:"hidden",maxHeight:"300px",overflowY:"auto"}}>
+    <div style={{fontSize:"11px",fontWeight:900,color:"var(--ia-sub)",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"8px"}}>🧾 سجل الفواتير — اضغط لعرض الفاتورة</div>
+    <div style={{border:"1px solid var(--ia-border)",borderRadius:"10px",overflow:"hidden",maxHeight:"300px",overflowY:"auto"}}>
       <table style={{width:"100%",borderCollapse:"collapse",fontSize:"12.5px"}}>
-        <thead><tr style={{background:"#f8fafc",position:"sticky",top:0,zIndex:1}}>
+        <thead><tr style={{background:"var(--ia-soft)",position:"sticky",top:0,zIndex:1}}>
           {["رقم","التاريخ","الإجمالي","المدفوع","الحالة"].map(h=>(
-            <th key={h} style={{padding:"8px 12px",fontSize:"10.5px",fontWeight:700,color:"#6b7280",textAlign:"right"}}>{h}</th>
+            <th key={h} style={{padding:"8px 12px",fontSize:"10.5px",fontWeight:700,color:"var(--ia-sub)",textAlign:"right"}}>{h}</th>
           ))}
         </tr></thead>
         <tbody>
@@ -1230,10 +1386,10 @@ onClose={()=>setShowImport(false)}
             const st=getStatus(inv);
             return(
               <tr key={inv.id} onClick={()=>{setSelCustomer(null);if(onOpenInvoice)onOpenInvoice(inv);}}
-                style={{borderBottom:"1px solid #f3f4f6",background:i%2===0?"#fff":"#fafafa",cursor:"pointer"}}>
+                style={{borderBottom:"1px solid var(--ia-border3)",background:i%2===0?"var(--ia-card)":"var(--ia-row-alt)",cursor:"pointer"}}>
                 <td style={{padding:"8px 12px"}}><span className="b-inv">{inv.invNum}</span></td>
-                <td style={{padding:"8px 12px",color:"#6b7280",fontSize:"11px"}}>{fDate(inv.date)}</td>
-                <td style={{padding:"8px 12px",fontWeight:800,color:col}}>{fKWD(iT(inv))}</td>
+                <td style={{padding:"8px 12px",color:"var(--ia-sub)",fontSize:"11px"}}>{fDate(inv.date)}</td>
+                <td style={{padding:"8px 12px",fontWeight:800,color:colTx}}>{fKWD(iT(inv))}</td>
                 <td style={{padding:"8px 12px",color:"#16a34a",fontWeight:600}}>{fKWD(pN(inv.paid||0))}</td>
                 <td style={{padding:"8px 12px"}}><span className={`b-${st}`}>{stLabel[st]}</span></td>
               </tr>
@@ -1265,38 +1421,38 @@ onClick={()=>setShowImport(true)}
 </div>
 <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"10px",marginBottom:"14px"}}>
 {[
-{l:"إجمالي العملاء",v:customers.length+" عميل",c:col,bg:company.cardBg},
-{l:"إجمالي الإنفاق",v:fKWD(customers.reduce((s,c)=>s+c.totalSpent,0)),c:"#16a34a",bg:"#dcfce7"},
-{l:"متوسط الإنفاق / عميل",v:fKWD(customers.length?customers.reduce((s,c)=>s+c.totalSpent,0)/customers.length:0),c:"#7c3aed",bg:"#ede9fe"},
+{l:"إجمالي العملاء",v:customers.length+" عميل",c:colTx,bg:cardBg},
+{l:"إجمالي الإنفاق",v:fKWD(customers.reduce((s,c)=>s+c.totalSpent,0)),c:txAdapt("#16a34a",dark),bg:softAdapt("#dcfce7",dark)},
+{l:"متوسط الإنفاق / عميل",v:fKWD(customers.length?customers.reduce((s,c)=>s+c.totalSpent,0)/customers.length:0),c:txAdapt("#7c3aed",dark),bg:softAdapt("#ede9fe",dark)},
 ].map(s=>(
 <div key={s.l} style={{background:s.bg,borderRadius:"10px",padding:"12px 16px",border:`1px solid ${s.c}22`}}>
-<div style={{fontSize:"10px",color:"#6b7280",fontWeight:700,textTransform:"uppercase",marginBottom:"4px"}}>{s.l}</div>
+<div style={{fontSize:"10px",color:"var(--ia-sub)",fontWeight:700,textTransform:"uppercase",marginBottom:"4px"}}>{s.l}</div>
 <div style={{fontSize:"16px",fontWeight:900,color:s.c}}>{s.v}</div>
 </div>
 ))}
 </div>
 {customers.length===0?(
-<div className="card" style={{padding:"48px",textAlign:"center",color:"#9ca3af"}}><div style={{fontSize:"40px",marginBottom:"10px"}}>👥</div><div style={{fontWeight:600}}>لا توجد عملاء</div></div>
+<div className="card" style={{padding:"48px",textAlign:"center",color:"var(--ia-muted)"}}><div style={{fontSize:"40px",marginBottom:"10px"}}>👥</div><div style={{fontWeight:600}}>لا توجد عملاء</div></div>
 ):(
 <div className="card" style={{overflow:"hidden"}}>
 <table style={{width:"100%",borderCollapse:"collapse"}}>
-<thead><tr style={{background:"#f8fafc",borderBottom:"2px solid #e5e7eb"}}>
+<thead><tr style={{background:"var(--ia-soft)",borderBottom:"2px solid var(--ia-border2)"}}>
 {["العميل","التلفون","إجمالي الإنفاق","عدد الفواتير","آخر شراء","المنتجات","للميتا"].map(h=>(
-<th key={h} style={{padding:"10px 12px",fontSize:"11px",fontWeight:700,color:"#6b7280",textAlign:"right",textTransform:"uppercase",letterSpacing:".3px"}}>{h}</th>
+<th key={h} style={{padding:"10px 12px",fontSize:"11px",fontWeight:700,color:"var(--ia-sub)",textAlign:"right",textTransform:"uppercase",letterSpacing:".3px"}}>{h}</th>
 ))}
 </tr></thead>
 <tbody>
 {customers.map((c,i)=>(
 <tr key={c.phone} onClick={()=>setSelCustomer(c)}
-style={{borderBottom:"1px solid #f3f4f6",background:selCustomer&&selCustomer.phone===c.phone?`${col}0d`:(i%2===0?"#fff":"#fafafa"),cursor:"pointer"}}
+style={{borderBottom:"1px solid var(--ia-border3)",background:selCustomer&&selCustomer.phone===c.phone?`${col}0d`:(i%2===0?"var(--ia-card)":"var(--ia-row-alt)"),cursor:"pointer"}}
 className="trow">
 <td style={{padding:"11px 12px",fontWeight:600,fontSize:"13px"}}>{c.name}</td>
-<td style={{padding:"11px 12px",direction:"ltr",textAlign:"right",color:"#2563eb",fontSize:"13px"}}>{c.phone}</td>
-<td style={{padding:"11px 12px",fontWeight:700,color:col}}>{fKWD(c.totalSpent)}</td>
-<td style={{padding:"11px 12px",textAlign:"center"}}><span style={{background:"#dbeafe",color:"#1d4ed8",borderRadius:"20px",padding:"2px 8px",fontSize:"11px",fontWeight:700}}>{c.count}</span></td>
-<td style={{padding:"11px 12px",color:"#6b7280",fontSize:"12px"}}>{fDate(c.lastDate)}</td>
-<td style={{padding:"11px 12px",fontSize:"11px",color:"#555",maxWidth:"160px"}}><div style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.products.join("، ")}</div></td>
-<td style={{padding:"11px 12px"}}><span style={{background:"#e0f2fe",color:"#0369a1",borderRadius:"6px",padding:"2px 8px",fontSize:"11px",fontWeight:700,direction:"ltr",display:"inline-block"}}>+965{c.phone.replace(/^\+?965/,"")}</span></td>
+<td style={{padding:"11px 12px",direction:"ltr",textAlign:"right",color:"var(--ia-link)",fontSize:"13px"}}>{c.phone}</td>
+<td style={{padding:"11px 12px",fontWeight:700,color:colTx}}>{fKWD(c.totalSpent)}</td>
+<td style={{padding:"11px 12px",textAlign:"center"}}><span style={{background:"var(--ia-blue-bg)",color:"var(--ia-blue-tx)",borderRadius:"20px",padding:"2px 8px",fontSize:"11px",fontWeight:700}}>{c.count}</span></td>
+<td style={{padding:"11px 12px",color:"var(--ia-sub)",fontSize:"12px"}}>{fDate(c.lastDate)}</td>
+<td style={{padding:"11px 12px",fontSize:"11px",color:"var(--ia-sub)",maxWidth:"160px"}}><div style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.products.join("، ")}</div></td>
+<td style={{padding:"11px 12px"}}><span style={{background:"var(--ia-sky-bg)",color:"var(--ia-sky-tx)",borderRadius:"6px",padding:"2px 8px",fontSize:"11px",fontWeight:700,direction:"ltr",display:"inline-block"}}>+965{c.phone.replace(/^\+?965/,"")}</span></td>
 </tr>
 ))}
 </tbody>
@@ -1315,6 +1471,119 @@ className="trow">
   toast_={toast_}
 />
 </div>
+</div>
+);
+}
+
+// ─── Bulk WhatsApp reminders modal (overdue collections) ──────────
+function BulkWaRemindersModal({ overdue, company, onClose, toast_ }) {
+const { dark } = useTheme();
+const col = company.color;
+const colTx = txAdapt(col, dark);
+// only invoices that actually have a reachable phone can be messaged
+const sendable = overdue.filter(inv => waReminderHref(inv, company));
+const [sel, setSel] = useState(() => sendable.map(i => i.id));
+const [copied, setCopied] = useState(false);
+const allSel = sendable.length > 0 && sendable.every(i => sel.includes(i));
+const toggleAll = () => setSel(allSel ? [] : sendable.map(i => i.id));
+const toggleOne = id => setSel(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
+const chosen = sendable.filter(i => sel.includes(i.id));
+const totalDue = chosen.reduce((s, i) => s + (iT(i) - pN(i.paid || 0)), 0);
+
+const copyNumbers = async () => {
+  const nums = chosen.map(i => "+965" + norm(i.clientPhone || "").replace(/^\+?965/, ""));
+  if (!nums.length) { toast_("لا توجد فواتير محددة", "warn"); return; }
+  const text = nums.join(", ");
+  try { await navigator.clipboard.writeText(text); }
+  catch {
+    // fallback for older browsers / non-secure contexts
+    const ta = document.createElement("textarea");
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); } catch {}
+    ta.remove();
+  }
+  setCopied(true); setTimeout(() => setCopied(false), 1800);
+  toast_("📋 تم نسخ " + nums.length + " رقم — الصقها في قائمة Broadcast في واتساب");
+};
+
+const sendAll = () => {
+  if (!chosen.length) { toast_("حدّد فاتورة واحدة على الأقل", "warn"); return; }
+  chosen.forEach((inv, i) => {
+    const href = waReminderHref(inv, company);
+    setTimeout(() => { try { window.open(href, "_blank"); } catch {} }, i * 400);
+  });
+  toast_("🚀 جارٍ فتح واتساب لـ " + chosen.length + " عميل");
+};
+
+return(
+<div style={{position:"fixed",inset:0,background:"var(--ia-overlay)",zIndex:2200,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",direction:"rtl"}} onClick={onClose}>
+  <div className="card" style={{width:"100%",maxWidth:"560px",maxHeight:"90vh",overflow:"hidden",display:"flex",flexDirection:"column",animation:"fadeUp .25s"}} onClick={e=>e.stopPropagation()}>
+
+    {/* Header */}
+    <div style={{background:col,padding:"15px 20px",display:"flex",alignItems:"center",gap:"12px",flexShrink:0}}>
+      <div style={{width:"42px",height:"42px",background:"rgba(255,255,255,.18)",borderRadius:"11px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"20px",flexShrink:0}}>📣</div>
+      <div style={{flex:1,minWidth:0,color:"#fff"}}>
+        <div style={{fontWeight:900,fontSize:"15px"}}>تذكير جماعي بالسداد</div>
+        <div style={{fontSize:"11.5px",opacity:.8}}>{sendable.length} فاتورة متأخرة بإجمالي متبقٍ {fKWD(overdue.reduce((s,i)=>s+iT(i)-pN(i.paid||0),0))}</div>
+      </div>
+      <button onClick={onClose} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"8px",padding:"6px 12px",color:"#fff",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer",flexShrink:0}}>✕</button>
+    </div>
+
+    {/* Actions bar */}
+    <div style={{display:"flex",gap:"8px",alignItems:"center",padding:"12px 18px",borderBottom:"1px solid var(--ia-border3)",background:"var(--ia-soft)",flexWrap:"wrap",flexShrink:0}}>
+      <label style={{display:"flex",alignItems:"center",gap:"6px",cursor:"pointer",fontSize:"12px",fontWeight:800,color:"var(--ia-text2)",userSelect:"none"}}>
+        <input type="checkbox" checked={allSel} onChange={toggleAll} style={{accentColor:col,cursor:"pointer",width:"15px",height:"15px"}}/>
+        تحديد الكل
+      </label>
+      <span style={{fontSize:"11.5px",fontWeight:700,color:"var(--ia-sub)"}}>{chosen.length} محدد • {fKWD(totalDue)}</span>
+      <div style={{flex:1}}/>
+      <button className="btn" style={{background:copied?"#15803d":"#2563eb",color:"#fff",padding:"6px 12px",fontSize:"12px"}} onClick={copyNumbers}>{copied?"✅ تم النسخ":"📋 نسخ الأرقام"}</button>
+      <button className="btn wa-btn" style={{color:"#fff",padding:"6px 12px",fontSize:"12px"}} onClick={sendAll}>🚀 إرسال ({chosen.length})</button>
+    </div>
+
+    {/* Rows */}
+    <div style={{overflowY:"auto",flex:1,padding:"10px 14px"}}>
+      {sendable.length===0?(
+        <div style={{textAlign:"center",color:"var(--ia-muted)",padding:"32px 0"}}>
+          <div style={{fontSize:"34px",marginBottom:"8px"}}>👍</div>
+          <div style={{fontWeight:700,fontSize:"13px"}}>كل الفواتير المتأخرة بلا أرقام تلفون</div>
+        </div>
+      ):sendable.map(inv=>{
+        const checked=sel.includes(inv.id);
+        const due=iT(inv)-pN(inv.paid||0);
+        const od=overdueDays(inv);
+        return(
+          <div key={inv.id} onClick={()=>toggleOne(inv.id)}
+            style={{display:"flex",alignItems:"center",gap:"10px",padding:"9px 10px",borderRadius:"9px",marginBottom:"6px",cursor:"pointer",
+              background:checked?`${col}0d`:"var(--ia-card)",border:`1px solid ${checked?`${col}33`:"var(--ia-border)"}`,transition:"all .12s"}}>
+            <input type="checkbox" checked={checked} onChange={()=>toggleOne(inv.id)} onClick={e=>e.stopPropagation()} style={{accentColor:col,cursor:"pointer",width:"15px",height:"15px",flexShrink:0}}/>
+            <div style={{width:"30px",height:"30px",background:softAdapt(company.cardBg,dark),border:`1px solid ${col}33`,color:colTx,borderRadius:"8px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"13px",fontWeight:900,flexShrink:0}}>
+              {(inv.clientName||"؟").trim().charAt(0)}
+            </div>
+            <div style={{minWidth:0,flex:1}}>
+              <div style={{fontWeight:700,fontSize:"12.5px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{inv.clientName||inv.clientPhone}</div>
+              <div style={{fontSize:"10.5px",color:"var(--ia-sub)",direction:"ltr",textAlign:"right"}}>{inv.clientPhone}</div>
+            </div>
+            <span className="b-inv" style={{flexShrink:0}}>{inv.invNum}</span>
+            <div style={{textAlign:"left",flexShrink:0,minWidth:"70px"}}>
+              <div style={{fontWeight:900,fontSize:"12.5px",color:"var(--ia-red-tx)",direction:"ltr"}}>{fKWD(due)}</div>
+              <div style={{fontSize:"10px",fontWeight:800,color:"var(--ia-red-tx)"}}>⏰ {od} يوم</div>
+            </div>
+            <a href={waReminderHref(inv,company)} target="_blank" rel="noopener noreferrer" className="btn wa-btn" title="إرسال تذكير لهذا العميل"
+              style={{color:"#fff",padding:"5px 8px",fontSize:"12px",textDecoration:"none",flexShrink:0}}
+              onClick={e=>e.stopPropagation()}>📣</a>
+          </div>
+        );
+      })}
+    </div>
+
+    {/* Footer hint */}
+    <div style={{padding:"10px 18px",borderTop:"1px solid var(--ia-border3)",background:"var(--ia-soft)",fontSize:"11px",color:"var(--ia-sub)",lineHeight:1.7,flexShrink:0}}>
+      💡 سيفتح زر «إرسال» محادثة واتساب لكل عميل على حدة (برسالة جاهزة).
+      لإرسال قائمة تذكير واحدة للجميع استخدم «نسخ الأرقام» ثم أنشئ <b>Broadcast</b> في واتساب.
+      اسمح بالـ Popups للمتصفح.
+    </div>
+  </div>
 </div>
 );
 }
@@ -1345,6 +1614,8 @@ const [pageSize,setPageSize]=useState(10);
 const [sortKey,setSortKey]=useState("date_desc");
 const [clients,setClients]=useState([]);
 const [invLoading,setInvLoading]=useState(false);
+const [showBulkWa,setShowBulkWa]=useState(false); // bulk WhatsApp reminders modal
+const { dark, toggle } = useTheme();   // light/dark theme (hooks must run before early returns)
 
 const emptyForm=()=>({clientName:"",clientPhone:"",clientAddress:"",items:[{name:"",desc:"",qty:1,price:""}],shipping:0,date:today(),dueDate:addD(today(),30),paid:0,notes:""});
 const [form,setForm]=useState(emptyForm());
@@ -1584,10 +1855,12 @@ if(!user)return <FirebaseLogin/>;
 if(!company)return <CompanySelector companies={availableCompanies} onSelect={co=>{setCompany(co);setView("dash");}}/>;
 
 const col = company.color;
+const colTx = txAdapt(col, dark);          // readable company color for TEXT on cards
+const cardBg = softAdapt(company.cardBg, dark); // soft tinted surface (KPI/summary boxes)
 
 return(
-<div dir="rtl" style={{minHeight:"100vh",background:"#f3f4f6",fontFamily:"'Cairo','Tajawal',sans-serif",color:"#111",display:"flex",flexDirection:"column"}}>
-<style>{`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap'); *{box-sizing:border-box} .inp{width:100%;border:1.5px solid #d1d5db;border-radius:8px;padding:9px 12px;font-family:inherit;font-size:13px;background:#fff;outline:none;transition:border .15s,box-shadow .15s} .inp:focus{border-color:${col};box-shadow:0 0 0 3px ${col}1a} .inp:hover{border-color:#9ca3af} .btn{border:none;border-radius:8px;padding:9px 16px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap} .btn:hover{filter:brightness(1.06);box-shadow:0 2px 10px rgba(0,0,0,.12)} .btn:active{opacity:.85;transform:scale(.97)} .btn-ghost{background:#e5e7eb;color:#374151} .btn-outline{background:transparent;border:1.5px solid #d1d5db;color:#374151} .btn-outline:hover{border-color:${col};color:${col}} .btn-red{background:#dc2626;color:#fff} .card{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);border:1px solid #e5e7eb} .trow{transition:background .12s} .trow:hover,.trow:active{background:#f0f4ff;cursor:pointer} .inv-table tbody tr:last-child td{border-bottom:none} .b-paid{background:#dcfce7;color:#15803d;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-paid::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:#16a34a;margin-left:5px;vertical-align:middle} .b-part{background:#fef3c7;color:#b45309;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-part::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:#d97706;margin-left:5px;vertical-align:middle} .b-unp{background:#fee2e2;color:#b91c1c;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-unp::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:#dc2626;margin-left:5px;vertical-align:middle} .b-cancel{background:#f3f4f6;color:#6b7280;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;text-decoration:line-through} .b-inv{background:#dbeafe;color:#1d4ed8;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;letter-spacing:.3px} @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}} @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}} .navbar{background:${col};position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,.25)} .navbar-top{display:flex;align-items:center;padding:0 12px;height:48px;gap:6px} .navbar-tabs{display:flex;overflow-x:auto;padding:4px 12px 6px;gap:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none} .navbar-tabs::-webkit-scrollbar{display:none} .aliphia-btn{background:#0f766e;} .nav-tab{background:transparent;color:rgba(255,255,255,.7);border:1px solid transparent;border-radius:6px;padding:5px 11px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s} .nav-tab:hover{color:#fff;background:rgba(255,255,255,.08)} .nav-tab.active{background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.25)} .nav-tab:active{background:rgba(255,255,255,.2)} .inv-table{width:100%;border-collapse:collapse} .inv-table th{padding:10px 10px;font-size:11px;font-weight:700;color:#6b7280;text-align:right;text-transform:uppercase;letter-spacing:.3px} .inv-table td{padding:10px 10px;border-bottom:1px solid #f3f4f6;font-size:13px} .col-addr,.col-date,.col-phone{display:none} @media(min-width:500px){.col-phone{display:table-cell}} @media(min-width:680px){.col-date{display:table-cell}} .form-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px} .form-3col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px} .item-row{display:grid;grid-template-columns:2fr 65px 110px auto;gap:7px;margin-bottom:7px;align-items:center} @media(max-width:500px){.form-2col{grid-template-columns:1fr}.form-3col{grid-template-columns:1fr 1fr}.item-row{grid-template-columns:1fr 55px 90px auto}} .kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px} .kpi-grid>div{transition:transform .18s,box-shadow .18s} .kpi-grid>div:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.08)} @media(min-width:600px){.kpi-grid{grid-template-columns:repeat(4,1fr)}} .chart-grid{display:grid;grid-template-columns:1fr;gap:12px} @media(min-width:680px){.chart-grid{grid-template-columns:1.7fr 1fr}} .print-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end} @media(max-width:480px){.print-grid{grid-template-columns:1fr 1fr;} .print-grid .print-btn{grid-column:1/-1}} .cust-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px} @media(max-width:480px){.cust-stats{grid-template-columns:1fr}} .aliphia-btn{background:linear-gradient(135deg,#0f766e,#0d9488)!important;border:none;box-shadow:0 2px 8px rgba(15,118,110,.3);transition:all .2s!important} .aliphia-btn:hover{box-shadow:0 4px 14px rgba(15,118,110,.45)!important;transform:translateY(-1px)} ::-webkit-scrollbar{width:9px;height:9px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:8px;border:2px solid #f3f4f6} ::-webkit-scrollbar-thumb:hover{background:#9ca3af} .sk{position:relative;overflow:hidden;background:#e5e7eb;border-radius:6px} .sk::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.65),transparent);animation:shimmer 1.4s infinite} @keyframes shimmer{100%{transform:translateX(100%)}} .sk-sm{height:11px} .sk-lg{height:22px} .btn:focus-visible,.inp:focus-visible{outline:2.5px solid ${col};outline-offset:2px} .nav-tab:focus-visible{outline:2.5px solid #fff;outline-offset:1px} .wa-btn{background:#16a34a!important;transition:all .18s!important} .wa-btn:hover{background:#15803d!important;box-shadow:0 4px 14px rgba(22,163,74,.4)!important;transform:translateY(-1px)} select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:left 10px center;padding-left:26px} .chart-grid>div{transition:box-shadow .18s} .chart-grid>div:hover{box-shadow:0 4px 16px rgba(0,0,0,.06)}`}</style>
+<div dir="rtl" style={{minHeight:"100vh",background:"var(--ia-bg)",fontFamily:"'Cairo','Tajawal',sans-serif",color:"var(--ia-text)",display:"flex",flexDirection:"column"}}>
+<style>{`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap'); *{box-sizing:border-box} .inp{width:100%;border:1.5px solid var(--ia-border2);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:13px;background:var(--ia-inp-bg);color:var(--ia-text);outline:none;transition:border .15s,box-shadow .15s} .inp:focus{border-color:${col};box-shadow:0 0 0 3px ${col}1a} .inp:hover{border-color:var(--ia-muted)} .inp::placeholder{color:var(--ia-muted)} .btn{border:none;border-radius:8px;padding:9px 16px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap} .btn:hover{filter:brightness(1.06);box-shadow:0 2px 10px rgba(0,0,0,.12)} .btn:active{opacity:.85;transform:scale(.97)} .btn-ghost{background:var(--ia-ghost-bg);color:var(--ia-ghost-tx)} .btn-outline{background:transparent;border:1.5px solid var(--ia-border2);color:var(--ia-text2)} .btn-outline:hover{border-color:${col};color:${colTx}} .btn-red{background:#dc2626;color:#fff} .card{background:var(--ia-card);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);border:1px solid var(--ia-border)} [data-theme="dark"] .card{box-shadow:0 1px 3px rgba(0,0,0,.35)} .trow{transition:background .12s} .trow:hover,.trow:active{background:var(--ia-hover);cursor:pointer} .inv-table tbody tr:last-child td{border-bottom:none} .b-paid{background:var(--ia-ok-bg);color:var(--ia-ok-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-paid::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-ok-tx);margin-left:5px;vertical-align:middle} .b-part{background:var(--ia-warn-bg);color:var(--ia-warn-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-part::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-warn-tx);margin-left:5px;vertical-align:middle} .b-unp{background:var(--ia-red-bg);color:var(--ia-red-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-unp::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-red-tx);margin-left:5px;vertical-align:middle} .b-cancel{background:var(--ia-chip);color:var(--ia-sub);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;text-decoration:line-through} .b-inv{background:var(--ia-blue-bg);color:var(--ia-blue-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;letter-spacing:.3px} @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}} @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}} .navbar{background:${col};position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,.25)} .navbar-top{display:flex;align-items:center;padding:0 12px;height:48px;gap:6px} .navbar-tabs{display:flex;overflow-x:auto;padding:4px 12px 6px;gap:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none} .navbar-tabs::-webkit-scrollbar{display:none} .aliphia-btn{background:#0f766e;} .nav-tab{background:transparent;color:rgba(255,255,255,.7);border:1px solid transparent;border-radius:6px;padding:5px 11px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s} .nav-tab:hover{color:#fff;background:rgba(255,255,255,.08)} .nav-tab.active{background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.25)} .nav-tab:active{background:rgba(255,255,255,.2)} .inv-table{width:100%;border-collapse:collapse} .inv-table th{padding:10px 10px;font-size:11px;font-weight:700;color:var(--ia-sub);text-align:right;text-transform:uppercase;letter-spacing:.3px} .inv-table td{padding:10px 10px;border-bottom:1px solid var(--ia-border3);font-size:13px} .col-addr,.col-date,.col-phone{display:none} @media(min-width:500px){.col-phone{display:table-cell}} @media(min-width:680px){.col-date{display:table-cell}} .form-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px} .form-3col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px} .item-row{display:grid;grid-template-columns:2fr 65px 110px auto;gap:7px;margin-bottom:7px;align-items:center} @media(max-width:500px){.form-2col{grid-template-columns:1fr}.form-3col{grid-template-columns:1fr 1fr}.item-row{grid-template-columns:1fr 55px 90px auto}} .kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px} .kpi-grid>div{transition:transform .18s,box-shadow .18s} .kpi-grid>div:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.08)} @media(min-width:600px){.kpi-grid{grid-template-columns:repeat(4,1fr)}} .chart-grid{display:grid;grid-template-columns:1fr;gap:12px} @media(min-width:680px){.chart-grid{grid-template-columns:1.7fr 1fr}} .print-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end} @media(max-width:480px){.print-grid{grid-template-columns:1fr 1fr;} .print-grid .print-btn{grid-column:1/-1}} .cust-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px} @media(max-width:480px){.cust-stats{grid-template-columns:1fr}} .aliphia-btn{background:linear-gradient(135deg,#0f766e,#0d9488)!important;border:none;box-shadow:0 2px 8px rgba(15,118,110,.3);transition:all .2s!important} .aliphia-btn:hover{box-shadow:0 4px 14px rgba(15,118,110,.45)!important;transform:translateY(-1px)} ::-webkit-scrollbar{width:9px;height:9px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:var(--ia-border2);border-radius:8px;border:2px solid var(--ia-bg)} ::-webkit-scrollbar-thumb:hover{background:var(--ia-muted)} .sk{position:relative;overflow:hidden;background:var(--ia-skel);border-radius:6px} .sk::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.65),transparent);animation:shimmer 1.4s infinite} [data-theme="dark"] .sk::after{background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent)} @keyframes shimmer{100%{transform:translateX(100%)}} .sk-sm{height:11px} .sk-lg{height:22px} .btn:focus-visible,.inp:focus-visible{outline:2.5px solid ${col};outline-offset:2px} .nav-tab:focus-visible{outline:2.5px solid #fff;outline-offset:1px} .wa-btn{background:#16a34a!important;transition:all .18s!important} .wa-btn:hover{background:#15803d!important;box-shadow:0 4px 14px rgba(22,163,74,.4)!important;transform:translateY(-1px)} select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:left 10px center;padding-left:26px} .chart-grid>div{transition:box-shadow .18s} .chart-grid>div:hover{box-shadow:0 4px 16px rgba(0,0,0,.06)} [data-theme="dark"] .chart-grid>div:hover{box-shadow:0 4px 16px rgba(0,0,0,.4)} [data-theme="dark"] .kpi-grid>div:hover{box-shadow:0 6px 18px rgba(0,0,0,.45)} [data-theme="dark"] .btn:hover{filter:brightness(1.15)}`}</style>
 
   {/* Admin Dashboard Modal */}
   {showAdmin&&<AdminDashboard onClose={()=>setShowAdmin(false)}/>}
@@ -1616,6 +1889,7 @@ return(
       </button>
       <div style={{flex:1}}/>
       {isAdmin&&<button onClick={()=>setShowAdmin(true)} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"6px",color:"rgba(255,255,255,.9)",padding:"5px 10px",fontFamily:"inherit",fontSize:"12px",fontWeight:700,cursor:"pointer",flexShrink:0}}>⚙️ المستخدمين</button>}
+      <button onClick={toggle} title={dark?"التبديل إلى الوضع النهاري":"التبديل إلى الوضع الليلي"} aria-label="تبديل السمة" style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"6px",color:"#fff",padding:"5px 10px",fontFamily:"inherit",fontSize:"13px",cursor:"pointer",flexShrink:0,lineHeight:1}}>{dark?"☀️":"🌙"}</button>
       <button onClick={logout} style={{background:"rgba(0,0,0,.2)",border:"1px solid rgba(255,255,255,.2)",borderRadius:"6px",color:"rgba(255,255,255,.8)",padding:"5px 10px",fontFamily:"inherit",fontSize:"12px",fontWeight:700,cursor:"pointer",flexShrink:0}}>خروج</button>
     </div>
     <div className="navbar-tabs">
@@ -1631,13 +1905,23 @@ return(
   {/* Toast */}
   {toast&&<div style={{position:"fixed",top:60,left:"50%",transform:"translateX(-50%)",zIndex:9999,background:toast.type==="warn"?"#f59e0b":"#16a34a",color:"#fff",padding:"8px 20px",borderRadius:"50px",fontWeight:700,fontSize:"13px",boxShadow:"0 4px 16px rgba(0,0,0,.2)",animation:"toastIn .2s",whiteSpace:"nowrap"}}>{toast.msg}</div>}
 
+  {/* Bulk WhatsApp reminders modal (overdue) */}
+  {showBulkWa&&(
+    <BulkWaRemindersModal
+      overdue={overdueList}
+      company={company}
+      onClose={()=>setShowBulkWa(false)}
+      toast_={toast_}
+    />
+  )}
+
   {/* Delete Modal */}
   {delModal&&(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={()=>setDelModal(null)}>
+    <div style={{position:"fixed",inset:0,background:"var(--ia-overlay)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={()=>setDelModal(null)}>
       <div className="card" style={{padding:"28px 32px",textAlign:"center",maxWidth:"320px",animation:"fadeUp .2s"}} onClick={e=>e.stopPropagation()}>
         <div style={{fontSize:"38px",marginBottom:"8px"}}>🗑️</div>
         <div style={{fontWeight:700,fontSize:"15px",marginBottom:"6px"}}>تأكيد الحذف</div>
-        <div style={{color:"#6b7280",fontSize:"13px",marginBottom:"18px"}}>سيتم حذف الفاتورة <b>{delModal.invNum}</b> نهائياً</div>
+        <div style={{color:"var(--ia-sub)",fontSize:"13px",marginBottom:"18px"}}>سيتم حذف الفاتورة <b>{delModal.invNum}</b> نهائياً</div>
         <div style={{display:"flex",gap:"10px",justifyContent:"center"}}>
           <button className="btn btn-red" onClick={confirmDelete}>نعم، احذف</button>
           <button className="btn btn-ghost" onClick={()=>setDelModal(null)}>إلغاء</button>
@@ -1689,20 +1973,25 @@ return(
           <button className="btn" style={{background:"#0f766e",color:"#fff",gap:"6px"}} onClick={exportInvoicesCSV}>
             <span style={{fontSize:"15px"}}>⬇️</span> تصدير CSV
           </button>
-          <span style={{fontSize:"12px",color:"#6b7280",whiteSpace:"nowrap"}}>{filtered.length} فاتورة</span>
+          <span style={{fontSize:"12px",color:"var(--ia-sub)",whiteSpace:"nowrap"}}>{filtered.length} فاتورة</span>
         </div>
 
         {/* Sort + page size bar */}
         <div style={{display:"flex",gap:"8px",marginBottom:"12px",alignItems:"center",flexWrap:"wrap"}}>
-          <select className="inp" style={{width:"auto",padding:"6px 10px",fontSize:"12px",fontWeight:700,color:"#374151"}} value={sortKey} onChange={e=>{setSortKey(e.target.value);setPage(1);}}>
+          <select className="inp" style={{width:"auto",padding:"6px 10px",fontSize:"12px",fontWeight:700,color:"var(--ia-text2)"}} value={sortKey} onChange={e=>{setSortKey(e.target.value);setPage(1);}}>
             {Object.entries(SORTS).map(([k,v])=><option key={k} value={k}>↕️ {v.label}</option>)}
           </select>
-          <select className="inp" style={{width:"auto",padding:"6px 10px",fontSize:"12px",fontWeight:700,color:"#374151"}} value={pageSize} onChange={e=>{setPageSize(Number(e.target.value));setPage(1);}}>
+          <select className="inp" style={{width:"auto",padding:"6px 10px",fontSize:"12px",fontWeight:700,color:"var(--ia-text2)"}} value={pageSize} onChange={e=>{setPageSize(Number(e.target.value));setPage(1);}}>
             {[10,25,50,100].map(n=><option key={n} value={n}>{n} / صفحة</option>)}
           </select>
           <div style={{flex:1}}/>
           {overdueList.length>0&&(
-            <span style={{fontSize:"11.5px",fontWeight:800,color:"#b91c1c",background:"#fee2e2",border:"1px solid #fecaca",borderRadius:"20px",padding:"4px 12px"}}>⏰ {overdueList.length} فاتورة متأخرة عن الاستحقاق</span>
+            <span style={{fontSize:"11.5px",fontWeight:800,color:"var(--ia-red-tx)",background:"var(--ia-red-bg)",border:"1px solid var(--ia-red-bd)",borderRadius:"20px",padding:"4px 12px"}}>⏰ {overdueList.length} فاتورة متأخرة عن الاستحقاق</span>
+          )}
+          {overdueList.length>0&&(
+            <button className="btn wa-btn" style={{color:"#fff",padding:"6px 12px",fontSize:"12px",gap:"5px"}} onClick={()=>setShowBulkWa(true)} title="إرسال تذكير واتساب لكل العملاء المتأخرين">
+              <span style={{fontSize:"13px"}}>📣</span> تذكير جماعي
+            </button>
           )}
         </div>
 
@@ -1711,13 +2000,13 @@ return(
           {["all","paid","part","unp","cancel"].map(sf=>{
             const active=statusFilter===sf;
             const cnt=statusCounts[sf]||0;
-            const c=stColor[sf]||col;
+            const c=txAdapt(stColor[sf]||col, dark);
             return(
               <button key={sf} onClick={()=>{setStatusFilter(sf);setSelectedIds([]);setPage(1);}}
                 style={{
-                  border:`1.5px solid ${active?c:"#e5e7eb"}`,
-                  background:active?`${c}14`:"#fff",
-                  color:active?c:"#6b7280",
+                  border:`1.5px solid ${active?c:"var(--ia-border)"}`,
+                  background:active?`${c}14`:"var(--ia-card)",
+                  color:active?c:"var(--ia-sub)",
                   borderRadius:"20px",
                   padding:"5px 13px",
                   fontFamily:"inherit",
@@ -1730,7 +2019,7 @@ return(
                   gap:"6px",
                 }}>
                 {sf==="all"?"📋 الكل":sf==="paid"?"✅ ":sf==="part"?"🟡 ":sf==="unp"?"🔴 ":"⛔ "}{sf!=="all"?stLabel[sf]:""}
-                <span style={{background:active?`${c}22`:"#f3f4f6",borderRadius:"12px",padding:"1px 7px",fontSize:"10px",fontWeight:900}}>{cnt}</span>
+                <span style={{background:active?`${c}22`:"var(--ia-chip)",borderRadius:"12px",padding:"1px 7px",fontSize:"10px",fontWeight:900}}>{cnt}</span>
               </button>
             );
           })}
@@ -1739,7 +2028,7 @@ return(
         {/* Bulk actions bar */}
         {selectedIds.length>0&&(
           <div style={{display:"flex",gap:"8px",alignItems:"center",background:`${col}0d`,border:`1.5px solid ${col}33`,borderRadius:"9px",padding:"9px 14px",marginBottom:"10px",flexWrap:"wrap"}}>
-            <span style={{fontSize:"13px",fontWeight:800,color:col}}>{selectedIds.length} محدد</span>
+            <span style={{fontSize:"13px",fontWeight:800,color:colTx}}>{selectedIds.length} محدد</span>
             <div style={{flex:1}}/>
             {!!perms.print_invoice&&<button className="btn" style={{background:col,color:"#fff",padding:"6px 12px",fontSize:"12px"}} onClick={printSelected}>🖨️ طباعة المحددة</button>}
             <button className="btn" style={{background:"#7c3aed",color:"#fff",padding:"6px 12px",fontSize:"12px"}} onClick={()=>{setPurchasePreSelect([...selectedIds]);setSelectedIds([]);setView("purchase");}}>🛒 توليد فاتورة مشتريات</button>
@@ -1749,7 +2038,7 @@ return(
         )}
 
         {filtered.length===0?(
-          <div className="card" style={{padding:"56px",textAlign:"center",color:"#9ca3af"}}>
+          <div className="card" style={{padding:"56px",textAlign:"center",color:"var(--ia-muted)"}}>
             <div style={{fontSize:"44px",marginBottom:"10px"}}>📄</div>
             <div style={{fontWeight:600,marginBottom:"14px"}}>لا توجد فواتير</div>
             <button className="btn aliphia-btn" style={{color:"#fff"}} onClick={()=>setShowAliphia(true)}>📥 استورد فواتيرك من Aliphia</button>
@@ -1757,7 +2046,7 @@ return(
         ):(
           <div className="card" style={{overflow:"hidden"}}>
             <table className="inv-table">
-              <thead><tr style={{background:"#f8fafc",borderBottom:"2px solid #e5e7eb"}}>
+              <thead><tr style={{background:"var(--ia-soft)",borderBottom:"2px solid var(--ia-border2)"}}>
                 <th style={{width:"38px",textAlign:"center",padding:"8px"}}>
                   <input type="checkbox" checked={allSel} onChange={toggleSelectAll}
                     style={{cursor:"pointer",width:"15px",height:"15px",accentColor:col}}/>
@@ -1783,11 +2072,11 @@ return(
                         {inv.source==="aliphia"&&<span style={{marginRight:"4px",fontSize:"10px",background:"#ccfbf1",color:"#0f766e",borderRadius:"4px",padding:"1px 5px",fontWeight:700}}>A</span>}
                       </td>
                       <td style={{fontWeight:600}}>{inv.clientName}</td>
-                      <td className="col-phone" style={{direction:"ltr",textAlign:"right",color:"#2563eb"}}>{inv.clientPhone}</td>
-                      <td className="col-date" style={{color:"#6b7280",fontSize:"12px"}}>
+                      <td className="col-phone" style={{direction:"ltr",textAlign:"right",color:"var(--ia-link)"}}>{inv.clientPhone}</td>
+                      <td className="col-date" style={{color:"var(--ia-sub)",fontSize:"12px"}}>
                         {fDate(inv.date)}
                         {overdueDays(inv)>0&&(
-                          <span style={{display:"block",marginTop:"2px",fontSize:"10px",fontWeight:800,color:"#b91c1c",background:"#fee2e2",borderRadius:"4px",padding:"1px 6px",width:"fit-content"}}>
+                          <span style={{display:"block",marginTop:"2px",fontSize:"10px",fontWeight:800,color:"var(--ia-red-tx)",background:"var(--ia-red-bg)",borderRadius:"4px",padding:"1px 6px",width:"fit-content"}}>
                             ⏰ متأخرة {overdueDays(inv)} يوم
                           </span>
                         )}
@@ -1827,21 +2116,21 @@ return(
               let p=i+1;
               if(totalPages>7){
                 if(p>4&&p<totalPages-2){
-                  if(p===5)return<span key={p} style={{color:"#9ca3af",fontSize:"12px",padding:"0 2px"}}>…</span>;
+                  if(p===5)return<span key={p} style={{color:"var(--ia-muted)",fontSize:"12px",padding:"0 2px"}}>…</span>;
                   return null;
                 }
               }
               const active=p===safePage;
               return(
                 <button key={p} onClick={()=>goToPage(p)} style={{
-                  border:`1.5px solid ${active?col:"#e5e7eb"}`,background:active?col:"#fff",
-                  color:active?"#fff":"#6b7280",borderRadius:"7px",padding:"4px 11px",
+                  border:`1.5px solid ${active?col:"var(--ia-border)"}`,background:active?col:"var(--ia-card)",
+                  color:active?"#fff":"var(--ia-sub)",borderRadius:"7px",padding:"4px 11px",
                   fontFamily:"inherit",fontSize:"12px",fontWeight:800,cursor:"pointer",transition:"all .15s",
                 }}>{p}</button>
               );
             })}
             <button className="btn btn-ghost" style={{padding:"5px 12px",fontSize:"12px",opacity:safePage>=totalPages?.5:1}} disabled={safePage>=totalPages} onClick={()=>goToPage(safePage+1)}>التالي ←</button>
-            <span style={{fontSize:"11px",color:"#9ca3af",marginRight:"8px"}}>{(safePage-1)*safePS+1}–{Math.min(safePage*safePS,filtered.length)} من {filtered.length}</span>
+            <span style={{fontSize:"11px",color:"var(--ia-muted)",marginRight:"8px"}}>{(safePage-1)*safePS+1}–{Math.min(safePage*safePS,filtered.length)} من {filtered.length}</span>
           </div>
         )}
       </div>
@@ -1873,7 +2162,7 @@ return(
             ):null;
           })()}
           {overdueDays(selInv)>0&&(
-            <span style={{fontSize:"12px",fontWeight:800,color:"#b91c1c",background:"#fee2e2",border:"1px solid #fecaca",borderRadius:"20px",padding:"5px 14px"}}>⏰ متأخرة {overdueDays(selInv)} يوم عن الاستحقاق</span>
+            <span style={{fontSize:"12px",fontWeight:800,color:"var(--ia-red-tx)",background:"var(--ia-red-bg)",border:"1px solid var(--ia-red-bd)",borderRadius:"20px",padding:"5px 14px"}}>⏰ متأخرة {overdueDays(selInv)} يوم عن الاستحقاق</span>
           )}
         </div>
         <div className="card" style={{overflow:"hidden"}}><InvPreview inv={selInv} company={company}/></div>
@@ -1887,11 +2176,11 @@ return(
     {/* NEW */}
     {view==="new"&&(
       <div className="card" style={{padding:"24px",animation:"fadeUp .25s"}}>
-        <div style={{fontSize:"16px",fontWeight:900,color:col,marginBottom:"18px"}}>➕ فاتورة جديدة — {company.nameAr}</div>
-        <div style={{fontSize:"10px",fontWeight:700,color:"#9ca3af",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"9px"}}>بيانات العميل</div>
+        <div style={{fontSize:"16px",fontWeight:900,color:colTx,marginBottom:"18px"}}>➕ فاتورة جديدة — {company.nameAr}</div>
+        <div style={{fontSize:"10px",fontWeight:700,color:"var(--ia-muted)",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"9px"}}>بيانات العميل</div>
         {clients.length>0&&(
           <div style={{marginBottom:"10px"}}>
-            <label style={{fontSize:"11px",color:"#6b7280",display:"block",marginBottom:"4px"}}>📇 اختر من دليل العملاء ({clients.length} محفوظ)</label>
+            <label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>📇 اختر من دليل العملاء ({clients.length} محفوظ)</label>
             <select className="inp" value="" onChange={e=>{
               const c=clients.find(x=>String(x.id)===e.target.value);
               if(c){setField("clientName",c.name||"");setField("clientPhone",c.phone||"");setField("clientAddress",c.address||"");}
@@ -1902,24 +2191,24 @@ return(
           </div>
         )}
         <div className="form-2col" style={{marginBottom:"10px"}}>
-          <div><label style={{fontSize:"11px",color:"#6b7280",display:"block",marginBottom:"4px"}}>الاسم (اختياري)</label>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>الاسم (اختياري)</label>
             <input className="inp" placeholder="اسم العميل" value={form.clientName} onChange={e=>setField("clientName",e.target.value)}/></div>
-          <div><label style={{fontSize:"11px",color:"#6b7280",display:"block",marginBottom:"4px"}}>رقم التلفون *</label>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>رقم التلفون *</label>
             <input className="inp" placeholder="97479196" value={form.clientPhone} onChange={e=>setField("clientPhone",e.target.value)}/></div>
         </div>
         <div style={{marginBottom:"12px"}}>
-          <label style={{fontSize:"11px",color:"#6b7280",display:"block",marginBottom:"4px"}}>العنوان</label>
+          <label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>العنوان</label>
           <input className="inp" placeholder="المنطقة / العنوان" value={form.clientAddress} onChange={e=>setField("clientAddress",e.target.value)}/>
         </div>
         <div className="form-3col" style={{marginBottom:"14px"}}>
-          <div><label style={{fontSize:"11px",color:"#6b7280",display:"block",marginBottom:"4px"}}>تاريخ الفاتورة</label>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>تاريخ الفاتورة</label>
             <input className="inp" type="date" value={form.date} onChange={e=>setField("date",e.target.value)}/></div>
-          <div><label style={{fontSize:"11px",color:"#6b7280",display:"block",marginBottom:"4px"}}>تاريخ الاستحقاق</label>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>تاريخ الاستحقاق</label>
             <input className="inp" type="date" value={form.dueDate} onChange={e=>setField("dueDate",e.target.value)}/></div>
-          <div><label style={{fontSize:"11px",color:"#6b7280",display:"block",marginBottom:"4px"}}>المدفوع (KD)</label>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>المدفوع (KD)</label>
             <input className="inp" placeholder="0.000" value={form.paid} onChange={e=>setField("paid",e.target.value)}/></div>
         </div>
-        <div style={{fontSize:"10px",fontWeight:700,color:"#9ca3af",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"9px"}}>المنتجات</div>
+        <div style={{fontSize:"10px",fontWeight:700,color:"var(--ia-muted)",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"9px"}}>المنتجات</div>
         {form.items.map((it,i)=>(
           <div key={i} className="item-row">
             <input className="inp" placeholder="اسم المنتج *" value={it.name} onChange={e=>setItem(i,"name",e.target.value)}/>
@@ -1930,15 +2219,15 @@ return(
         ))}
         <button className="btn btn-outline" style={{marginBottom:"12px",fontSize:"12px"}} onClick={()=>setForm(f=>({...f,items:[...f.items,{name:"",desc:"",qty:1,price:""}]}))}>+ إضافة منتج</button>
         <div className="form-2col" style={{marginBottom:"12px"}}>
-          <div><label style={{fontSize:"11px",color:"#6b7280",display:"block",marginBottom:"4px"}}>التوصيل (KD) — 0 للمجاني</label>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>التوصيل (KD) — 0 للمجاني</label>
             <input className="inp" placeholder="0.000" value={form.shipping} onChange={e=>setField("shipping",e.target.value)}/></div>
-          <div><label style={{fontSize:"11px",color:"#6b7280",display:"block",marginBottom:"4px"}}>ملاحظات</label>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>ملاحظات</label>
             <input className="inp" value={form.notes} onChange={e=>setField("notes",e.target.value)}/></div>
         </div>
         {(()=>{const sub=form.items.reduce((s,it)=>s+(parseInt(toW(it.qty))||1)*pN(it.price),0);const ship=pN(form.shipping);const tot=sub+ship;
-          return(<div style={{background:company.cardBg,borderRadius:"9px",padding:"11px 16px",marginBottom:"14px",display:"flex",gap:"16px",fontSize:"13px",border:`1px solid ${col}22`}}>
+          return(<div style={{background:cardBg,borderRadius:"9px",padding:"11px 16px",marginBottom:"14px",display:"flex",gap:"16px",fontSize:"13px",border:`1px solid ${col}22`}}>
             <span>المجموع: <b>{fKWD(sub)}</b></span>{ship>0&&<span>التوصيل: <b>{fKWD(ship)}</b></span>}
-            <span style={{fontWeight:900,color:col}}>الإجمالي: <b>{fKWD(tot)}</b></span>
+            <span style={{fontWeight:900,color:colTx}}>الإجمالي: <b>{fKWD(tot)}</b></span>
           </div>);})()}
         <div style={{display:"flex",gap:"8px"}}>
           <button className="btn" style={{background:"#16a34a",color:"#fff",flex:1,fontSize:"14px",padding:"11px"}} onClick={saveInvoice}>💾 حفظ الفاتورة</button>
@@ -1957,10 +2246,10 @@ return(
           <button className="btn btn-ghost" style={{fontSize:"12px"}} onClick={()=>{setView("list");setEditingInv(null);setEditForm(null);}}>← إلغاء</button>
         </div>
 
-        <div style={{fontSize:"10px",fontWeight:700,color:"#9ca3af",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"9px"}}>بيانات العميل</div>
+        <div style={{fontSize:"10px",fontWeight:700,color:"var(--ia-muted)",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"9px"}}>بيانات العميل</div>
         {clients.length>0&&(
           <div style={{marginBottom:"10px"}}>
-            <label style={{fontSize:"11px",color:"#6b7280",display:"block",marginBottom:"4px"}}>📇 اختر من دليل العملاء (استبدال البيانات)</label>
+            <label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>📇 اختر من دليل العملاء (استبدال البيانات)</label>
             <select className="inp" value="" onChange={e=>{
               const c=clients.find(x=>String(x.id)===e.target.value);
               if(c){setEditField("clientName",c.name||"");setEditField("clientPhone",c.phone||"");setEditField("clientAddress",c.address||"");}
@@ -1971,23 +2260,23 @@ return(
           </div>
         )}
         <div className="form-2col" style={{marginBottom:"10px"}}>
-          <div><label style={{fontSize:"11px",color:"#6b7280",display:"block",marginBottom:"4px"}}>الاسم</label>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>الاسم</label>
             <input className="inp" placeholder="اسم العميل" value={editForm.clientName} onChange={e=>setEditField("clientName",e.target.value)}/></div>
-          <div><label style={{fontSize:"11px",color:"#6b7280",display:"block",marginBottom:"4px"}}>رقم التلفون *</label>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>رقم التلفون *</label>
             <input className="inp" placeholder="97479196" value={editForm.clientPhone} onChange={e=>setEditField("clientPhone",e.target.value)}/></div>
         </div>
         <div style={{marginBottom:"12px"}}>
-          <label style={{fontSize:"11px",color:"#6b7280",display:"block",marginBottom:"4px"}}>العنوان</label>
+          <label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>العنوان</label>
           <input className="inp" placeholder="المنطقة / العنوان" value={editForm.clientAddress} onChange={e=>setEditField("clientAddress",e.target.value)}/>
         </div>
         <div className="form-3col" style={{marginBottom:"14px"}}>
-          <div><label style={{fontSize:"11px",color:"#6b7280",display:"block",marginBottom:"4px"}}>تاريخ الفاتورة</label>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>تاريخ الفاتورة</label>
             <input className="inp" type="date" value={editForm.date} onChange={e=>setEditField("date",e.target.value)}/></div>
-          <div><label style={{fontSize:"11px",color:"#6b7280",display:"block",marginBottom:"4px"}}>تاريخ الاستحقاق</label>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>تاريخ الاستحقاق</label>
             <input className="inp" type="date" value={editForm.dueDate} onChange={e=>setEditField("dueDate",e.target.value)}/></div>
-          <div><label style={{fontSize:"11px",color:"#6b7280",display:"block",marginBottom:"4px"}}>المدفوع (KD)</label>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>المدفوع (KD)</label>
             <input className="inp" placeholder="0.000" value={editForm.paid} onChange={e=>setEditField("paid",e.target.value)}/></div>
-          <div><label style={{fontSize:"11px",color:"#6b7280",display:"block",marginBottom:"4px"}}>حالة الطلب</label>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>حالة الطلب</label>
             <select className="inp" value={editForm.status||""} onChange={e=>setEditField("status",e.target.value)}>
               <option value="">تلقائي (حسب المدفوع)</option>
               <option value="cancelled">ملغية ✕</option>
@@ -1995,7 +2284,7 @@ return(
           </div>
         </div>
 
-        <div style={{fontSize:"10px",fontWeight:700,color:"#9ca3af",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"9px"}}>المنتجات</div>
+        <div style={{fontSize:"10px",fontWeight:700,color:"var(--ia-muted)",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"9px"}}>المنتجات</div>
         {editForm.items.map((it,i)=>(
           <div key={i} className="item-row">
             <input className="inp" placeholder="اسم المنتج *" value={it.name} onChange={e=>setEditItem(i,"name",e.target.value)}/>
@@ -2009,9 +2298,9 @@ return(
         <button className="btn btn-outline" style={{marginBottom:"12px",fontSize:"12px"}} onClick={()=>setEditForm(f=>({...f,items:[...f.items,{name:"",desc:"",qty:1,price:""}]}))}>+ إضافة منتج</button>
 
         <div className="form-2col" style={{marginBottom:"12px"}}>
-          <div><label style={{fontSize:"11px",color:"#6b7280",display:"block",marginBottom:"4px"}}>التوصيل (KD) — 0 للمجاني</label>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>التوصيل (KD) — 0 للمجاني</label>
             <input className="inp" placeholder="0.000" value={editForm.shipping} onChange={e=>setEditField("shipping",e.target.value)}/></div>
-          <div><label style={{fontSize:"11px",color:"#6b7280",display:"block",marginBottom:"4px"}}>ملاحظات</label>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>ملاحظات</label>
             <input className="inp" value={editForm.notes} onChange={e=>setEditField("notes",e.target.value)}/></div>
         </div>
 
@@ -2019,10 +2308,10 @@ return(
           const sub=editForm.items.reduce((s,it)=>(parseInt(toW(String(it.qty)))||1)*pN(it.price)+s,0);
           const ship=pN(editForm.shipping);const tot=sub+ship;
           return(
-            <div style={{background:company.cardBg,borderRadius:"9px",padding:"11px 16px",marginBottom:"14px",display:"flex",gap:"16px",fontSize:"13px",border:`1px solid ${col}22`}}>
+            <div style={{background:cardBg,borderRadius:"9px",padding:"11px 16px",marginBottom:"14px",display:"flex",gap:"16px",fontSize:"13px",border:`1px solid ${col}22`}}>
               <span>المجموع: <b>{fKWD(sub)}</b></span>
               {ship>0&&<span>التوصيل: <b>{fKWD(ship)}</b></span>}
-              <span style={{fontWeight:900,color:col}}>الإجمالي: <b>{fKWD(tot)}</b></span>
+              <span style={{fontWeight:900,color:colTx}}>الإجمالي: <b>{fKWD(tot)}</b></span>
             </div>
           );
         })()}
@@ -2037,8 +2326,8 @@ return(
     {/* BULK */}
     {view==="bulk"&&(
       <div className="card" style={{padding:"24px",animation:"fadeUp .25s"}}>
-        <div style={{fontSize:"16px",fontWeight:900,color:col,marginBottom:"5px"}}>📦 إدخال مجمع</div>
-        <p style={{fontSize:"12px",color:"#6b7280",marginBottom:"16px"}}>كل طلب يفصله سطر فارغ — يدعم صيغة الإيموجي</p>
+        <div style={{fontSize:"16px",fontWeight:900,color:colTx,marginBottom:"5px"}}>📦 إدخال مجمع</div>
+        <p style={{fontSize:"12px",color:"var(--ia-sub)",marginBottom:"16px"}}>كل طلب يفصله سطر فارغ — يدعم صيغة الإيموجي</p>
         {bulkStep===0&&(
           <><textarea className="inp" style={{minHeight:"200px",resize:"vertical",marginBottom:"10px",fontSize:"12px",lineHeight:"1.7"}}
             value={bulkText} onChange={e=>setBulkText(e.target.value)}
@@ -2051,13 +2340,13 @@ return(
           <><div style={{color:"#16a34a",fontWeight:700,marginBottom:"10px"}}>✅ {bulkParsed.length} طلب جاهز</div>
           <div style={{maxHeight:"360px",overflow:"auto",marginBottom:"12px"}}>
             {bulkParsed.map((b,i)=>{const tot=b.items.reduce((s,it)=>s+it.qty*pN(it.price),0)+pN(b.shipping||0);
-              return(<div key={i} style={{border:"1px solid #e5e7eb",borderRadius:"8px",padding:"10px 14px",marginBottom:"6px",background:"#fafaf9"}}>
+              return(<div key={i} style={{border:"1px solid var(--ia-border)",borderRadius:"8px",padding:"10px 14px",marginBottom:"6px",background:"var(--ia-row-alt)"}}>
                 <div style={{display:"flex",justifyContent:"space-between"}}>
-                  <div><b>{b.clientName}</b> <span style={{color:"#2563eb",fontSize:"12px",direction:"ltr"}}>{b.clientPhone}</span>
-                    {b.clientAddress&&<span style={{color:"#6b7280",fontSize:"11px",marginRight:"6px"}}> — {b.clientAddress}</span>}</div>
-                  <b style={{color:col}}>{fKWD(tot)}</b>
+                  <div><b>{b.clientName}</b> <span style={{color:"var(--ia-link)",fontSize:"12px",direction:"ltr"}}>{b.clientPhone}</span>
+                    {b.clientAddress&&<span style={{color:"var(--ia-sub)",fontSize:"11px",marginRight:"6px"}}> — {b.clientAddress}</span>}</div>
+                  <b style={{color:colTx}}>{fKWD(tot)}</b>
                 </div>
-                <div style={{fontSize:"12px",color:"#555",marginTop:"4px"}}>
+                <div style={{fontSize:"12px",color:"var(--ia-sub)",marginTop:"4px"}}>
                   {b.items.map((it,j)=><span key={j}>{it.name} × {it.qty} — {fKWD(it.price)} </span>)}
                   {b.shipping===0&&<span style={{color:"#16a34a"}}>| توصيل مجاني</span>}
                 </div>
@@ -2086,26 +2375,26 @@ return(
     {view==="print"&&(
       <div style={{animation:"fadeUp .25s"}}>
         <div className="card" style={{padding:"22px",marginBottom:"12px"}}>
-          <div style={{fontSize:"16px",fontWeight:900,color:col,marginBottom:"14px"}}>🖨️ طباعة من رقم إلى رقم</div>
+          <div style={{fontSize:"16px",fontWeight:900,color:colTx,marginBottom:"14px"}}>🖨️ طباعة من رقم إلى رقم</div>
           <div className="print-grid">
-            <div><label style={{fontSize:"11px",color:"#6b7280",display:"block",marginBottom:"4px"}}>من رقم الفاتورة</label>
+            <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>من رقم الفاتورة</label>
               <input className="inp" placeholder="INV10001 أو 10001" value={printRange.from} onChange={e=>setPrintRange(r=>({...r,from:e.target.value}))}/></div>
-            <div><label style={{fontSize:"11px",color:"#6b7280",display:"block",marginBottom:"4px"}}>إلى رقم الفاتورة</label>
+            <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>إلى رقم الفاتورة</label>
               <input className="inp" placeholder="INV10010 أو 10010" value={printRange.to} onChange={e=>setPrintRange(r=>({...r,to:e.target.value}))}/></div>
             <button className="btn print-btn" style={{background:col,color:"#fff",height:"40px"}} onClick={doPrintRange}>🖨️ طباعة</button>
           </div>
-          <p style={{fontSize:"11px",color:"#9ca3af",marginTop:"8px"}}>⚠️ يجب السماح بالـ Popups في المتصفح لتعمل الطباعة</p>
+          <p style={{fontSize:"11px",color:"var(--ia-muted)",marginTop:"8px"}}>⚠️ يجب السماح بالـ Popups في المتصفح لتعمل الطباعة</p>
         </div>
         <div className="card" style={{padding:"20px"}}>
-          <div style={{fontSize:"11px",fontWeight:700,color:"#9ca3af",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"10px"}}>أو اضغط على فاتورة لطباعتها</div>
+          <div style={{fontSize:"11px",fontWeight:700,color:"var(--ia-muted)",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"10px"}}>أو اضغط على فاتورة لطباعتها</div>
           <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
             {invoices.slice().sort((a,b)=>parseInt(a.invNum?.replace(/\D/g,"")||0)-parseInt(b.invNum?.replace(/\D/g,"")||0)).map(inv=>(
-              <div key={inv.id} style={{border:`1px solid ${col}33`,borderRadius:"8px",padding:"10px 14px",background:company.cardBg,fontSize:"12px",cursor:"pointer",transition:"all .15s"}}
+              <div key={inv.id} style={{border:`1px solid ${col}33`,borderRadius:"8px",padding:"10px 14px",background:cardBg,fontSize:"12px",cursor:"pointer",transition:"all .15s"}}
                 onClick={()=>doPrint([inv],company)}>
-                <div style={{fontWeight:700,color:col}}>{inv.invNum}</div>
-                <div style={{color:"#555",marginTop:"2px",fontSize:"11px"}}>{inv.clientName}</div>
+                <div style={{fontWeight:700,color:colTx}}>{inv.invNum}</div>
+                <div style={{color:"var(--ia-sub)",marginTop:"2px",fontSize:"11px"}}>{inv.clientName}</div>
                 <div style={{fontWeight:700,marginTop:"2px"}}>{fKWD(iT(inv))}</div>
-                <div style={{color:col,marginTop:"4px",fontSize:"10px"}}>🖨️ اضغط للطباعة</div>
+                <div style={{color:colTx,marginTop:"4px",fontSize:"10px"}}>🖨️ اضغط للطباعة</div>
               </div>
             ))}
           </div>
@@ -2136,7 +2425,7 @@ return(
     )}
 
     {/* Footer */}
-    <div style={{textAlign:"center",padding:"18px 14px 22px",marginTop:"auto",borderTop:"1px solid #e5e7eb",fontSize:"12px",color:"#9ca3af",paddingBottom:"calc(22px + env(safe-area-inset-bottom))"}}>
+    <div style={{textAlign:"center",padding:"18px 14px 22px",marginTop:"auto",borderTop:"1px solid #e5e7eb",fontSize:"12px",color:"var(--ia-muted)",paddingBottom:"calc(22px + env(safe-area-inset-bottom))"}}>
       تم البرمجة والتطوير بواسطة{" "}
       <a href="https://wa.me/201033514479" target="_blank" rel="noopener noreferrer"
         style={{color:col,textDecoration:"none",fontWeight:700}}>

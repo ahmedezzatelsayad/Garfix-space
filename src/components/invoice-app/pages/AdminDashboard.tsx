@@ -32,14 +32,14 @@ const COMPANIES_INFO = [
   { id:"tawfeer", name:"توفير أونلاين شوب",  color:"#1e3a5f", emoji:"🛒" },
   { id:"mahhal",  name:"محلكم أونلاين ستور", color:"#b8860b", emoji:"🏪" },
   { id:"boss",    name:"بوص نيولايف",         color:"#cc0000", emoji:"⚡" },
-  { id:"laqta",   name:"لقطة أونلاين",        color:"#7c3aed", emoji:"♾️" },
+  { id:"laqta",   name:"لقطة أونلاين",        color:"var(--ia-vio-tx)", emoji:"♾️" },
 ];
 
 const ROLE_LABELS: Record<string, { label: string; color: string; bg: string }> = {
-  viewer:   { label:"عرض فقط",      color:"#b45309", bg:"#fef3c7" },
-  editor:   { label:"وصول كامل",    color:"#15803d", bg:"#dcfce7" },
-  employee: { label:"موظف طلبات",   color:"#7c3aed", bg:"#ede9fe" },
-  admin:    { label:"مدير",          color:"#1d4ed8", bg:"#dbeafe" },
+  viewer:   { label:"عرض فقط",      color:"var(--ia-warn-tx)", bg:"var(--ia-warn-bg)" },
+  editor:   { label:"وصول كامل",    color:"var(--ia-ok-tx)", bg:"var(--ia-ok-bg)" },
+  employee: { label:"موظف طلبات",   color:"var(--ia-vio-tx)", bg:"var(--ia-vio-bg)" },
+  admin:    { label:"مدير",          color:"var(--ia-blue-tx)", bg:"var(--ia-blue-bg)" },
 };
 
 const ROLE_PERM_PRESETS: Record<string, Record<string, number>> = {
@@ -234,7 +234,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
       fontFamily:"'Cairo','Tajawal',sans-serif",direction:"rtl",
     }} onClick={onClose}>
       <div style={{
-        background:"#f3f4f6",borderRadius:"18px",width:"100%",maxWidth:"820px",
+        background:"var(--ia-chip)",borderRadius:"18px",width:"100%",maxWidth:"820px",
         maxHeight:"92vh",overflow:"hidden",display:"flex",flexDirection:"column",
         boxShadow:"0 24px 64px rgba(0,0,0,.4)",
       }} onClick={e=>e.stopPropagation()}>
@@ -284,17 +284,17 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
 
           {activeTab==="users"&&(
             loading?(
-              <div style={{textAlign:"center",padding:"48px",color:"#6b7280"}}>
+              <div style={{textAlign:"center",padding:"48px",color:"var(--ia-sub)"}}>
                 <div style={{fontSize:"36px",marginBottom:"10px"}}>⏳</div>جارٍ تحميل المستخدمين...
               </div>
             ):loadErr?(
-              <div style={{background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:"12px",padding:"20px 24px",color:"#991b1b",fontSize:"13px",lineHeight:1.7}}>
+              <div style={{background:"var(--ia-red-bg)",border:"1px solid var(--ia-red-bd)",borderRadius:"12px",padding:"20px 24px",color:"var(--ia-red-tx)",fontSize:"13px",lineHeight:1.7}}>
                 <div style={{fontWeight:800,fontSize:"15px",marginBottom:"8px"}}>❌ فشل تحميل المستخدمين</div>
                 <div style={{marginBottom:"16px"}}>{loadErr}</div>
                 <button onClick={loadUsers} style={{background:"#b91c1c",color:"#fff",border:"none",borderRadius:"8px",padding:"8px 18px",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>🔄 إعادة المحاولة</button>
               </div>
             ):users.length===0?(
-              <div style={{textAlign:"center",padding:"48px",color:"#9ca3af"}}>
+              <div style={{textAlign:"center",padding:"48px",color:"var(--ia-muted)"}}>
                 <div style={{fontSize:"40px",marginBottom:"10px"}}>👥</div>
                 <div style={{fontWeight:600,marginBottom:"14px"}}>لا يوجد موظفون مسجلون بعد</div>
                 <button onClick={()=>setShowCreate(true)} style={{background:"#1e3a5f",color:"#fff",border:"none",borderRadius:"8px",padding:"10px 20px",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>➕ أضف أول موظف</button>
@@ -302,7 +302,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
             ):(
               <div style={{display:"grid",gap:"10px"}}>
                 {users.map(u=>(
-                  <div key={u.uid} style={{background:"#fff",borderRadius:"12px",padding:"16px 18px",border:"1px solid #e5e7eb",boxShadow:"0 1px 3px rgba(0,0,0,.05)"}}>
+                  <div key={u.uid} style={{background:"var(--ia-card)",borderRadius:"12px",padding:"16px 18px",border:"1px solid var(--ia-border)",boxShadow:"0 1px 3px rgba(0,0,0,.05)"}}>
                     {editingUser?.uid===u.uid?(
                       <div>
                         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px",marginBottom:"12px"}}>
@@ -328,10 +328,10 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                               const active=editingUser.companies.includes(id);
                               return(
                                 <div key={id} onClick={()=>toggleEditCompany(id)} style={{
-                                  border:`2px solid ${active?"#1e3a5f":"#e5e7eb"}`,
+                                  border:`2px solid `,
                                   borderRadius:"8px",padding:"5px 12px",cursor:"pointer",
-                                  background:active?"#eff6ff":"#f9fafb",fontSize:"12px",
-                                  fontWeight:active?700:400,color:active?"#1e3a5f":"#6b7280",
+                                  background:active?"var(--ia-blue-bg)":"var(--ia-row-alt)",fontSize:"12px",
+                                  fontWeight:active?700:400,color:active?"var(--ia-blue-tx)":"var(--ia-sub)",
                                 }}>{COMPANY_LABELS[id]}</div>
                               );
                             })}
@@ -339,8 +339,8 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                         </div>
 
                         {editingUser.role==="employee"&&(
-                          <div style={{background:"#faf5ff",borderRadius:"10px",padding:"12px 14px",border:"1.5px solid #ddd6fe",marginBottom:"12px"}}>
-                            <div style={{fontSize:"11px",fontWeight:800,color:"#7c3aed",letterSpacing:".5px",marginBottom:"10px"}}>⚙️ الصلاحيات التفصيلية</div>
+                          <div style={{background:"var(--ia-vio-bg)",borderRadius:"10px",padding:"12px 14px",border:"1.5px solid var(--ia-vio-bd)",marginBottom:"12px"}}>
+                            <div style={{fontSize:"11px",fontWeight:800,color:"var(--ia-vio-tx)",letterSpacing:".5px",marginBottom:"10px"}}>⚙️ الصلاحيات التفصيلية</div>
                             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"6px"}}>
                               {PERM_LIST.map(p=>{
                                 const active=!!(editingUser.permissions?.[p.key]??EMPLOYEE_DEFAULTS[p.key]);
@@ -348,22 +348,22 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                                   <div key={p.key} onClick={()=>toggleEditPerm(p.key)} style={{
                                     display:"flex",alignItems:"center",gap:"7px",padding:"6px 9px",
                                     borderRadius:"7px",cursor:"pointer",
-                                    background:active?"#ede9fe":"#fff",
-                                    border:`1.5px solid ${active?"#7c3aed":"#e5e7eb"}`,
+                                    background:active?"var(--ia-vio-bg)":"var(--ia-card)",
+                                    border:`1.5px solid `,
                                     transition:"all .12s",
                                   }}>
                                     <div style={{width:"14px",height:"14px",borderRadius:"3px",border:`2px solid ${active?"#7c3aed":"#d1d5db"}`,background:active?"#7c3aed":"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
                                       {active&&<span style={{color:"#fff",fontSize:"9px",fontWeight:900}}>✓</span>}
                                     </div>
-                                    <span style={{fontSize:"11px",fontWeight:active?700:400,color:active?"#5b21b6":"#6b7280"}}>{p.icon} {p.label}</span>
+                                    <span style={{fontSize:"11px",fontWeight:active?700:400,color:active?"var(--ia-vio-tx)":"var(--ia-sub)"}}>{p.icon} {p.label}</span>
                                   </div>
                                 );
                               })}
                             </div>
                             <div style={{marginTop:"8px",display:"flex",gap:"8px"}}>
-                              <button onClick={()=>setEditingUser(e=>e?({...e,permissions:Object.fromEntries(PERM_LIST.map(p=>[p.key,1]))}):null)} style={{fontSize:"11px",color:"#7c3aed",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:0}}>تفعيل الكل</button>
-                              <span style={{color:"#d1d5db"}}>|</span>
-                              <button onClick={()=>setEditingUser(e=>e?({...e,permissions:Object.fromEntries(PERM_LIST.map(p=>[p.key,0]))}):null)} style={{fontSize:"11px",color:"#dc2626",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:0}}>إلغاء الكل</button>
+                              <button onClick={()=>setEditingUser(e=>e?({...e,permissions:Object.fromEntries(PERM_LIST.map(p=>[p.key,1]))}):null)} style={{fontSize:"11px",color:"var(--ia-vio-tx)",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:0}}>تفعيل الكل</button>
+                              <span style={{color:"var(--ia-muted)"}}>|</span>
+                              <button onClick={()=>setEditingUser(e=>e?({...e,permissions:Object.fromEntries(PERM_LIST.map(p=>[p.key,0]))}):null)} style={{fontSize:"11px",color:"var(--ia-red-tx)",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:0}}>إلغاء الكل</button>
                             </div>
                           </div>
                         )}
@@ -372,29 +372,29 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                           <button onClick={handleSaveEdit} disabled={saving} style={{background:"#1e3a5f",color:"#fff",border:"none",borderRadius:"8px",padding:"8px 16px",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>
                             {saving?"جارٍ الحفظ...":"💾 حفظ"}
                           </button>
-                          <button onClick={()=>setEditingUser(null)} style={{background:"#e5e7eb",color:"#374151",border:"none",borderRadius:"8px",padding:"8px 14px",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>إلغاء</button>
+                          <button onClick={()=>setEditingUser(null)} style={{background:"var(--ia-ghost-bg)",color:"var(--ia-text2)",border:"none",borderRadius:"8px",padding:"8px 14px",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>إلغاء</button>
                         </div>
                       </div>
                     ):(
                       <div style={{display:"flex",alignItems:"center",gap:"12px"}}>
-                        <div style={{width:"44px",height:"44px",borderRadius:"50%",background:"#eff6ff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"20px",flexShrink:0}}>
+                        <div style={{width:"44px",height:"44px",borderRadius:"50%",background:"var(--ia-blue-bg)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"20px",flexShrink:0}}>
                           {u.role==="employee"?"👤":"👥"}
                         </div>
                         <div style={{flex:1,minWidth:0}}>
-                          <div style={{fontWeight:700,fontSize:"14px",color:"#111"}}>{u.displayName||u.email}</div>
-                          <div style={{fontSize:"12px",color:"#6b7280",marginTop:"2px"}}>{u.email}</div>
+                          <div style={{fontWeight:700,fontSize:"14px",color:"var(--ia-text)"}}>{u.displayName||u.email}</div>
+                          <div style={{fontSize:"12px",color:"var(--ia-sub)",marginTop:"2px"}}>{u.email}</div>
                           <div style={{display:"flex",gap:"5px",marginTop:"6px",flexWrap:"wrap",alignItems:"center"}}>
                             {(()=>{
                               const r=ROLE_LABELS[u.role||"viewer"]||ROLE_LABELS.viewer;
                               return <span style={{background:r.bg,color:r.color,borderRadius:"20px",padding:"2px 10px",fontSize:"11px",fontWeight:700}}>{r.label}</span>;
                             })()}
                             {u.companies?.map(c=>(
-                              <span key={c} style={{background:"#f0f9ff",color:"#0369a1",borderRadius:"20px",padding:"2px 10px",fontSize:"11px",fontWeight:600}}>{COMPANY_LABELS[c]||c}</span>
+                              <span key={c} style={{background:"var(--ia-sky-bg)",color:"var(--ia-sky-tx)",borderRadius:"20px",padding:"2px 10px",fontSize:"11px",fontWeight:600}}>{COMPANY_LABELS[c]||c}</span>
                             ))}
                             {u.role==="employee"&&(()=>{
                               const perms=u.permissions||EMPLOYEE_DEFAULTS;
                               const count=PERM_LIST.filter(p=>perms[p.key]).length;
-                              return <span style={{background:"#faf5ff",color:"#7c3aed",border:"1px solid #ddd6fe",borderRadius:"20px",padding:"2px 10px",fontSize:"11px",fontWeight:700}}>{count} صلاحية</span>;
+                              return <span style={{background:"var(--ia-vio-bg)",color:"var(--ia-vio-tx)",border:"1px solid var(--ia-vio-bd)",borderRadius:"20px",padding:"2px 10px",fontSize:"11px",fontWeight:700}}>{count} صلاحية</span>;
                             })()}
                           </div>
                         </div>
@@ -404,8 +404,8 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                             companies: u.companies||[],
                             role: u.role||"viewer",
                             permissions: u.role==="employee" ? (u.permissions||{...EMPLOYEE_DEFAULTS}) : {...(ROLE_PERM_PRESETS[u.role||"viewer"]||{})},
-                          })} style={{background:"#eff6ff",color:"#1d4ed8",border:"none",borderRadius:"8px",padding:"7px 12px",fontFamily:"inherit",fontSize:"12px",fontWeight:700,cursor:"pointer"}}>✏️ تعديل</button>
-                          <button onClick={()=>setDelConfirm(u)} style={{background:"#fee2e2",color:"#b91c1c",border:"none",borderRadius:"8px",padding:"7px 12px",fontFamily:"inherit",fontSize:"12px",fontWeight:700,cursor:"pointer"}}>🗑️</button>
+                          })} style={{background:"var(--ia-blue-bg)",color:"var(--ia-blue-tx)",border:"none",borderRadius:"8px",padding:"7px 12px",fontFamily:"inherit",fontSize:"12px",fontWeight:700,cursor:"pointer"}}>✏️ تعديل</button>
+                          <button onClick={()=>setDelConfirm(u)} style={{background:"var(--ia-red-bg)",color:"var(--ia-red-tx)",border:"none",borderRadius:"8px",padding:"7px 12px",fontFamily:"inherit",fontSize:"12px",fontWeight:700,cursor:"pointer"}}>🗑️</button>
                         </div>
                       </div>
                     )}
@@ -417,13 +417,13 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
 
           {activeTab==="logos"&&(
             <div>
-              <div style={{background:"#fff",borderRadius:"12px",padding:"14px 18px",border:"1px solid #e5e7eb",marginBottom:"14px",fontSize:"12px",color:"#6b7280",lineHeight:"1.7"}}>
+              <div style={{background:"var(--ia-card)",borderRadius:"12px",padding:"14px 18px",border:"1px solid var(--ia-border)",marginBottom:"14px",fontSize:"12px",color:"var(--ia-sub)",lineHeight:"1.7"}}>
                 💡 ارفع شعار لكل شركة — سيظهر في الفواتير عند الطباعة والمعاينة. الحجم الأقصى 2MB.
               </div>
               <div style={{display:"grid",gap:"12px"}}>
                 {COMPANIES_INFO.map(c=>(
-                  <div key={c.id} style={{background:"#fff",borderRadius:"14px",padding:"18px 20px",border:"1px solid #e5e7eb",display:"flex",alignItems:"center",gap:"18px",boxShadow:"0 1px 3px rgba(0,0,0,.05)"}}>
-                    <div style={{width:"80px",height:"80px",borderRadius:"12px",overflow:"hidden",border:`2px solid ${c.color}33`,background:"#fafafa",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                  <div key={c.id} style={{background:"var(--ia-card)",borderRadius:"14px",padding:"18px 20px",border:"1px solid var(--ia-border)",display:"flex",alignItems:"center",gap:"18px",boxShadow:"0 1px 3px rgba(0,0,0,.05)"}}>
+                    <div style={{width:"80px",height:"80px",borderRadius:"12px",overflow:"hidden",border:`2px solid ${c.color}33`,background:"var(--ia-row-alt)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
                       {logos[c.id]
                         ?<img src={logos[c.id]} alt={c.name} style={{width:"100%",height:"100%",objectFit:"contain"}}/>
                         :<div style={{width:"100%",height:"100%",background:c.color,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:"24px",fontWeight:900,lineHeight:1.2}}>
@@ -433,13 +433,13 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                     </div>
                     <div style={{flex:1}}>
                       <div style={{fontWeight:800,fontSize:"15px",color:c.color,marginBottom:"3px"}}>{c.name}</div>
-                      <div style={{fontSize:"11px",color:"#9ca3af",marginBottom:"12px"}}>
+                      <div style={{fontSize:"11px",color:"var(--ia-muted)",marginBottom:"12px"}}>
                         {logos[c.id]?"✅ شعار مخصص مرفوع":"⚪ لا يوجد شعار — يستخدم الشعار الافتراضي"}
                       </div>
                       <div style={{display:"flex",gap:"8px"}}>
                         <input type="file" accept="image/*" style={{display:"none"}} ref={el => { fileRefs.current[c.id] = el; }} onChange={e=>handleLogoFile(c.id,e.target.files?.[0]||null)}/>
                         <button onClick={()=>fileRefs.current[c.id]?.click()} style={{background:c.color,color:"#fff",border:"none",borderRadius:"8px",padding:"8px 16px",fontFamily:"inherit",fontSize:"12px",fontWeight:700,cursor:"pointer"}}>📤 {logos[c.id]?"تغيير الشعار":"رفع شعار"}</button>
-                        {logos[c.id]&&<button onClick={()=>removeLogo(c.id)} style={{background:"#fee2e2",color:"#b91c1c",border:"none",borderRadius:"8px",padding:"8px 12px",fontFamily:"inherit",fontSize:"12px",fontWeight:700,cursor:"pointer"}}>🗑️ حذف</button>}
+                        {logos[c.id]&&<button onClick={()=>removeLogo(c.id)} style={{background:"var(--ia-red-bg)",color:"var(--ia-red-tx)",border:"none",borderRadius:"8px",padding:"8px 12px",fontFamily:"inherit",fontSize:"12px",fontWeight:700,cursor:"pointer"}}>🗑️ حذف</button>}
                       </div>
                     </div>
                   </div>
@@ -459,13 +459,13 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
 
       {delConfirm&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:4000,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={()=>setDelConfirm(null)}>
-          <div style={{background:"#fff",borderRadius:"16px",padding:"28px 32px",textAlign:"center",maxWidth:"320px",boxShadow:"0 20px 60px rgba(0,0,0,.3)"}} onClick={e=>e.stopPropagation()}>
+          <div style={{background:"var(--ia-card)",borderRadius:"16px",padding:"28px 32px",textAlign:"center",maxWidth:"320px",boxShadow:"0 20px 60px rgba(0,0,0,.3)"}} onClick={e=>e.stopPropagation()}>
             <div style={{fontSize:"36px",marginBottom:"8px"}}>🗑️</div>
             <div style={{fontWeight:700,fontSize:"15px",marginBottom:"6px"}}>تأكيد الحذف</div>
-            <div style={{color:"#6b7280",fontSize:"13px",marginBottom:"18px"}}>سيتم حذف سجل <b>{delConfirm.displayName||delConfirm.email}</b> نهائياً</div>
+            <div style={{color:"var(--ia-sub)",fontSize:"13px",marginBottom:"18px"}}>سيتم حذف سجل <b>{delConfirm.displayName||delConfirm.email}</b> نهائياً</div>
             <div style={{display:"flex",gap:"10px",justifyContent:"center"}}>
               <button onClick={()=>handleDelete(delConfirm.uid)} style={{background:"#dc2626",color:"#fff",border:"none",borderRadius:"8px",padding:"9px 20px",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>نعم، احذف</button>
-              <button onClick={()=>setDelConfirm(null)} style={{background:"#e5e7eb",color:"#374151",border:"none",borderRadius:"8px",padding:"9px 16px",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>إلغاء</button>
+              <button onClick={()=>setDelConfirm(null)} style={{background:"var(--ia-ghost-bg)",color:"var(--ia-text2)",border:"none",borderRadius:"8px",padding:"9px 16px",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>إلغاء</button>
             </div>
           </div>
         </div>
@@ -474,5 +474,5 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
   );
 }
 
-const lbl: React.CSSProperties = { fontSize:"11px",color:"#6b7280",display:"block",marginBottom:"4px",fontWeight:700 };
-const inp: React.CSSProperties = { width:"100%",border:"1.5px solid #d1d5db",borderRadius:"8px",padding:"9px 12px",fontFamily:"'Cairo','Tajawal',sans-serif",fontSize:"13px",background:"#fff",outline:"none" };
+const lbl: React.CSSProperties = { fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px",fontWeight:700 };
+const inp: React.CSSProperties = { width:"100%",border:"1.5px solid var(--ia-border2)",borderRadius:"8px",padding:"9px 12px",fontFamily:"'Cairo','Tajawal',sans-serif",fontSize:"13px",background:"var(--ia-card)",outline:"none" };

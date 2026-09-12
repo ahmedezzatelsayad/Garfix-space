@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { loginUser } from "../firebase/auth";
+import { useTheme } from "../theme";
 
 export default function FirebaseLogin() {
   const [email,    setEmail]    = useState("");
@@ -9,6 +10,7 @@ export default function FirebaseLogin() {
   const [err,      setErr]      = useState("");
   const [loading,  setLoading]  = useState(false);
   const [showPass, setShowPass] = useState(false);
+  const { dark, toggle } = useTheme();
 
   const doLogin = async () => {
     if (!email || !pass) return;
@@ -52,6 +54,9 @@ export default function FirebaseLogin() {
         <div style={{position:"absolute",bottom:"-20%",left:"-8%",width:"400px",height:"400px",background:"radial-gradient(circle,rgba(37,99,235,.05) 0%,transparent 70%)",borderRadius:"50%"}}/>
         <div style={{position:"absolute",inset:0,backgroundImage:"linear-gradient(rgba(255,255,255,.012) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.012) 1px,transparent 1px)",backgroundSize:"56px 56px"}}/>
       </div>
+
+      {/* Light/dark theme toggle (persisted app-wide) */}
+      <button onClick={toggle} title={dark?"التبديل إلى الوضع النهاري":"التبديل إلى الوضع الليلي"} aria-label="تبديل السمة" type="button" style={{position:"fixed",top:"16px",insetInlineEnd:"16px",background:"rgba(255,255,255,.07)",border:"1px solid rgba(255,255,255,.14)",borderRadius:"8px",padding:"7px 12px",fontSize:"14px",cursor:"pointer",zIndex:10,transition:"all .2s"}}>{dark?"☀️":"🌙"}</button>
 
       <div style={{width:"100%",maxWidth:"420px",animation:"fadeUp .55s ease",position:"relative"}}>
 

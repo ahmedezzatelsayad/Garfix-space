@@ -25,6 +25,13 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <body className="antialiased bg-background text-foreground">
+        {/* Apply stored light/dark theme before first paint (no flash) */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              'try{var t=localStorage.getItem("tw_theme");document.documentElement.dataset.theme=t==="dark"?"dark":"light";}catch(e){}',
+          }}
+        />
         {children}
         <Toaster />
       </body>
