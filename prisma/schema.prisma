@@ -31,6 +31,7 @@ model Client {
 
 model Invoice {
   id            Int      @id @default(autoincrement())
+  payments      Payment[]
   invoiceNumber String
   companySlug   String?
   clientId      Int?
@@ -55,6 +56,19 @@ model Invoice {
   updatedAt     DateTime @updatedAt
 
   @@map("invoices")
+}
+
+model Payment {
+  id         Int      @id @default(autoincrement())
+  invoiceId  Int
+  amount     Float
+  method     String   @default("knet") // cash | knet | online | card
+  date       String   // YYYY-MM-DD
+  note       String?
+  createdAt  DateTime @default(now())
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
 }
 
 model ProductCatalog {

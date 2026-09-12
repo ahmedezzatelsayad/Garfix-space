@@ -85,6 +85,11 @@ export const api = {
     return fromApiInvoice(data);
   },
 
+  async getInvoice(id) {
+    const data = await request("GET", `/invoices/${id}`);
+    return fromApiInvoice(data);
+  },
+
   async updateInvoice(id, inv) {
     const data = await request("PUT", `/invoices/${id}`, toApiInvoice(inv, inv.companySlug));
     return fromApiInvoice(data);
@@ -131,5 +136,23 @@ export const api = {
 
   async deleteCatalogProduct(id) {
     await request("DELETE", `/catalog/${id}`);
+  },
+
+  // ── Payments (payment history per invoice) ──
+  async listPayments(invoiceId) {
+    return request("GET", `/invoices/${invoiceId}/payments`);
+  },
+
+  async addPayment(invoiceId, payment) {
+    return request("POST", `/invoices/${invoiceId}/payments`, {
+      amount: Number(payment.amount) || 0,
+      method: payment.method || "knet",
+      date: payment.date || new Date().toISOString().split("T")[0],
+      note: payment.note || null,
+    });
+  },
+
+  async deletePayment(paymentId) {
+    await request("DELETE", `/payments/${paymentId}`);
   },
 };

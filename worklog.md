@@ -95,3 +95,53 @@ Unresolved issues / risks / next-phase priorities:
 - Company logo upload (AdminDashboard → شعارات الشركات) untested E2E.
 - Auth remains localStorage-only (demo-grade).
 - Next-phase ideas: invoice PDF export, pagination/virtualization for large lists, clients CRUD UI (API exists), reports page using /api/dashboard/* endpoints, print preview in-app instead of window.open, dark mode.
+---
+Task ID: r3-b
+Agent: full-stack-developer
+Task: Payment records backend — Prisma Payment model + payments API routes with atomic invoice.paid updates
+
+Work Log:
+- Read worklog + existing patterns (serialize.ts, invoices/[id]/route.ts); snapshotted all 14 invoice `paid` values for post-test restore.
+- prisma/schema.prisma: added `model Payment` (table `payments`) + reverse `payments Payment[]` on Invoice; ran `bun run db:push` (client regenerated). NOTE: spec said String/cuid ids but Invoice.id is Int autoincrement → adapted Payment.id/invoiceId to Int (Prisma FK type must match PK); all other fields exactly as specced (method default "knet", date YYYY-MM-DD, note?, onDelete: Cascade).
+- Created src/app/api/invoices/[id]/payments/route.ts: GET (list, date desc, serialized {id,invoiceId,amount,method,date,note,createdAt}, 404 if invoice missing) + POST (amount>0 else 400 "المبلغ يجب أن يكون أكبر من صفر"; interactive db.$transaction creates payment AND sets invoice.paid = paid+amount; clamps against subtotal+taxAmount+shipping → 400 "المبلغ يتجاوز المتبقي على الفاتورة"; invoice.status deliberately untouched; 201 serialized).
+- Created src/app/api/payments/[id]/route.ts: DELETE (transaction: 404 if payment missing, invoice.paid = max(0, paid−amount), delete, 204).
+- Hit the classic dev-server stale-PrismaClient issue (db.payment undefined in the running server after db:push): touching db.ts didn't help; **`touch next.config.ts` made Next dev restart itself** and load the regenerated client — zero-downtime fix, no manual `bun run dev`. (Documented in agent-ctx for future schema changes.)
+- Curl-verified the full flow on INV10007 (id 8, paid 12 / total 23.9): POST 1.000 knet → 201 + paid 13; oversized 15 → 400 Arabic clamp error; amount 0/−5 → 400; unknown invoice → 404 (GET+POST); exact-remaining 11.9 → 201, paid 23.9 == total, status stays "draft"; +0.001 → 400; DELETE payment → 204 + paid rolled back; DELETE unknown payment → 404. Cleaned up: payments table back to 0 rows, all 14 invoices' paid values verified equal to the original snapshot.
+- ESLint on both new route dirs → 0 errors; tsc → 0 errors under src/; dev.log tail clean (expected 200/201/204/400/404 only). `bun run lint` full-project has 2 errors/1 warning — all in the parallel r3-a frontend agent's files (PaymentsPanel.jsx, ReportsTab.jsx), not backend.
+- Cross-checked integration: frontend api.js already calls GET/POST `/invoices/{id}/payments` and DELETE `/payments/{id}` with {amount, method, date, note} — contract matches exactly.
+
+Stage Summary:
+- Payments backend live on port 3000: 2 route files + Payment model pushed to SQLite. Payment create/delete atomically adjust the parent invoice's `paid` inside Prisma transactions with over-payment rejection (Arabic error "المبلغ يتجاوز المتبقي على الفاتورة") and floor clamp at 0 on delete; invoice `status` field never mutated. All endpoints curl-tested incl. boundary (paid == total allowed); DB restored to pre-test state (0 payments, original paid values). Operational gotcha recorded: after future `db:push`, run `touch next.config.ts` to make the dev server reload the regenerated Prisma client.
+
+---
+Task ID: r3 (cron webDevReview round 3 — 2026-09-13)
+Agent: main (Z.ai Code)
+Task: Scheduled QA round (all previously-untested flows) + 4 new features (Reports analytics page, payments tracking, pagination/sorting, overdue detection) + UI micro-polish
+
+Work Log:
+- QA of previously-untested features (all passed E2E in agent-browser):
+  * Aliphia CSV import: uploaded real CSV → parser detected all columns, grouped 2 rows into invoice AL-1002 (multi-item), preview table correct (32/18 KD), "تخطى المكررة" checkbox, import → toast "تم استيراد 2 فاتورة", persisted to DB as INV10009/10010 with source='aliphia', paid amounts honored (full/partial).
+  * Meta Audience CSV export: clicked "تصدير Excel للميتا" → 2 files downloaded (Meta_Audience with phone/email/fn/ln/country/ct headers + UTF-8 BOM; Customers full sheet with Arabic headers) — includes imported Aliphia customers.
+  * Company logo upload (AdminDashboard → شعارات الشركات): uploaded 64x64 PNG → "✅ تم رفع الشعار بنجاح", stored as base64 in localStorage (tw_logo_tawfeer), preview + "تغيير/حذف" buttons; delete works too. Deleted afterwards to keep clean state.
+  * Mobile 390px (iPhone 12 emulation): no horizontal overflow, footer visible at bottom after scroll (VLM-verified).
+- New feature 1 — 📈 التقارير (ReportsTab.jsx, new tab): period selector (٣/٦ أشهر، سنة، الكل); 4 gradient KPI cards (إيرادات الفترة، نسبة التحصيل with progress bar، متوسط الفاتورة + overdue count، أفضل شهر); AreaChart revenue-vs-collected with gradient fills; status-amount donut (PieChart + legend); top-5 customers with rank circles + revenue bars; top-6 products with medals + qty bars; monthly invoice count BarChart; 💡 تحليلات تلقائية (6 auto-generated smart insights: collection rate assessment, overdue warning, best month/product/customer, half-period trend %).
+- New feature 2 — Payments tracking (real accounting):
+  * Backend (delegated to full-stack-developer agent, Task r3-b): Prisma Payment model (Int id, invoiceId FK w/ onDelete: Cascade, amount, method cash/knet/online/card, date, note) + db:push; GET/POST /api/invoices/[id]/payments and DELETE /api/payments/[id] — POST/DELETE atomically adjust invoice.paid inside db.$transaction, reject over-payment with Arabic 400; curl-tested incl. edge cases (exact remaining, +0.001 over, 0/negative) then restored DB to original.
+  * Frontend (PaymentsPanel.jsx): gradient header with payment count/sum + "+ تسجيل دفعة" button; paid/remaining progress bar (RTL); payment list with method icon badges (💵🏦📱💳), date, note, delete; add-payment modal (amount pre-filled with remaining, 4 method buttons, date, note, validation errors in Arabic); onChanged → refetch invoice via new api.getInvoice().
+- New feature 3 — Invoices list pagination + sorting: sort dropdown (الأحدث/الأقدم/المبلغ الأعلى/الأقل/المتأخرة أولاً) + page-size select (10/25/50/100); page-number buttons with ellipsis >7 pages, prev/next, "X–Y من Z" counter; page resets on search/filter/sort change; defensive clamp against invalid pageSize (RangeError guard).
+- New feature 4 — Overdue detection: overdueDays() helper (module-level, days past dueDate for unpaid/partial); red "⏰ متأخرة X يوم" badge under date in list rows + banner chip in toolbar ("N فاتورة متأخرة") + badge in detail view header; "المتأخرة أولاً" sort; reports KPI + insight.
+- New feature 5 — Dashboard KPI cards clickable: إجمالي الإيرادات → list (all), مستحقات غير مدفوعة → list filtered unpaid, العملاء → customers tab; cursor + ↩ hint icon.
+- Style micro-polish (global CSS): input focus ring (box-shadow 0 0 0 3px col), input hover border; button hover (brightness+shadow) + active scale(.97); KPI-card hover lift (translateY(-2px) + shadow); status pills get colored dot indicators (::before); nav-tab hover state; row hover transition; last-row border cleanup; custom thin scrollbars; select custom arrow (RTL, appearance:none); chart cards hover shadow; table last-row no border.
+- Bug fixes this round: (1) overdueDays TDZ crash — helper was defined inside App component AFTER first use → moved to module top; (2) pagination RangeError guard; (3) PaymentsPanel unused eslint-disable removed; (4) ReportsTab React Compiler "preserve-manual-memoization" errors → replaced useMemo with plain IIFEs (compiler memoizes automatically).
+- Regression QA after changes: login → Tawfeer dashboard (KPIs 140.8 KD + charts + clickable cards) → unpaid KPI click → list filtered (2 rows, all b-unp) → reports tab (all sections render, period switch works) → invoice detail (INV10007) → payment add 5 KD cash w/ note (paid 12→17, remaining 6.9, persisted via API, then deleted → rolled back to 12) → pagination tested with 15 imported test invoices (3 pages, page 2 = 11–20/25, sort total_desc 32→18, overdue sort 90/60/30 first) → 15 test invoices deleted via API (204 ×15) → mobile 390px reports page no overflow. `bun run lint` → 0 problems; dev.log clean (200/201/204/400/404 only, no runtime errors).
+
+Stage Summary:
+- Project stable: all 3 previously-untested flows now verified E2E (Aliphia import, Meta export, logo upload). 5 new features added this round: Reports analytics page (charts + insights), payment records tracking with atomic paid syncing (full stack: Prisma model + 3 endpoints + modal UI + progress bar), invoices pagination + 5 sort modes, overdue detection (badges + banner + sort + insights), clickable KPI cards. UI micro-polish throughout (focus rings, hover lifts, status dots, custom scrollbars/select arrows). DB state: 14 invoices (8 seed + 2 Aliphia demo + 4 other companies), 0 payments, 1 purchase demo, 6 catalog — clean.
+
+Unresolved issues / risks / next-phase priorities:
+- localStorage-only auth remains (demo-grade; NextAuth upgrade is the biggest production gap).
+- Invoice PDF export (true file download) still not implemented — print dialog "Save as PDF" is the current path; jspdf+Arabic font embedding is the heavy option.
+- Aliphia import renumbers invoices (INV… instead of original AL-… numbers) — original app design; could add a "keep original numbers" toggle later.
+- Reports page computes client-side from all invoices (fine for current scale); if lists grow to thousands, add server-side aggregation endpoints.
+- Payments are not shown in the print view (invoice print shows paid total only) — could add payment history table to print template.
+- Next-phase ideas: clients CRUD UI (API exists), dark mode, invoice templates per company, WhatsApp reminder button for overdue invoices, KNET payment links, multi-currency.

@@ -9,6 +9,8 @@ import FirebaseLogin from "./pages/FirebaseLogin";
 import AdminDashboard from "./pages/AdminDashboard";
 import PurchasesTab from "./components/PurchasesTab";
 import AIBulkProcessor from "./components/AIBulkProcessor";
+import ReportsTab from "./components/ReportsTab";
+import PaymentsPanel from "./components/PaymentsPanel";
 
 // ─── Companies Config ─────────────────────────────────────────────
 const COMPANIES = {
@@ -59,6 +61,16 @@ const nxtN = list=>{ const ns=list.map(i=>parseInt(i.invNum?.replace(/\D/g,"")||
 const getStatus = inv => { if(inv.status==='cancelled')return'cancel'; const tot=iT(inv);const paid=pN(inv.paid||0); return paid>=tot?"paid":paid>0?"part":"unp"; };
 const stLabel  = {paid:"مدفوعة",part:"جزئي",unp:"غير مدفوعة",cancel:"ملغية"};
 const stColor  = {paid:"#16a34a",part:"#d97706",unp:"#dc2626",cancel:"#6b7280"};
+
+// ── Overdue helper: days past due date (for unpaid/partial invoices) ──
+const overdueDays = inv => {
+  const st = getStatus(inv);
+  if (st === "paid" || st === "cancel") return 0;
+  if (!inv.dueDate) return 0;
+  const todayStr = new Date().toISOString().split("T")[0];
+  if (inv.dueDate >= todayStr) return 0;
+  return Math.floor((new Date(todayStr) - new Date(inv.dueDate)) / 86400000);
+};
 
 // ─── Storage (localStorage) ────────────────────────────────────────
 function dbGet(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch{return null;}}
@@ -655,7 +667,7 @@ return (
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────
-function Dashboard({invoices, company}){
+function Dashboard({invoices, company, onNavigate}){
 const now=new Date();
 const mk=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
 const tm=mk(now);const pm=mk(new Date(now.getFullYear(),now.getMonth()-1));
@@ -679,18 +691,20 @@ const cnt=invoices.filter(x=>x.date?.startsWith(key)).length;
 return{label,rev,cnt};
 });
 const kpis=[
-{icon:"💰",label:"إجمالي الإيرادات",val:fKWD(totR),sub:`${invoices.length} فاتورة`,c:col,bg:company.cardBg},
+{icon:"💰",label:"إجمالي الإيرادات",val:fKWD(totR),sub:`${invoices.length} فاتورة`,c:col,bg:company.cardBg,go:{view:"list",status:"all"}},
 {icon:"📅",label:"إيرادات هذا الشهر",val:fKWD(tR),sub:`${tInvs.length} فاتورة`,c:"#16a34a",bg:"#dcfce7",badge:`${gUp?"▲":"▼"} ${Math.abs(gPct).toFixed(1)}%`,badgeC:gUp?"#16a34a":"#dc2626"},
-{icon:"⏳",label:"مستحقات غير مدفوعة",val:fKWD(unpaidA),sub:`${unpaid.length} فاتورة`,c:"#b45309",bg:"#fef3c7"},
-{icon:"👥",label:"إجمالي العملاء",val:uniqueC+" عميل",sub:`متوسط ${fKWD(avg)}`,c:"#7c3aed",bg:"#ede9fe"},
+{icon:"⏳",label:"مستحقات غير مدفوعة",val:fKWD(unpaidA),sub:`${unpaid.length} فاتورة`,c:"#b45309",bg:"#fef3c7",go:{view:"list",status:"unp"}},
+{icon:"👥",label:"إجمالي العملاء",val:uniqueC+" عميل",sub:`متوسط ${fKWD(avg)}`,c:"#7c3aed",bg:"#ede9fe",go:{view:"customers"}},
 ];
 return(
 <div>
 <div className="kpi-grid">
 {kpis.map(k=>(
-<div key={k.label} style={{background:k.bg,borderRadius:"14px",padding:"14px 16px",border:`1.5px solid ${k.c}22`}}>
+<div key={k.label} style={{background:k.bg,borderRadius:"14px",padding:"14px 16px",border:`1.5px solid ${k.c}22`,...(k.go&&onNavigate?{cursor:"pointer"}:{})}}
+  onClick={k.go&&onNavigate?()=>onNavigate(k.go):undefined}
+  title={k.go?"اضغط للعرض":""}>
 <div style={{fontSize:"22px",marginBottom:"6px"}}>{k.icon}</div>
-<div style={{fontSize:"10px",color:"#6b7280",fontWeight:700,textTransform:"uppercase",letterSpacing:".4px",marginBottom:"3px"}}>{k.label}</div>
+<div style={{fontSize:"10px",color:"#6b7280",fontWeight:700,textTransform:"uppercase",letterSpacing:".4px",marginBottom:"3px",display:"flex",alignItems:"center",gap:"5px"}}>{k.label}{k.go&&onNavigate&&<span style={{fontSize:"9px",opacity:.55,fontWeight:900,transform:"scaleX(-1)",display:"inline-block"}}>↩</span>}</div>
 <div style={{fontSize:"17px",fontWeight:900,color:k.c,direction:"ltr",textAlign:"right"}}>{k.val}</div>
 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"5px"}}>
 <span style={{fontSize:"11px",color:"#6b7280"}}>{k.sub}</span>
@@ -1036,6 +1050,9 @@ const [editForm,setEditForm]=useState(null);
 const [selectedIds,setSelectedIds]=useState([]);
 const [statusFilter,setStatusFilter]=useState("all");
 const [purchasePreSelect,setPurchasePreSelect]=useState([]);
+const [page,setPage]=useState(1);
+const [pageSize,setPageSize]=useState(10);
+const [sortKey,setSortKey]=useState("date_desc");
 
 const emptyForm=()=>({clientName:"",clientPhone:"",clientAddress:"",items:[{name:"",desc:"",qty:1,price:""}],shipping:0,date:today(),dueDate:addD(today(),30),paid:0,notes:""});
 const [form,setForm]=useState(emptyForm());
@@ -1188,16 +1205,29 @@ if(!list.length){toast_("لا توجد فواتير في هذا النطاق","w
 doPrint(list, company);
 };
 
+const SORTS={
+  date_desc:{label:"الأحدث أولاً",fn:(a,b)=>new Date(b.createdAt)-new Date(a.createdAt)},
+  date_asc:{label:"الأقدم أولاً",fn:(a,b)=>new Date(a.createdAt)-new Date(b.createdAt)},
+  total_desc:{label:"المبلغ: الأعلى",fn:(a,b)=>iT(b)-iT(a)},
+  total_asc:{label:"المبلغ: الأقل",fn:(a,b)=>iT(a)-iT(b)},
+  overdue:{label:"المتأخرة أولاً",fn:(a,b)=>overdueDays(b)-overdueDays(a)},
+};
 const filtered=invoices.filter(inv=>{
 if(statusFilter!=="all"&&getStatus(inv)!==statusFilter)return false;
 if(!search)return true;
 const s=toW(search).toLowerCase();
 return inv.clientPhone?.includes(s)||inv.clientName?.toLowerCase().includes(s)||inv.invNum?.toLowerCase().includes(s);
-}).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+}).sort(SORTS[sortKey]?.fn||SORTS.date_desc.fn);
+const safePS = (Number.isFinite(pageSize) && pageSize > 0) ? Math.floor(pageSize) : 10;
+const totalPages=Math.max(1,Math.ceil(filtered.length/safePS));
+const safePage=Math.min(Math.max(1,page),totalPages);
+const pageInvs=filtered.slice((safePage-1)*safePS,safePage*safePS);
+const goToPage=p=>setPage(Math.max(1,Math.min(totalPages,Math.round(p)||1)));
 const statusCounts={all:invoices.length,paid:0,part:0,unp:0,cancel:0};
 invoices.forEach(inv=>{statusCounts[getStatus(inv)]=(statusCounts[getStatus(inv)]||0)+1;});
-const allSel=filtered.length>0&&filtered.every(inv=>selectedIds.includes(inv.id));
-const toggleSelectAll=()=>setSelectedIds(allSel?[]:filtered.map(inv=>inv.id));
+const overdueList=invoices.filter(inv=>overdueDays(inv)>0);
+const allSel=pageInvs.length>0&&pageInvs.every(inv=>selectedIds.includes(inv.id));
+const toggleSelectAll=()=>setSelectedIds(allSel?[]:pageInvs.map(inv=>inv.id));
 
 const exportInvoicesCSV=()=>{
   if(!company)return;
@@ -1212,6 +1242,7 @@ const TABS=[
 {id:"dash",l:"📊 Dashboard"},
 {id:"list",l:"📋 الفواتير"},
 {id:"customers",l:"👥 العملاء"},
+{id:"reports",l:"📈 التقارير"},
 {id:"new",l:"➕ جديد"},
 {id:"bulk",l:"📦 مجمع"},
 {id:"ai",l:"🤖 AI"},
@@ -1232,7 +1263,7 @@ const col = company.color;
 
 return(
 <div dir="rtl" style={{minHeight:"100vh",background:"#f3f4f6",fontFamily:"'Cairo','Tajawal',sans-serif",color:"#111",display:"flex",flexDirection:"column"}}>
-<style>{`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap'); *{box-sizing:border-box} .inp{width:100%;border:1.5px solid #d1d5db;border-radius:8px;padding:9px 12px;font-family:inherit;font-size:13px;background:#fff;outline:none;transition:border .15s} .inp:focus{border-color:${col}} .btn{border:none;border-radius:8px;padding:9px 16px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap} .btn:active{opacity:.85} .btn-ghost{background:#e5e7eb;color:#374151} .btn-outline{background:transparent;border:1.5px solid #d1d5db;color:#374151} .btn-outline:hover{border-color:${col};color:${col}} .btn-red{background:#dc2626;color:#fff} .card{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);border:1px solid #e5e7eb} .trow:hover,.trow:active{background:#f0f4ff;cursor:pointer} .b-paid{background:#dcfce7;color:#15803d;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-part{background:#fef3c7;color:#b45309;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-unp{background:#fee2e2;color:#b91c1c;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-cancel{background:#f3f4f6;color:#6b7280;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;text-decoration:line-through} .b-inv{background:#dbeafe;color:#1d4ed8;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}} @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}} .navbar{background:${col};position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,.25)} .navbar-top{display:flex;align-items:center;padding:0 12px;height:48px;gap:6px} .navbar-tabs{display:flex;overflow-x:auto;padding:4px 12px 6px;gap:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none} .navbar-tabs::-webkit-scrollbar{display:none} .aliphia-btn{background:#0f766e;} .nav-tab{background:transparent;color:rgba(255,255,255,.7);border:1px solid transparent;border-radius:6px;padding:5px 11px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s} .nav-tab.active{background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.25)} .nav-tab:active{background:rgba(255,255,255,.2)} .inv-table{width:100%;border-collapse:collapse} .inv-table th{padding:10px 10px;font-size:11px;font-weight:700;color:#6b7280;text-align:right;text-transform:uppercase;letter-spacing:.3px} .inv-table td{padding:10px 10px;border-bottom:1px solid #f3f4f6;font-size:13px} .col-addr,.col-date,.col-phone{display:none} @media(min-width:500px){.col-phone{display:table-cell}} @media(min-width:680px){.col-date{display:table-cell}} .form-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px} .form-3col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px} .item-row{display:grid;grid-template-columns:2fr 65px 110px auto;gap:7px;margin-bottom:7px;align-items:center} @media(max-width:500px){.form-2col{grid-template-columns:1fr}.form-3col{grid-template-columns:1fr 1fr}.item-row{grid-template-columns:1fr 55px 90px auto}} .kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px} @media(min-width:600px){.kpi-grid{grid-template-columns:repeat(4,1fr)}} .chart-grid{display:grid;grid-template-columns:1fr;gap:12px} @media(min-width:680px){.chart-grid{grid-template-columns:1.7fr 1fr}} .print-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end} @media(max-width:480px){.print-grid{grid-template-columns:1fr 1fr;} .print-grid .print-btn{grid-column:1/-1}} .cust-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px} @media(max-width:480px){.cust-stats{grid-template-columns:1fr}} .aliphia-btn{background:linear-gradient(135deg,#0f766e,#0d9488)!important;border:none;box-shadow:0 2px 8px rgba(15,118,110,.3);transition:all .2s!important} .aliphia-btn:hover{box-shadow:0 4px 14px rgba(15,118,110,.45)!important;transform:translateY(-1px)}`}</style>
+<style>{`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap'); *{box-sizing:border-box} .inp{width:100%;border:1.5px solid #d1d5db;border-radius:8px;padding:9px 12px;font-family:inherit;font-size:13px;background:#fff;outline:none;transition:border .15s,box-shadow .15s} .inp:focus{border-color:${col};box-shadow:0 0 0 3px ${col}1a} .inp:hover{border-color:#9ca3af} .btn{border:none;border-radius:8px;padding:9px 16px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap} .btn:hover{filter:brightness(1.06);box-shadow:0 2px 10px rgba(0,0,0,.12)} .btn:active{opacity:.85;transform:scale(.97)} .btn-ghost{background:#e5e7eb;color:#374151} .btn-outline{background:transparent;border:1.5px solid #d1d5db;color:#374151} .btn-outline:hover{border-color:${col};color:${col}} .btn-red{background:#dc2626;color:#fff} .card{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);border:1px solid #e5e7eb} .trow{transition:background .12s} .trow:hover,.trow:active{background:#f0f4ff;cursor:pointer} .inv-table tbody tr:last-child td{border-bottom:none} .b-paid{background:#dcfce7;color:#15803d;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-paid::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:#16a34a;margin-left:5px;vertical-align:middle} .b-part{background:#fef3c7;color:#b45309;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-part::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:#d97706;margin-left:5px;vertical-align:middle} .b-unp{background:#fee2e2;color:#b91c1c;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-unp::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:#dc2626;margin-left:5px;vertical-align:middle} .b-cancel{background:#f3f4f6;color:#6b7280;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;text-decoration:line-through} .b-inv{background:#dbeafe;color:#1d4ed8;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;letter-spacing:.3px} @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}} @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}} .navbar{background:${col};position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,.25)} .navbar-top{display:flex;align-items:center;padding:0 12px;height:48px;gap:6px} .navbar-tabs{display:flex;overflow-x:auto;padding:4px 12px 6px;gap:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none} .navbar-tabs::-webkit-scrollbar{display:none} .aliphia-btn{background:#0f766e;} .nav-tab{background:transparent;color:rgba(255,255,255,.7);border:1px solid transparent;border-radius:6px;padding:5px 11px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s} .nav-tab:hover{color:#fff;background:rgba(255,255,255,.08)} .nav-tab.active{background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.25)} .nav-tab:active{background:rgba(255,255,255,.2)} .inv-table{width:100%;border-collapse:collapse} .inv-table th{padding:10px 10px;font-size:11px;font-weight:700;color:#6b7280;text-align:right;text-transform:uppercase;letter-spacing:.3px} .inv-table td{padding:10px 10px;border-bottom:1px solid #f3f4f6;font-size:13px} .col-addr,.col-date,.col-phone{display:none} @media(min-width:500px){.col-phone{display:table-cell}} @media(min-width:680px){.col-date{display:table-cell}} .form-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px} .form-3col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px} .item-row{display:grid;grid-template-columns:2fr 65px 110px auto;gap:7px;margin-bottom:7px;align-items:center} @media(max-width:500px){.form-2col{grid-template-columns:1fr}.form-3col{grid-template-columns:1fr 1fr}.item-row{grid-template-columns:1fr 55px 90px auto}} .kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px} .kpi-grid>div{transition:transform .18s,box-shadow .18s} .kpi-grid>div:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.08)} @media(min-width:600px){.kpi-grid{grid-template-columns:repeat(4,1fr)}} .chart-grid{display:grid;grid-template-columns:1fr;gap:12px} @media(min-width:680px){.chart-grid{grid-template-columns:1.7fr 1fr}} .print-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end} @media(max-width:480px){.print-grid{grid-template-columns:1fr 1fr;} .print-grid .print-btn{grid-column:1/-1}} .cust-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px} @media(max-width:480px){.cust-stats{grid-template-columns:1fr}} .aliphia-btn{background:linear-gradient(135deg,#0f766e,#0d9488)!important;border:none;box-shadow:0 2px 8px rgba(15,118,110,.3);transition:all .2s!important} .aliphia-btn:hover{box-shadow:0 4px 14px rgba(15,118,110,.45)!important;transform:translateY(-1px)} ::-webkit-scrollbar{width:9px;height:9px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:8px;border:2px solid #f3f4f6} ::-webkit-scrollbar-thumb:hover{background:#9ca3af} select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:left 10px center;padding-left:26px} .chart-grid>div{transition:box-shadow .18s} .chart-grid>div:hover{box-shadow:0 4px 16px rgba(0,0,0,.06)}`}</style>
 
   {/* Admin Dashboard Modal */}
   {showAdmin&&<AdminDashboard onClose={()=>setShowAdmin(false)}/>}
@@ -1294,7 +1325,7 @@ return(
   <div style={{maxWidth:"1040px",width:"100%",margin:"0 auto",padding:"18px 14px",flex:1}}>
 
     {/* DASHBOARD */}
-    {view==="dash"&&<div style={{animation:"fadeUp .25s"}}><Dashboard invoices={invoices} company={company}/></div>}
+    {view==="dash"&&<div style={{animation:"fadeUp .25s"}}><Dashboard invoices={invoices} company={company} onNavigate={go=>{if(go.status)setStatusFilter(go.status);setView(go.view);setSelInv(null);}}/></div>}
 
     {/* CUSTOMERS */}
     {view==="customers"&&(
@@ -1316,7 +1347,7 @@ return(
     {view==="list"&&!selInv&&(
       <div style={{animation:"fadeUp .25s"}}>
         <div style={{display:"flex",gap:"10px",marginBottom:"10px",alignItems:"center",flexWrap:"wrap"}}>
-          <input className="inp" style={{flex:1,padding:"10px 14px",minWidth:"180px"}} placeholder="🔍 ابحث بالتلفون أو الاسم أو رقم الفاتورة..." value={search} onChange={e=>{setSearch(e.target.value);setSelectedIds([]);}}/>
+          <input className="inp" style={{flex:1,padding:"10px 14px",minWidth:"180px"}} placeholder="🔍 ابحث بالتلفون أو الاسم أو رقم الفاتورة..." value={search} onChange={e=>{setSearch(e.target.value);setSelectedIds([]);setPage(1);}}/>
           <button className="btn aliphia-btn" style={{color:"#fff",gap:"6px"}} onClick={()=>setShowAliphia(true)}>
             <span style={{fontSize:"15px"}}>📥</span> استيراد Aliphia
           </button>
@@ -1326,6 +1357,20 @@ return(
           <span style={{fontSize:"12px",color:"#6b7280",whiteSpace:"nowrap"}}>{filtered.length} فاتورة</span>
         </div>
 
+        {/* Sort + page size bar */}
+        <div style={{display:"flex",gap:"8px",marginBottom:"12px",alignItems:"center",flexWrap:"wrap"}}>
+          <select className="inp" style={{width:"auto",padding:"6px 10px",fontSize:"12px",fontWeight:700,color:"#374151"}} value={sortKey} onChange={e=>{setSortKey(e.target.value);setPage(1);}}>
+            {Object.entries(SORTS).map(([k,v])=><option key={k} value={k}>↕️ {v.label}</option>)}
+          </select>
+          <select className="inp" style={{width:"auto",padding:"6px 10px",fontSize:"12px",fontWeight:700,color:"#374151"}} value={pageSize} onChange={e=>{setPageSize(Number(e.target.value));setPage(1);}}>
+            {[10,25,50,100].map(n=><option key={n} value={n}>{n} / صفحة</option>)}
+          </select>
+          <div style={{flex:1}}/>
+          {overdueList.length>0&&(
+            <span style={{fontSize:"11.5px",fontWeight:800,color:"#b91c1c",background:"#fee2e2",border:"1px solid #fecaca",borderRadius:"20px",padding:"4px 12px"}}>⏰ {overdueList.length} فاتورة متأخرة عن الاستحقاق</span>
+          )}
+        </div>
+
         {/* Status filter chips */}
         <div style={{display:"flex",gap:"7px",marginBottom:"12px",flexWrap:"wrap",alignItems:"center"}}>
           {["all","paid","part","unp","cancel"].map(sf=>{
@@ -1333,7 +1378,7 @@ return(
             const cnt=statusCounts[sf]||0;
             const c=stColor[sf]||col;
             return(
-              <button key={sf} onClick={()=>{setStatusFilter(sf);setSelectedIds([]);}}
+              <button key={sf} onClick={()=>{setStatusFilter(sf);setSelectedIds([]);setPage(1);}}
                 style={{
                   border:`1.5px solid ${active?c:"#e5e7eb"}`,
                   background:active?`${c}14`:"#fff",
@@ -1388,7 +1433,7 @@ return(
                 <th>المبلغ</th><th>الحالة</th><th></th>
               </tr></thead>
               <tbody>
-                {filtered.map(inv=>{
+                {pageInvs.map(inv=>{
                   const st=getStatus(inv);
                   const isSel=selectedIds.includes(inv.id);
                   return(
@@ -1404,9 +1449,18 @@ return(
                       </td>
                       <td style={{fontWeight:600}}>{inv.clientName}</td>
                       <td className="col-phone" style={{direction:"ltr",textAlign:"right",color:"#2563eb"}}>{inv.clientPhone}</td>
-                      <td className="col-date" style={{color:"#6b7280",fontSize:"12px"}}>{fDate(inv.date)}</td>
+                      <td className="col-date" style={{color:"#6b7280",fontSize:"12px"}}>
+                        {fDate(inv.date)}
+                        {overdueDays(inv)>0&&(
+                          <span style={{display:"block",marginTop:"2px",fontSize:"10px",fontWeight:800,color:"#b91c1c",background:"#fee2e2",borderRadius:"4px",padding:"1px 6px",width:"fit-content"}}>
+                            ⏰ متأخرة {overdueDays(inv)} يوم
+                          </span>
+                        )}
+                      </td>
                       <td style={{fontWeight:700}}>{fKWD(iT(inv))}</td>
-                      <td><span className={`b-${st}`}>{stLabel[st]}</span></td>
+                      <td>
+                        <span className={`b-${st}`}>{stLabel[st]}</span>
+                      </td>
                       <td onClick={e=>e.stopPropagation()}>
                         <div style={{display:"flex",gap:"4px"}}>
                           {!!perms.print_invoice&&<button className="btn" style={{background:col,color:"#fff",padding:"5px 8px",fontSize:"12px"}} onClick={e=>{e.stopPropagation();doPrint([inv],company);}}>🖨️</button>}
@@ -1421,6 +1475,39 @@ return(
             </table>
           </div>
         )}
+
+        {/* Pagination */}
+        {filtered.length>0&&totalPages>1&&(
+          <div style={{display:"flex",alignItems:"center",gap:"6px",marginTop:"12px",flexWrap:"wrap",justifyContent:"center"}}>
+            <button className="btn btn-ghost" style={{padding:"5px 12px",fontSize:"12px",opacity:safePage<=1?.5:1}} disabled={safePage<=1} onClick={()=>goToPage(safePage-1)}>→ السابق</button>
+            {Array.from({length:totalPages}).slice(0,7).map((_,i)=>{
+              let p=i+1;
+              if(totalPages>7){
+                if(p>4&&p<totalPages-2){
+                  if(p===5)return<span key={p} style={{color:"#9ca3af",fontSize:"12px",padding:"0 2px"}}>…</span>;
+                  return null;
+                }
+              }
+              const active=p===safePage;
+              return(
+                <button key={p} onClick={()=>goToPage(p)} style={{
+                  border:`1.5px solid ${active?col:"#e5e7eb"}`,background:active?col:"#fff",
+                  color:active?"#fff":"#6b7280",borderRadius:"7px",padding:"4px 11px",
+                  fontFamily:"inherit",fontSize:"12px",fontWeight:800,cursor:"pointer",transition:"all .15s",
+                }}>{p}</button>
+              );
+            })}
+            <button className="btn btn-ghost" style={{padding:"5px 12px",fontSize:"12px",opacity:safePage>=totalPages?.5:1}} disabled={safePage>=totalPages} onClick={()=>goToPage(safePage+1)}>التالي ←</button>
+            <span style={{fontSize:"11px",color:"#9ca3af",marginRight:"8px"}}>{(safePage-1)*safePS+1}–{Math.min(safePage*safePS,filtered.length)} من {filtered.length}</span>
+          </div>
+        )}
+      </div>
+    )}
+
+    {/* REPORTS */}
+    {view==="reports"&&(
+      <div>
+        <ReportsTab invoices={invoices} company={company}/>
       </div>
     )}
 
@@ -1432,8 +1519,15 @@ return(
           {!!perms.print_invoice&&<button className="btn" style={{background:col,color:"#fff"}} onClick={()=>doPrint([selInv],company)}>🖨️ طباعة</button>}
           {!!perms.edit_invoice&&<button className="btn" style={{background:"#f59e0b",color:"#fff"}} onClick={()=>openEdit(selInv)}>✏️ تعديل</button>}
           {!!perms.delete_invoice&&<button className="btn btn-red" onClick={()=>setDelModal(selInv)}>🗑️ حذف</button>}
+          {overdueDays(selInv)>0&&(
+            <span style={{fontSize:"12px",fontWeight:800,color:"#b91c1c",background:"#fee2e2",border:"1px solid #fecaca",borderRadius:"20px",padding:"5px 14px"}}>⏰ متأخرة {overdueDays(selInv)} يوم عن الاستحقاق</span>
+          )}
         </div>
         <div className="card" style={{overflow:"hidden"}}><InvPreview inv={selInv} company={company}/></div>
+        <PaymentsPanel inv={selInv} company={company} canEdit={!!perms.edit_invoice} onChanged={async()=>{
+          await refreshInvoices();
+          try{ const fresh=await api.getInvoice(selInv.id); if(fresh)setSelInv(fresh); }catch{}
+        }}/>
       </div>
     )}
 
