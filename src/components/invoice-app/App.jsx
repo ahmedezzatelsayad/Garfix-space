@@ -72,6 +72,28 @@ const overdueDays = inv => {
   return Math.floor((new Date(todayStr) - new Date(inv.dueDate)) / 86400000);
 };
 
+// ── Payment method labels (Arabic) ──
+const payMethodLabel = { knet: "كي نت", cash: "نقدي", online: "أونلاين", card: "بطاقة" };
+
+// ── WhatsApp payment-reminder deep link (wa.me supports ?text=) ──
+const waReminderHref = (inv, company) => {
+  const phone = norm(inv.clientPhone || "").replace(/^\+?965/, "");
+  if (!phone) return null;
+  const tot = iT(inv), paid = pN(inv.paid || 0), due = tot - paid, od = overdueDays(inv);
+  const lines = [
+    `عميلنا العزيز ${inv.clientName || ""}،`,
+    `تذكير ودّي من ${company.nameAr} 🙏`,
+    `📄 الفاتورة رقم ${inv.invNum} بتاريخ ${fDate(inv.date)}`,
+    `💰 الإجمالي: ${fKWD(tot)}`,
+    paid > 0 ? `✅ المدفوع: ${fKWD(paid)} — المتبقي: ${fKWD(due)}` : `المبلغ المطلوب: ${fKWD(due)}`,
+    `📅 تاريخ الاستحقاق: ${fDate(inv.dueDate)}${od > 0 ? ` (متأخرة ${od} يوم)` : ""}`,
+    `نرجو التكرم بتسوية المبلغ المتبقي في أقرب وقت 🙏`,
+    `شكراً لتعاونكم 🌹`,
+    `${company.nameAr} — ${company.phone}`,
+  ];
+  return `https://wa.me/965${phone}?text=${encodeURIComponent(lines.join("\n"))}`;
+};
+
 // ─── Storage (localStorage) ────────────────────────────────────────
 function dbGet(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch{return null;}}
 function dbSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
@@ -522,6 +544,23 @@ ${isCancelled?`<div class="watermark">ملغية</div>`:""}
   </table>
 </div>
 
+${(inv._pays&&inv._pays.length)?`
+<div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+  <table style="min-width:320px;border-collapse:collapse;border:1.5px solid #d1d5db;border-radius:6px;overflow:hidden;">
+    <thead><tr style="background:#f3f4f6;border-bottom:1.5px solid #d1d5db;">
+      <th colspan="4" style="padding:8px 14px;text-align:right;font-size:10.5px;font-weight:800;color:#374151;letter-spacing:.5px;">💳 سجل الدفعات (${inv._pays.length})</th>
+    </tr></thead>
+    <tbody>
+      ${inv._pays.map(p=>`<tr style="border-bottom:1px solid #f0f0f0;">
+        <td style="padding:6px 14px;color:#6b7280;font-size:11.5px;">${fDate(p.date)}</td>
+        <td style="padding:6px 14px;font-weight:700;color:#16a34a;font-size:11.5px;direction:ltr;text-align:left;">${fKWD(p.amount)}</td>
+        <td style="padding:6px 14px;"><span style="background:#dcfce7;color:#15803d;border-radius:4px;padding:1px 8px;font-size:10.5px;font-weight:700;">${payMethodLabel[p.method]||p.method||"—"}</span></td>
+        <td style="padding:6px 14px;color:#9ca3af;font-size:10.5px;">${p.note||""}</td>
+      </tr>`).join("")}
+    </tbody>
+  </table>
+</div>`:""}
+
 ${inv.notes?`<div style="border:1.5px solid #d1d5db;border-radius:6px;padding:10px 14px;margin-bottom:12px;background:#f9fafb;"><div style="font-size:8.5px;font-weight:800;color:#9ca3af;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;">ملاحظات</div><div style="font-size:12px;color:#374151;line-height:1.75;">${inv.notes}</div></div>`:""}
 
 <div style="padding-top:10px;border-top:1.5px solid #d1d5db;display:flex;justify-content:space-between;align-items:center;">
@@ -550,11 +589,17 @@ body{font-family:'Tajawal','Cairo',Arial,sans-serif;direction:rtl;color:#1a1a2e;
 </style></head><body>${pages.join("")}</body></html>`;
 }
 
-function doPrint(list, company){
+async function doPrint(list, company){
 if(!list.length)return;
 const w=window.open("","_blank","width=900,height=700");
 if(!w){alert("يرجى السماح بالـ Popups");return;}
-w.document.open();w.document.write(buildHTML(list, company));w.document.close();
+// Enrich each invoice with its payment records so the print view can show them
+const enriched=await Promise.all(list.map(async inv=>{
+  let pays=[];
+  try{ pays=(await api.listPayments(inv.id))||[]; }catch{}
+  return {...inv,_pays:pays};
+}));
+w.document.open();w.document.write(buildHTML(enriched, company));w.document.close();
 setTimeout(()=>{try{w.focus();w.print();}catch(e){}},900);
 }
 
@@ -666,7 +711,37 @@ return (
 );
 }
 
-// ─── Dashboard ────────────────────────────────────────────────────
+// ─── Dashboard skeleton (shown while invoices are being fetched) ──
+function DashboardSkeleton({company}){
+const col=company.color;
+return(
+<div aria-busy="true" aria-label="جارٍ تحميل لوحة التحكم">
+  <div className="kpi-grid">
+    {[0,1,2,3].map(i=>(
+      <div key={i} className="card" style={{padding:"16px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"10px"}}>
+          <div className="sk" style={{width:"30px",height:"30px",borderRadius:"9px",background:`${col}1a`}}/>
+          <div className="sk sk-sm" style={{width:"45%"}}/>
+        </div>
+        <div className="sk sk-lg" style={{width:"72%",marginBottom:"7px"}}/>
+        <div className="sk sk-sm" style={{width:"38%"}}/>
+      </div>
+    ))}
+  </div>
+  <div className="chart-grid">
+    <div className="card" style={{padding:"18px",minHeight:"230px"}}>
+      <div className="sk sk-sm" style={{width:"32%",marginBottom:"14px"}}/>
+      <div className="sk" style={{width:"100%",height:"160px"}}/>
+    </div>
+    <div className="card" style={{padding:"18px",minHeight:"230px"}}>
+      <div className="sk sk-sm" style={{width:"40%",marginBottom:"14px"}}/>
+      <div className="sk" style={{width:"100%",height:"160px"}}/>
+    </div>
+  </div>
+</div>
+);
+}
+
 function Dashboard({invoices, company, onNavigate}){
 const now=new Date();
 const mk=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
@@ -838,8 +913,211 @@ return(
 );
 }
 
+// ─── Client Directory (saved customers, backed by /api/clients) ────
+function ClientFormModal({initial, company, onSave, onClose}){
+const col=company.color;
+const [name,setName]=useState(initial?.name||"");
+const [phone,setPhone]=useState(initial?.phone||"");
+const [email,setEmail]=useState(initial?.email||"");
+const [address,setAddress]=useState(initial?.address||"");
+const [err,setErr]=useState("");
+const [busy,setBusy]=useState(false);
+const isEdit=!!initial?.id;
+
+return(
+<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",zIndex:2100,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",direction:"rtl"}} onClick={busy?undefined:onClose}>
+  <div className="card" style={{width:"100%",maxWidth:"460px",overflow:"hidden",display:"flex",flexDirection:"column",animation:"fadeUp .25s"}} onClick={e=>e.stopPropagation()}>
+
+    <div style={{background:isEdit?"#f59e0b":col,padding:"15px 20px",display:"flex",alignItems:"center",gap:"12px",flexShrink:0}}>
+      <div style={{width:"40px",height:"40px",background:"rgba(255,255,255,.18)",borderRadius:"11px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"19px",flexShrink:0}}>
+        {isEdit?"✏️":"📇"}
+      </div>
+      <div style={{flex:1,color:"#fff"}}>
+        <div style={{fontWeight:900,fontSize:"15px"}}>{isEdit?"تعديل بيانات العميل":"إضافة عميل جديد"}</div>
+        <div style={{fontSize:"11.5px",opacity:.75}}>سيتم حفظه في دليل {company.nameAr}</div>
+      </div>
+      <button onClick={onClose} disabled={busy} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"8px",padding:"6px 12px",color:"#fff",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer",flexShrink:0}}>✕</button>
+    </div>
+
+    <div style={{padding:"18px 20px"}}>
+      <div className="form-2col" style={{marginBottom:"10px"}}>
+        <div><label style={{fontSize:"11px",color:"#6b7280",display:"block",marginBottom:"4px"}}>الاسم *</label>
+          <input className="inp" placeholder="مثال: عبدالله حسن" value={name} onChange={e=>setName(e.target.value)} autoFocus/></div>
+        <div><label style={{fontSize:"11px",color:"#6b7280",display:"block",marginBottom:"4px"}}>التلفون *</label>
+          <input className="inp" style={{direction:"ltr",textAlign:"right"}} placeholder="9xxxxxxx" value={phone} onChange={e=>setPhone(e.target.value)}/></div>
+      </div>
+      <div style={{marginBottom:"10px"}}>
+        <label style={{fontSize:"11px",color:"#6b7280",display:"block",marginBottom:"4px"}}>البريد الإلكتروني (اختياري)</label>
+        <input className="inp" style={{direction:"ltr",textAlign:"right"}} placeholder="name@example.com" value={email} onChange={e=>setEmail(e.target.value)}/>
+      </div>
+      <div style={{marginBottom:"14px"}}>
+        <label style={{fontSize:"11px",color:"#6b7280",display:"block",marginBottom:"4px"}}>العنوان (اختياري)</label>
+        <input className="inp" placeholder="المنطقة / العنوان" value={address} onChange={e=>setAddress(e.target.value)}/>
+      </div>
+
+      {err&&<div style={{background:"#fee2e2",border:"1px solid #fecaca",color:"#b91c1c",borderRadius:"8px",padding:"8px 12px",fontSize:"12px",fontWeight:700,marginBottom:"12px"}}>⚠️ {err}</div>}
+
+      <div style={{display:"flex",gap:"8px"}}>
+        <button className="btn" disabled={busy} style={{background:isEdit?"#f59e0b":col,color:"#fff",flex:1,fontSize:"14px",padding:"10px",opacity:busy?.7:1}} 
+          onClick={async()=>{
+            if(!name.trim()){setErr("اسم العميل مطلوب");return;}
+            if(!norm(phone)){setErr("رقم التلفون مطلوب");return;}
+            setBusy(true);
+            try{
+              await onSave({name:name.trim(),phone:norm(phone),email:email.trim()||null,address:address.trim()||null});
+            }catch(e){
+              setBusy(false);
+              setErr("تعذّر الحفظ — تحقق من الاتصال ثم أعد المحاولة");
+            }
+          }}>
+          {busy?"⏳ جارٍ الحفظ...":isEdit?"💾 حفظ التعديلات":"➕ إضافة العميل"}
+        </button>
+        <button className="btn btn-ghost" disabled={busy} onClick={onClose}>إلغاء</button>
+      </div>
+    </div>
+  </div>
+</div>
+);
+}
+
+function ClientDirectory({clients, invoices, company, canEdit, onRefresh, toast_}){
+const col=company.color;
+const [modal,setModal]=useState(null); // {mode:'add'} | {mode:'edit', client}
+const [del,setDel]=useState(null);
+
+// Spend stats per normalized phone, derived from the company invoices
+const stats={};
+invoices.forEach(inv=>{
+const ph=norm(inv.clientPhone||"");
+if(!ph)return;
+if(!stats[ph])stats[ph]={spent:0,count:0,lastDate:""};
+stats[ph].spent+=iT(inv);stats[ph].count+=1;
+if(inv.date>stats[ph].lastDate)stats[ph].lastDate=inv.date;
+});
+
+const saveClient=async data=>{
+if(modal.mode==="add"){
+  await api.createClient({...data,company:company.id});
+  toast_("✅ تم إضافة "+data.name+" إلى الدليل");
+}else{
+  await api.updateClient(modal.client.id,data);
+  toast_("✅ تم تحديث بيانات "+data.name);
+}
+setModal(null);
+onRefresh();
+};
+
+const confirmDelClient=async()=>{
+try{ await api.deleteClient(del.id); }catch{}
+setDel(null);
+onRefresh();
+toast_("🗑️ تم حذف "+(del.name||"العميل")+" من الدليل","warn");
+};
+
+return(
+<div className="card" style={{overflow:"hidden",animation:"fadeUp .25s"}}>
+  {/* Section header */}
+  <div style={{display:"flex",alignItems:"center",gap:"10px",padding:"14px 18px",borderBottom:"1.5px solid #f0f0f0",background:"linear-gradient(135deg,#f8fafc,#fff)",flexWrap:"wrap"}}>
+    <div style={{width:"38px",height:"38px",background:company.cardBg,border:`1.5px solid ${col}33`,borderRadius:"10px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"18px",flexShrink:0}}>📇</div>
+    <div style={{flex:1,minWidth:"150px"}}>
+      <div style={{fontSize:"14px",fontWeight:900,color:"#111827"}}>دليل العملاء المحفوظين</div>
+      <div style={{fontSize:"11px",color:"#9ca3af",fontWeight:600}}>للاستخدام السريع عند إنشاء الفواتير — يُحفظ لكل شركة على حدة</div>
+    </div>
+    <span style={{background:"#dbeafe",color:"#1d4ed8",borderRadius:"20px",padding:"3px 11px",fontSize:"11px",fontWeight:800}}>{clients.length} محفوظ</span>
+    {canEdit&&<button className="btn" style={{background:col,color:"#fff",padding:"7px 13px",fontSize:"12px"}} onClick={()=>setModal({mode:"add"})}>➕ عميل جديد</button>}
+  </div>
+
+  {clients.length===0?(
+    <div style={{padding:"34px",textAlign:"center",color:"#9ca3af"}}>
+      <div style={{fontSize:"34px",marginBottom:"8px"}}>📇</div>
+      <div style={{fontWeight:700,fontSize:"13px",marginBottom:"4px"}}>لا يوجد عملاء محفوظون بعد</div>
+      <div style={{fontSize:"12px",marginBottom:"14px"}}>أضف عميلك الأول ليظهر هنا، أو سيُضاف تلقائياً عند إنشاء أول فاتورة له</div>
+      {canEdit&&<button className="btn" style={{background:col,color:"#fff"}} onClick={()=>setModal({mode:"add"})}>➕ إضافة عميل</button>}
+    </div>
+  ):(
+    <div style={{overflowX:"auto"}}>
+      <table style={{width:"100%",borderCollapse:"collapse"}}>
+        <thead><tr style={{background:"#f8fafc",borderBottom:"2px solid #e5e7eb"}}>
+          {["العميل","التلفون","العنوان","إجمالي الإنفاق","الفواتير","آخر شراء",""].map(h=>(
+            <th key={h} style={{padding:"10px 12px",fontSize:"11px",fontWeight:700,color:"#6b7280",textAlign:"right",textTransform:"uppercase",letterSpacing:".3px",whiteSpace:"nowrap"}}>{h}</th>
+          ))}
+        </tr></thead>
+        <tbody>
+          {clients.map((c,i)=>{
+            const ph=norm(c.phone||"");
+            const st=stats[ph];
+            return(
+              <tr key={c.id} className="trow" style={{borderBottom:"1px solid #f3f4f6",background:i%2===0?"#fff":"#fafafa"}}>
+                <td style={{padding:"10px 12px"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:"9px"}}>
+                    <div style={{width:"32px",height:"32px",background:company.cardBg,border:`1px solid ${col}33`,color:col,borderRadius:"9px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"13px",fontWeight:900,flexShrink:0}}>
+                      {(c.name||"؟").trim().charAt(0)}
+                    </div>
+                    <div style={{minWidth:0}}>
+                      <div style={{fontWeight:700,fontSize:"13px"}}>{c.name}</div>
+                      {c.email&&<div style={{fontSize:"10.5px",color:"#9ca3af",direction:"ltr",textAlign:"right"}}>{c.email}</div>}
+                    </div>
+                  </div>
+                </td>
+                <td style={{padding:"10px 12px",direction:"ltr",textAlign:"right",color:"#2563eb",fontSize:"12.5px",fontWeight:600,whiteSpace:"nowrap"}}>{c.phone||"—"}</td>
+                <td style={{padding:"10px 12px",color:"#6b7280",fontSize:"12px",maxWidth:"150px"}}>
+                  <div style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.address||"—"}</div>
+                </td>
+                <td style={{padding:"10px 12px",fontWeight:800,color:st?col:"#9ca3af",whiteSpace:"nowrap"}}>{st?fKWD(st.spent):"—"}</td>
+                <td style={{padding:"10px 12px",textAlign:"center"}}>
+                  {st?<span style={{background:"#dbeafe",color:"#1d4ed8",borderRadius:"20px",padding:"2px 9px",fontSize:"11px",fontWeight:700}}>{st.count}</span>
+                     :<span style={{color:"#d1d5db",fontSize:"11px"}}>جديد</span>}
+                </td>
+                <td style={{padding:"10px 12px",color:"#6b7280",fontSize:"11.5px",whiteSpace:"nowrap"}}>{st?fDate(st.lastDate):"—"}</td>
+                <td style={{padding:"10px 12px"}} onClick={e=>e.stopPropagation()}>
+                  {canEdit&&(
+                    <div style={{display:"flex",gap:"4px"}}>
+                      <button className="btn" title="تعديل بيانات العميل" style={{background:"#f59e0b",color:"#fff",padding:"5px 9px",fontSize:"12px"}} onClick={()=>setModal({mode:"edit",client:c})}>✏️</button>
+                      <button className="btn btn-red" title="حذف من الدليل" style={{padding:"5px 9px",fontSize:"12px"}} onClick={()=>setDel(c)}>🗑️</button>
+                    </div>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  )}
+
+  {/* Add / Edit modal */}
+  {modal&&(
+    <ClientFormModal
+      initial={modal.mode==="edit"?modal.client:null}
+      company={company}
+      onSave={saveClient}
+      onClose={()=>setModal(null)}
+    />
+  )}
+
+  {/* Delete confirmation */}
+  {del&&(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",zIndex:2100,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",direction:"rtl"}} onClick={()=>setDel(null)}>
+      <div className="card" style={{padding:"26px 30px",textAlign:"center",maxWidth:"330px",animation:"fadeUp .2s"}} onClick={e=>e.stopPropagation()}>
+        <div style={{fontSize:"36px",marginBottom:"8px"}}>🗑️</div>
+        <div style={{fontWeight:800,fontSize:"14.5px",marginBottom:"6px"}}>حذف العميل من الدليل؟</div>
+        <div style={{color:"#6b7280",fontSize:"12.5px",marginBottom:"16px",lineHeight:1.7}}>
+          سيتم حذف <b>{del.name}</b> من دليل العملاء.<br/>
+          <span style={{fontSize:"11px",color:"#9ca3af"}}>فواتيره السابقة لن تتأثر.</span>
+        </div>
+        <div style={{display:"flex",gap:"9px",justifyContent:"center"}}>
+          <button className="btn btn-red" onClick={confirmDelClient}>نعم، احذف</button>
+          <button className="btn btn-ghost" onClick={()=>setDel(null)}>إلغاء</button>
+        </div>
+      </div>
+    </div>
+  )}
+</div>
+);
+}
+
 // ─── Customers ────────────────────────────────────────────────────
-function Customers({invoices, company, onImportDone, onOpenInvoice}){
+function Customers({invoices, company, onImportDone, onOpenInvoice, clients, refreshClients, toast_}){
 const { perms } = useAuth();
 const [search,setSearch]=useState("");
 const [sort,setSort]=useState("spent");
@@ -1025,6 +1303,18 @@ className="trow">
 </table>
 </div>
 )}
+
+{/* Saved-client directory (CRUD backed by /api/clients) */}
+<div style={{marginTop:"16px"}}>
+<ClientDirectory
+  clients={clients||[]}
+  invoices={invoices}
+  company={company}
+  canEdit={!!perms.create_invoice}
+  onRefresh={refreshClients}
+  toast_={toast_}
+/>
+</div>
 </div>
 );
 }
@@ -1053,6 +1343,8 @@ const [purchasePreSelect,setPurchasePreSelect]=useState([]);
 const [page,setPage]=useState(1);
 const [pageSize,setPageSize]=useState(10);
 const [sortKey,setSortKey]=useState("date_desc");
+const [clients,setClients]=useState([]);
+const [invLoading,setInvLoading]=useState(false);
 
 const emptyForm=()=>({clientName:"",clientPhone:"",clientAddress:"",items:[{name:"",desc:"",qty:1,price:""}],shipping:0,date:today(),dueDate:addD(today(),30),paid:0,notes:""});
 const [form,setForm]=useState(emptyForm());
@@ -1071,6 +1363,7 @@ const company = (!authLoading && selectedCompany===null && availableCompanies.le
 
 const refreshInvoices = useCallback(async () => {
   if (!company) return;
+  setInvLoading(true);
   try {
     const invs = await api.listInvoices(company.sk);
     if (invs.length === 0) {
@@ -1089,6 +1382,8 @@ const refreshInvoices = useCallback(async () => {
     dbSet(company.sk, invs);
   } catch {
     setInvoices(dbGet(company.sk) || []);
+  } finally {
+    setInvLoading(false);
   }
 }, [company]);
 
@@ -1096,9 +1391,21 @@ useEffect(()=>{
 if(!company)return;
 // refreshInvoices is async — every setState inside it runs after an await,
 // so this is the standard data-fetching effect, not a synchronous cascade.
-// eslint-disable-next-line react-hooks/set-state-in-effect
+ 
 refreshInvoices();
 },[company, refreshInvoices]);
+
+const refreshClients = useCallback(async () => {
+  if (!company) return;
+  try { setClients((await api.listClients(company.id)) || []); } catch {}
+}, [company]);
+
+useEffect(()=>{
+if(!company)return;
+// Same async data-fetching pattern as refreshInvoices above.
+ 
+refreshClients();
+},[company, refreshClients]);
 
 const logout=async()=>{ await logoutUser(); setCompany(null); };
 const switchCompany=()=>{setCompany(null);setView("dash");setSelInv(null);setSearch("");setSelectedIds([]);};
@@ -1157,6 +1464,22 @@ const printSelected=()=>{
   if(list.length)doPrint(list,company);
 };
 
+// Auto-register the invoice's client in the saved-client directory (dedupe by phone).
+// Fire-and-forget: directory is a convenience, invoice creation must never fail because of it.
+const autoRegisterClient = (inv) => {
+  if (!company || !inv) return;
+  const phone = norm(inv.clientPhone || "");
+  if (!phone) return;
+  if (clients.some(c => norm(c.phone || "") === phone)) return;
+  api.createClient({
+    name: inv.clientName || phone,
+    phone,
+    email: null,
+    address: inv.clientAddress || null,
+    company: company.id,
+  }).then(() => refreshClients()).catch(() => {});
+};
+
 const saveInvoice=async()=>{
 if(!form.clientPhone&&!form.clientName){toast_("يرجى إدخال التلفون أو الاسم","warn");return;}
 const phone=norm(form.clientPhone);
@@ -1167,6 +1490,7 @@ shipping:pN(form.shipping),date:form.date,dueDate:form.dueDate,paid:pN(form.paid
 const list=[...invoices,newInv];
 await persist(list);
 api.createInvoice({...newInv,companySlug:company?.sk},company?.sk).then(()=>refreshInvoices()).catch(()=>{});
+autoRegisterClient(newInv);
 toast_("✅ تم حفظ الفاتورة "+newInv.invNum);
 setForm(emptyForm());setView("list");
 };
@@ -1263,7 +1587,7 @@ const col = company.color;
 
 return(
 <div dir="rtl" style={{minHeight:"100vh",background:"#f3f4f6",fontFamily:"'Cairo','Tajawal',sans-serif",color:"#111",display:"flex",flexDirection:"column"}}>
-<style>{`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap'); *{box-sizing:border-box} .inp{width:100%;border:1.5px solid #d1d5db;border-radius:8px;padding:9px 12px;font-family:inherit;font-size:13px;background:#fff;outline:none;transition:border .15s,box-shadow .15s} .inp:focus{border-color:${col};box-shadow:0 0 0 3px ${col}1a} .inp:hover{border-color:#9ca3af} .btn{border:none;border-radius:8px;padding:9px 16px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap} .btn:hover{filter:brightness(1.06);box-shadow:0 2px 10px rgba(0,0,0,.12)} .btn:active{opacity:.85;transform:scale(.97)} .btn-ghost{background:#e5e7eb;color:#374151} .btn-outline{background:transparent;border:1.5px solid #d1d5db;color:#374151} .btn-outline:hover{border-color:${col};color:${col}} .btn-red{background:#dc2626;color:#fff} .card{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);border:1px solid #e5e7eb} .trow{transition:background .12s} .trow:hover,.trow:active{background:#f0f4ff;cursor:pointer} .inv-table tbody tr:last-child td{border-bottom:none} .b-paid{background:#dcfce7;color:#15803d;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-paid::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:#16a34a;margin-left:5px;vertical-align:middle} .b-part{background:#fef3c7;color:#b45309;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-part::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:#d97706;margin-left:5px;vertical-align:middle} .b-unp{background:#fee2e2;color:#b91c1c;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-unp::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:#dc2626;margin-left:5px;vertical-align:middle} .b-cancel{background:#f3f4f6;color:#6b7280;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;text-decoration:line-through} .b-inv{background:#dbeafe;color:#1d4ed8;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;letter-spacing:.3px} @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}} @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}} .navbar{background:${col};position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,.25)} .navbar-top{display:flex;align-items:center;padding:0 12px;height:48px;gap:6px} .navbar-tabs{display:flex;overflow-x:auto;padding:4px 12px 6px;gap:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none} .navbar-tabs::-webkit-scrollbar{display:none} .aliphia-btn{background:#0f766e;} .nav-tab{background:transparent;color:rgba(255,255,255,.7);border:1px solid transparent;border-radius:6px;padding:5px 11px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s} .nav-tab:hover{color:#fff;background:rgba(255,255,255,.08)} .nav-tab.active{background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.25)} .nav-tab:active{background:rgba(255,255,255,.2)} .inv-table{width:100%;border-collapse:collapse} .inv-table th{padding:10px 10px;font-size:11px;font-weight:700;color:#6b7280;text-align:right;text-transform:uppercase;letter-spacing:.3px} .inv-table td{padding:10px 10px;border-bottom:1px solid #f3f4f6;font-size:13px} .col-addr,.col-date,.col-phone{display:none} @media(min-width:500px){.col-phone{display:table-cell}} @media(min-width:680px){.col-date{display:table-cell}} .form-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px} .form-3col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px} .item-row{display:grid;grid-template-columns:2fr 65px 110px auto;gap:7px;margin-bottom:7px;align-items:center} @media(max-width:500px){.form-2col{grid-template-columns:1fr}.form-3col{grid-template-columns:1fr 1fr}.item-row{grid-template-columns:1fr 55px 90px auto}} .kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px} .kpi-grid>div{transition:transform .18s,box-shadow .18s} .kpi-grid>div:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.08)} @media(min-width:600px){.kpi-grid{grid-template-columns:repeat(4,1fr)}} .chart-grid{display:grid;grid-template-columns:1fr;gap:12px} @media(min-width:680px){.chart-grid{grid-template-columns:1.7fr 1fr}} .print-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end} @media(max-width:480px){.print-grid{grid-template-columns:1fr 1fr;} .print-grid .print-btn{grid-column:1/-1}} .cust-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px} @media(max-width:480px){.cust-stats{grid-template-columns:1fr}} .aliphia-btn{background:linear-gradient(135deg,#0f766e,#0d9488)!important;border:none;box-shadow:0 2px 8px rgba(15,118,110,.3);transition:all .2s!important} .aliphia-btn:hover{box-shadow:0 4px 14px rgba(15,118,110,.45)!important;transform:translateY(-1px)} ::-webkit-scrollbar{width:9px;height:9px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:8px;border:2px solid #f3f4f6} ::-webkit-scrollbar-thumb:hover{background:#9ca3af} select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:left 10px center;padding-left:26px} .chart-grid>div{transition:box-shadow .18s} .chart-grid>div:hover{box-shadow:0 4px 16px rgba(0,0,0,.06)}`}</style>
+<style>{`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap'); *{box-sizing:border-box} .inp{width:100%;border:1.5px solid #d1d5db;border-radius:8px;padding:9px 12px;font-family:inherit;font-size:13px;background:#fff;outline:none;transition:border .15s,box-shadow .15s} .inp:focus{border-color:${col};box-shadow:0 0 0 3px ${col}1a} .inp:hover{border-color:#9ca3af} .btn{border:none;border-radius:8px;padding:9px 16px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap} .btn:hover{filter:brightness(1.06);box-shadow:0 2px 10px rgba(0,0,0,.12)} .btn:active{opacity:.85;transform:scale(.97)} .btn-ghost{background:#e5e7eb;color:#374151} .btn-outline{background:transparent;border:1.5px solid #d1d5db;color:#374151} .btn-outline:hover{border-color:${col};color:${col}} .btn-red{background:#dc2626;color:#fff} .card{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);border:1px solid #e5e7eb} .trow{transition:background .12s} .trow:hover,.trow:active{background:#f0f4ff;cursor:pointer} .inv-table tbody tr:last-child td{border-bottom:none} .b-paid{background:#dcfce7;color:#15803d;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-paid::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:#16a34a;margin-left:5px;vertical-align:middle} .b-part{background:#fef3c7;color:#b45309;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-part::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:#d97706;margin-left:5px;vertical-align:middle} .b-unp{background:#fee2e2;color:#b91c1c;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-unp::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:#dc2626;margin-left:5px;vertical-align:middle} .b-cancel{background:#f3f4f6;color:#6b7280;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;text-decoration:line-through} .b-inv{background:#dbeafe;color:#1d4ed8;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;letter-spacing:.3px} @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}} @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}} .navbar{background:${col};position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,.25)} .navbar-top{display:flex;align-items:center;padding:0 12px;height:48px;gap:6px} .navbar-tabs{display:flex;overflow-x:auto;padding:4px 12px 6px;gap:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none} .navbar-tabs::-webkit-scrollbar{display:none} .aliphia-btn{background:#0f766e;} .nav-tab{background:transparent;color:rgba(255,255,255,.7);border:1px solid transparent;border-radius:6px;padding:5px 11px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s} .nav-tab:hover{color:#fff;background:rgba(255,255,255,.08)} .nav-tab.active{background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.25)} .nav-tab:active{background:rgba(255,255,255,.2)} .inv-table{width:100%;border-collapse:collapse} .inv-table th{padding:10px 10px;font-size:11px;font-weight:700;color:#6b7280;text-align:right;text-transform:uppercase;letter-spacing:.3px} .inv-table td{padding:10px 10px;border-bottom:1px solid #f3f4f6;font-size:13px} .col-addr,.col-date,.col-phone{display:none} @media(min-width:500px){.col-phone{display:table-cell}} @media(min-width:680px){.col-date{display:table-cell}} .form-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px} .form-3col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px} .item-row{display:grid;grid-template-columns:2fr 65px 110px auto;gap:7px;margin-bottom:7px;align-items:center} @media(max-width:500px){.form-2col{grid-template-columns:1fr}.form-3col{grid-template-columns:1fr 1fr}.item-row{grid-template-columns:1fr 55px 90px auto}} .kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px} .kpi-grid>div{transition:transform .18s,box-shadow .18s} .kpi-grid>div:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.08)} @media(min-width:600px){.kpi-grid{grid-template-columns:repeat(4,1fr)}} .chart-grid{display:grid;grid-template-columns:1fr;gap:12px} @media(min-width:680px){.chart-grid{grid-template-columns:1.7fr 1fr}} .print-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end} @media(max-width:480px){.print-grid{grid-template-columns:1fr 1fr;} .print-grid .print-btn{grid-column:1/-1}} .cust-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px} @media(max-width:480px){.cust-stats{grid-template-columns:1fr}} .aliphia-btn{background:linear-gradient(135deg,#0f766e,#0d9488)!important;border:none;box-shadow:0 2px 8px rgba(15,118,110,.3);transition:all .2s!important} .aliphia-btn:hover{box-shadow:0 4px 14px rgba(15,118,110,.45)!important;transform:translateY(-1px)} ::-webkit-scrollbar{width:9px;height:9px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:8px;border:2px solid #f3f4f6} ::-webkit-scrollbar-thumb:hover{background:#9ca3af} .sk{position:relative;overflow:hidden;background:#e5e7eb;border-radius:6px} .sk::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.65),transparent);animation:shimmer 1.4s infinite} @keyframes shimmer{100%{transform:translateX(100%)}} .sk-sm{height:11px} .sk-lg{height:22px} .btn:focus-visible,.inp:focus-visible{outline:2.5px solid ${col};outline-offset:2px} .nav-tab:focus-visible{outline:2.5px solid #fff;outline-offset:1px} .wa-btn{background:#16a34a!important;transition:all .18s!important} .wa-btn:hover{background:#15803d!important;box-shadow:0 4px 14px rgba(22,163,74,.4)!important;transform:translateY(-1px)} select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:left 10px center;padding-left:26px} .chart-grid>div{transition:box-shadow .18s} .chart-grid>div:hover{box-shadow:0 4px 16px rgba(0,0,0,.06)}`}</style>
 
   {/* Admin Dashboard Modal */}
   {showAdmin&&<AdminDashboard onClose={()=>setShowAdmin(false)}/>}
@@ -1325,7 +1649,15 @@ return(
   <div style={{maxWidth:"1040px",width:"100%",margin:"0 auto",padding:"18px 14px",flex:1}}>
 
     {/* DASHBOARD */}
-    {view==="dash"&&<div style={{animation:"fadeUp .25s"}}><Dashboard invoices={invoices} company={company} onNavigate={go=>{if(go.status)setStatusFilter(go.status);setView(go.view);setSelInv(null);}}/></div>}
+    {view==="dash"&&(
+      <div style={{animation:"fadeUp .25s"}}>
+        {invLoading&&invoices.length===0?(
+          <DashboardSkeleton company={company}/>
+        ):(
+          <Dashboard invoices={invoices} company={company} onNavigate={go=>{if(go.status)setStatusFilter(go.status);setView(go.view);setSelInv(null);}}/>
+        )}
+      </div>
+    )}
 
     {/* CUSTOMERS */}
     {view==="customers"&&(
@@ -1333,6 +1665,9 @@ return(
         <Customers
           invoices={invoices}
           company={company}
+          clients={clients}
+          refreshClients={refreshClients}
+          toast_={toast_}
           onOpenInvoice={inv=>{setSelInv(inv);setView("list");}}
           onImportDone={async newInvs=>{
             setInvoices(p=>[...p,...newInvs]);
@@ -1463,9 +1798,17 @@ return(
                       </td>
                       <td onClick={e=>e.stopPropagation()}>
                         <div style={{display:"flex",gap:"4px"}}>
-                          {!!perms.print_invoice&&<button className="btn" style={{background:col,color:"#fff",padding:"5px 8px",fontSize:"12px"}} onClick={e=>{e.stopPropagation();doPrint([inv],company);}}>🖨️</button>}
-                          {!!perms.edit_invoice&&<button className="btn" style={{background:"#f59e0b",color:"#fff",padding:"5px 8px",fontSize:"12px"}} onClick={e=>{e.stopPropagation();openEdit(inv);}}>✏️</button>}
-                          {!!perms.delete_invoice&&<button className="btn btn-red" style={{padding:"5px 8px",fontSize:"12px"}} onClick={e=>{e.stopPropagation();setDelModal(inv);}}>🗑️</button>}
+                          {overdueDays(inv)>0&&norm(inv.clientPhone)&&(
+                            <a href={waReminderHref(inv,company)} target="_blank" rel="noopener noreferrer" className="btn wa-btn"
+                              title="إرسال تذكير بالسداد عبر واتساب (رسالة جاهزة)"
+                              style={{color:"#fff",padding:"5px 8px",fontSize:"12px",textDecoration:"none"}}
+                              onClick={e=>e.stopPropagation()}>
+                              📣
+                            </a>
+                          )}
+                          {!!perms.print_invoice&&<button className="btn" title="طباعة الفاتورة" style={{background:col,color:"#fff",padding:"5px 8px",fontSize:"12px"}} onClick={e=>{e.stopPropagation();doPrint([inv],company);}}>🖨️</button>}
+                          {!!perms.edit_invoice&&<button className="btn" title="تعديل الفاتورة" style={{background:"#f59e0b",color:"#fff",padding:"5px 8px",fontSize:"12px"}} onClick={e=>{e.stopPropagation();openEdit(inv);}}>✏️</button>}
+                          {!!perms.delete_invoice&&<button className="btn btn-red" title="حذف الفاتورة" style={{padding:"5px 8px",fontSize:"12px"}} onClick={e=>{e.stopPropagation();setDelModal(inv);}}>🗑️</button>}
                         </div>
                       </td>
                     </tr>
@@ -1514,11 +1857,21 @@ return(
     {/* DETAIL */}
     {view==="list"&&selInv&&(
       <div style={{animation:"fadeUp .25s"}}>
-        <div style={{display:"flex",gap:"8px",marginBottom:"12px",flexWrap:"wrap"}}>
+        <div style={{display:"flex",gap:"8px",marginBottom:"12px",flexWrap:"wrap",alignItems:"center"}}>
           <button className="btn btn-ghost" onClick={()=>setSelInv(null)}>← رجوع</button>
-          {!!perms.print_invoice&&<button className="btn" style={{background:col,color:"#fff"}} onClick={()=>doPrint([selInv],company)}>🖨️ طباعة</button>}
-          {!!perms.edit_invoice&&<button className="btn" style={{background:"#f59e0b",color:"#fff"}} onClick={()=>openEdit(selInv)}>✏️ تعديل</button>}
-          {!!perms.delete_invoice&&<button className="btn btn-red" onClick={()=>setDelModal(selInv)}>🗑️ حذف</button>}
+          {!!perms.print_invoice&&<button className="btn" title="طباعة الفاتورة" style={{background:col,color:"#fff"}} onClick={()=>doPrint([selInv],company)}>🖨️ طباعة</button>}
+          {!!perms.edit_invoice&&<button className="btn" title="تعديل الفاتورة" style={{background:"#f59e0b",color:"#fff"}} onClick={()=>openEdit(selInv)}>✏️ تعديل</button>}
+          {!!perms.delete_invoice&&<button className="btn btn-red" title="حذف الفاتورة" onClick={()=>setDelModal(selInv)}>🗑️ حذف</button>}
+          {(()=>{
+            const href=waReminderHref(selInv,company);
+            return href&&iT(selInv)-pN(selInv.paid||0)>0?(
+              <a href={href} target="_blank" rel="noopener noreferrer" className="btn wa-btn"
+                title="إرسال تذكير بالسداد عبر واتساب (رسالة جاهزة)"
+                style={{color:"#fff",textDecoration:"none"}}>
+                📣 تذكير واتساب
+              </a>
+            ):null;
+          })()}
           {overdueDays(selInv)>0&&(
             <span style={{fontSize:"12px",fontWeight:800,color:"#b91c1c",background:"#fee2e2",border:"1px solid #fecaca",borderRadius:"20px",padding:"5px 14px"}}>⏰ متأخرة {overdueDays(selInv)} يوم عن الاستحقاق</span>
           )}
@@ -1536,6 +1889,18 @@ return(
       <div className="card" style={{padding:"24px",animation:"fadeUp .25s"}}>
         <div style={{fontSize:"16px",fontWeight:900,color:col,marginBottom:"18px"}}>➕ فاتورة جديدة — {company.nameAr}</div>
         <div style={{fontSize:"10px",fontWeight:700,color:"#9ca3af",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"9px"}}>بيانات العميل</div>
+        {clients.length>0&&(
+          <div style={{marginBottom:"10px"}}>
+            <label style={{fontSize:"11px",color:"#6b7280",display:"block",marginBottom:"4px"}}>📇 اختر من دليل العملاء ({clients.length} محفوظ)</label>
+            <select className="inp" value="" onChange={e=>{
+              const c=clients.find(x=>String(x.id)===e.target.value);
+              if(c){setField("clientName",c.name||"");setField("clientPhone",c.phone||"");setField("clientAddress",c.address||"");}
+            }}>
+              <option value="">— إدخال يدوي (عميل جديد) —</option>
+              {clients.map(c=><option key={c.id} value={c.id}>{c.name}{c.phone?` (${c.phone})`:""}</option>)}
+            </select>
+          </div>
+        )}
         <div className="form-2col" style={{marginBottom:"10px"}}>
           <div><label style={{fontSize:"11px",color:"#6b7280",display:"block",marginBottom:"4px"}}>الاسم (اختياري)</label>
             <input className="inp" placeholder="اسم العميل" value={form.clientName} onChange={e=>setField("clientName",e.target.value)}/></div>
@@ -1593,6 +1958,18 @@ return(
         </div>
 
         <div style={{fontSize:"10px",fontWeight:700,color:"#9ca3af",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"9px"}}>بيانات العميل</div>
+        {clients.length>0&&(
+          <div style={{marginBottom:"10px"}}>
+            <label style={{fontSize:"11px",color:"#6b7280",display:"block",marginBottom:"4px"}}>📇 اختر من دليل العملاء (استبدال البيانات)</label>
+            <select className="inp" value="" onChange={e=>{
+              const c=clients.find(x=>String(x.id)===e.target.value);
+              if(c){setEditField("clientName",c.name||"");setEditField("clientPhone",c.phone||"");setEditField("clientAddress",c.address||"");}
+            }}>
+              <option value="">— تعديل يدوي —</option>
+              {clients.map(c=><option key={c.id} value={c.id}>{c.name}{c.phone?` (${c.phone})`:""}</option>)}
+            </select>
+          </div>
+        )}
         <div className="form-2col" style={{marginBottom:"10px"}}>
           <div><label style={{fontSize:"11px",color:"#6b7280",display:"block",marginBottom:"4px"}}>الاسم</label>
             <input className="inp" placeholder="اسم العميل" value={editForm.clientName} onChange={e=>setEditField("clientName",e.target.value)}/></div>

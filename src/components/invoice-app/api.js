@@ -155,4 +155,22 @@ export const api = {
   async deletePayment(paymentId) {
     await request("DELETE", `/payments/${paymentId}`);
   },
+
+  // ── Client directory (saved customers) ──
+  async listClients(company) {
+    const qs = company ? `?company=${encodeURIComponent(company)}` : "";
+    return request("GET", `/clients${qs}`);
+  },
+
+  async createClient(data) {
+    return request("POST", "/clients", data);
+  },
+
+  async updateClient(id, data) {
+    return request("PUT", `/clients/${id}`, data);
+  },
+
+  async deleteClient(id) {
+    await request("DELETE", `/clients/${id}`);
+  },
 };

@@ -145,3 +145,34 @@ Unresolved issues / risks / next-phase priorities:
 - Reports page computes client-side from all invoices (fine for current scale); if lists grow to thousands, add server-side aggregation endpoints.
 - Payments are not shown in the print view (invoice print shows paid total only) — could add payment history table to print template.
 - Next-phase ideas: clients CRUD UI (API exists), dark mode, invoice templates per company, WhatsApp reminder button for overdue invoices, KNET payment links, multi-currency.
+
+---
+Task ID: r4 (cron webDevReview round 4 — 2026-09-13)
+Agent: main (Z.ai Code)
+Task: Scheduled QA round + 3 new features (client directory CRUD, WhatsApp payment reminders, payments-in-print) + UI polish round 4
+
+Work Log:
+- QA smoke (all passed, zero browser console errors, dev.log clean): healthz ok; login → company selector → Tawfeer dashboard (190.8 KD, 10 invoices); invoices list (chips/pagination/sort); reports; customers; purchases; admin users dashboard. Project judged stable → proceeded to new features.
+- New feature 1 — 📇 Client Directory (saved customers, full CRUD on the previously-unused /api/clients):
+  * Backend: GET /api/clients now accepts ?company= filter (exact match on client.company) and search now also matches phone.
+  * Frontend api.js: listClients/createClient/updateClient/deleteClient.
+  * App.jsx: new ClientFormModal (add/edit, name+phone required w/ Arabic validation, email/address optional, busy state, error banner) + ClientDirectory component rendered at the bottom of the Customers tab: gradient header w/ count badge "N محفوظ" + "➕ عميل جديد", table with avatar initials, phone, address, spend/count/last-purchase stats derived from company invoices matched by normalized phone, ✏️/🗑️ per row (delete-confirm modal clarifies old invoices unaffected), rich empty state.
+  * App fetches clients (refreshClients useCallback + effect) and passes them down; clients state also feeds both invoice forms.
+  * Client picker in NEW and EDIT invoice forms: "📇 اختر من دليل العملاء (N محفوظ)" select auto-fills name/phone/address; hidden when directory empty.
+  * Auto-registration: saving an invoice fire-and-forget POSTs the client to the directory (dedupe by normalized phone) — invoice creation can never fail because of it.
+- New feature 2 — 📣 WhatsApp payment reminders: waReminderHref(inv, company) module helper builds wa.me/965{phone}?text={encoded Arabic message} with greeting, company name, invoice number/date, total, paid+remaining, due date (+ متأخرة N يوم), closing with company phone. Green "📣 تذكير واتساب" button (wa-btn class w/ hover lift) in invoice detail toolbar (only when phone exists && remaining > 0) and 📣 icon button per overdue row in the invoices list (with stopPropagation).
+- New feature 3 — 💳 Payments history in print view: doPrint now async — fetches payments for every invoice in the print list (parallel, per-invoice catch) and buildHTML renders a "سجل الدفعات (N)" table (date, amount, method badge with Arabic labels كي نت/نقدي/أونلاين/بطاقة, note) under the totals when payments exist.
+- UI polish round 4: DashboardSkeleton with shimmer animation (@keyframes shimmer + .sk/.sk-sm/.sk-lg classes) shown while invLoading && invoices.length===0 (invLoading tracked in refreshInvoices w/ finally); :focus-visible outlines on .btn/.inp (company color) and .nav-tab (white); title tooltips (Arabic) on all invoice row action buttons; wa-btn green hover effect; aria-busy on skeleton.
+- Fixed during dev: 3 stray-quote JSX parsing errors (`flexShrink:0"}}` → `0}}`) caught by lint; removed 2 unused eslint-disable directives (react-hooks/set-state-in-effect doesn't track setState through called functions).
+- E2E verified with agent-browser: client add ("سالم فهد المطيري" 91234567 الجهراء) → persisted via API → visible in directory; edit (name→"(VIP)" + email) → PUT verified; client picker in new form shows "1 محفوظ" and auto-fills name+phone+address; invoice creation auto-registered its client in the directory (verified via API); WhatsApp href fully decoded — correct pre-filled Arabic message w/ INV10010 totals (مدفوع 12/متبقي 6) + overdue days; 3 overdue rows show 📣 icons; payment 6 KD knet w/ note added on INV10010 → print popup (trusted CDP click, followed as popup tab) contains سجل الدفعات (1) with date/6.000 KD/كي نت/note; payment deleted via UI (confirm dialog) → paid rolled back to 12; client delete-via-UI tested (add → 🗑️ → نعم، احذف → API list empty); mobile 390px customers tab bottom — directory card + footer visible, zero horizontal overflow (VLM-verified screenshots); VLM confirmed detail toolbar shows green 📣 تذكير واتساب button; `bun run lint` → 0 problems; dev.log shows only 200/201/204/404.
+- Cleanup: deleted test invoice (id 34), both test clients (ids 2,3,4), test payment (rolled back INV10010 paid 12/18), and undocumented residual invoice INV20003 (id 33, Mahhal, leftover from r3 regression QA — brought DB back to the documented 14-invoice state).
+
+Stage Summary:
+- Round 4 complete: project remained stable through QA; the last untouched backend API (/api/clients) is now fully wired into the UI as a client directory with CRUD + invoice-form picker + auto-registration; overdue collections got a practical WhatsApp reminder flow (pre-filled Arabic message via wa.me ?text=); the print template now shows the full payment history; dashboard gained a shimmer skeleton loader; accessibility/tooltips polish throughout. DB state: 14 invoices (8 Tawfeer seed + 2 Aliphia demo + 4 other companies), 0 payments, 0 clients, 1 purchase demo, 6 catalog.
+
+Unresolved issues / risks / next-phase priorities:
+- localStorage-only auth remains (demo-grade; NextAuth upgrade is still the biggest production gap).
+- Invoice PDF export (true file download) still not implemented — print dialog "Save as PDF" remains the path.
+- Client directory is per-company via a `company` string column; no uniqueness constraint on phone (dedupe handled client-side only).
+- Reports still compute client-side; server-side aggregation if lists grow to thousands.
+- Next-phase ideas: dark mode, invoice templates per company, KNET payment links, multi-currency, NextAuth, per-company dashboard APIs, bulk WhatsApp reminders for all overdue invoices at once, client import/export (CSV).

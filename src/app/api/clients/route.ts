@@ -2,20 +2,25 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { readBody } from "@/lib/serialize";
 
-// GET /api/clients?search= — optional case-insensitive filter on name/email
+// GET /api/clients?search=&company= — optional case-insensitive filter on name/email/phone + company filter
 export async function GET(req: NextRequest) {
   try {
     const search = req.nextUrl.searchParams.get("search");
+    const company = req.nextUrl.searchParams.get("company");
 
     let rows = await db.client.findMany({
       orderBy: { createdAt: "desc" },
     });
+    if (company) {
+      rows = rows.filter((r) => (r.company || "") === company);
+    }
     if (search) {
       const s = search.toLowerCase();
       rows = rows.filter(
         (r) =>
           r.name.toLowerCase().includes(s) ||
-          (r.email || "").toLowerCase().includes(s),
+          (r.email || "").toLowerCase().includes(s) ||
+          (r.phone || "").includes(s),
       );
     }
 
