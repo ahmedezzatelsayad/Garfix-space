@@ -173,4 +173,42 @@ export const api = {
   async deleteClient(id) {
     await request("DELETE", `/clients/${id}`);
   },
+
+  // ── PDF export (HTML → PDF via /api/pdf, returns Blob for download) ──
+  async exportPdf(html, filename) {
+    const res = await fetch(`${API_BASE}/pdf`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ html, filename }),
+    });
+    if (!res.ok) {
+      let msg = `فشل التصدير (${res.status})`;
+      try {
+        const data = await res.json();
+        if (data && data.error) msg = data.error;
+      } catch {}
+      throw new Error(msg);
+    }
+    return res.blob();
+  },
+
+  // ── Reminder log (WhatsApp reminders sent to clients) ──
+  async listReminders(companySlug, invoiceId) {
+    const parts = [];
+    if (companySlug) parts.push(`companySlug=${encodeURIComponent(companySlug)}`);
+    if (invoiceId != null) parts.push(`invoiceId=${encodeURIComponent(invoiceId)}`);
+    const qs = parts.length ? `?${parts.join("&")}` : "";
+    return request("GET", `/reminders${qs}`);
+  },
+
+  async logReminder(data) {
+    return request("POST", "/reminders", {
+      invoiceId: Number(data.invoiceId) || null,
+      clientPhone: data.clientPhone || null,
+      clientName: data.clientName || null,
+      channel: data.channel || "whatsapp",
+      message: data.message || null,
+      amount: data.amount != null ? Number(data.amount) : null,
+    });
+  },
 };

@@ -11,6 +11,7 @@ import PurchasesTab from "./components/PurchasesTab";
 import AIBulkProcessor from "./components/AIBulkProcessor";
 import ReportsTab from "./components/ReportsTab";
 import PaymentsPanel from "./components/PaymentsPanel";
+import RemindersPanel from "./components/RemindersPanel";
 import { useTheme, txAdapt, softAdapt, chartColors, lighten } from "./theme";
 
 // ─── Companies Config ─────────────────────────────────────────────
@@ -94,6 +95,24 @@ const waReminderHref = (inv, company) => {
   ];
   return `https://wa.me/965${phone}?text=${encodeURIComponent(lines.join("\n"))}`;
 };
+
+// ── Fire-and-forget audit log for every sent WhatsApp reminder ──
+function logReminderSent(inv, company, href){
+  try{
+    let message=null;
+    if(href){ const m=href.split("text=")[1]; if(m){ try{ message=decodeURIComponent(m).slice(0,1500); }catch{} } }
+    api.logReminder({
+      invoiceId: inv.id,
+      clientPhone: inv.clientPhone||null,
+      clientName: inv.clientName||null,
+      companySlug: company?.sk||null,
+      channel: "whatsapp",
+      message,
+      amount: Math.max(0, iT(inv)-pN(inv.paid||0)),
+    }).then(()=>{ try{ window.dispatchEvent(new CustomEvent("reminder-logged",{detail:{invoiceId:inv.id}})); }catch{} })
+      .catch(()=>{});
+  }catch{}
+}
 
 // ─── Storage (localStorage) ────────────────────────────────────────
 function dbGet(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch{return null;}}
@@ -458,12 +477,61 @@ boxShadow:"0 24px 64px rgba(0,0,0,.35)",animation:"fadeUp .25s"
 function getLogoImg(companyId){try{return localStorage.getItem(`tw_logo_${companyId}`)||null;}catch{return null;}}
 
 // ─── Print ────────────────────────────────────────────────────────
-function buildHTML(invList, company){
+// Three print/PDF template styles:
+//  classic — the original design (dark headers, bordered boxes)
+//  modern  — company-colored accents (gradient bar, tinted table, filled badges)
+//  minimal — ink-saver black & white (thin lines, no fills)
+const PRINT_STYLES = {
+  classic: {
+    id: "classic", label: "كلاسيكي", icon: "🏛️",
+    headerBorder: "3px double #111827", titleColor: "#111827", titleWeight: "900",
+    boxBorder: "1.5px solid #d1d5db", radius: "8px", amountBg: "#f9fafb",
+    theadBg: "#111827", theadColor: "#fff", theadBorder: "1px solid rgba(255,255,255,.12)",
+    zebra: i => (i % 2 === 1 ? "#f9fafb" : "#fff"), rowBorder: "#e5e7eb",
+    totalBg: "#111827", totalColor: "#fff", totalTopBorder: "2px solid #111827",
+    statusBadge: (stC, stT) => `border:2px solid ${stC};color:${stC};background:transparent`,
+    topBar: null, amountColor: null,
+  },
+  modern: {
+    id: "modern", label: "عصري", icon: "🎨",
+    headerBorder: "none", titleColor: null, titleWeight: "900",
+    boxBorder: "1.5px solid", radius: "10px", amountBg: null,
+    theadBg: null, theadColor: "#fff", theadBorder: "1px solid rgba(255,255,255,.18)",
+    zebra: i => (i % 2 === 1 ? "" : ""), rowBorder: null,
+    totalBg: null, totalColor: "#fff", totalTopBorder: "2px solid",
+    statusBadge: (stC, stT) => `border:2px solid ${stC};color:#fff;background:${stC}`,
+    topBar: true, amountColor: true,
+  },
+  minimal: {
+    id: "minimal", label: "بسيط", icon: "📄",
+    headerBorder: "2px solid #000", titleColor: "#000", titleWeight: "800",
+    boxBorder: "1px solid #999", radius: "0px", amountBg: "#fff",
+    theadBg: "#fff", theadColor: "#000", theadBorder: "1px solid #000",
+    zebra: i => "#fff", rowBorder: "#ddd",
+    totalBg: "#fff", totalColor: "#000", totalTopBorder: "2px double #000",
+    statusBadge: (stC, stT) => `border:1.5px solid #111;color:#111;background:transparent`,
+    topBar: null, amountColor: false,
+  },
+};
+
+function buildHTML(invList, company, styleId){
 const c = company;
+const S = PRINT_STYLES[styleId] || PRINT_STYLES.classic;
+// modern/minimal style accent colors resolve at build time
+const acc = S.id === "modern" ? (c.color || "#1e3a5f") : "#111827";
+const boxBorder = S.id === "modern" ? `1.5px solid ${acc}40` : S.boxBorder;
+const amountBg = S.id === "modern" ? `${acc}0d` : S.amountBg;
+const theadBg = S.id === "modern" ? `linear-gradient(135deg,${acc},${lightenHex(acc,.18)})` : S.theadBg;
+const theadBgStyle = S.id === "modern" ? `background:${theadBg}` : `background:${S.theadBg}`;
+const rowBorder = S.id === "modern" ? `${acc}1f` : S.rowBorder;
+const zebraOf = S.id === "modern" ? (i => (i % 2 === 1 ? `${acc}08` : "#fff")) : S.zebra;
+const totalBgStyle = S.id === "modern" ? `background:${acc}` : `background:${S.totalBg}`;
+const totalTopBorder = S.id === "modern" ? `2px solid ${acc}` : S.totalTopBorder;
+const titleColor = S.titleColor || (S.id === "modern" ? acc : "#111827");
 const logoImg=getLogoImg(c.id);
 const logoBlock=logoImg
   ?`<img src="${logoImg}" style="width:80px;height:80px;object-fit:contain;border-radius:6px;border:1.5px solid #e5e7eb;background:#fff;flex-shrink:0;"/>`
-  :`<div style="width:80px;height:80px;background:#111827;color:#fff;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:22px;text-align:center;flex-shrink:0;line-height:1.2;font-weight:900;">${c.logo}<span style="font-size:8px;font-weight:700;opacity:.75;margin-top:2px;letter-spacing:1.5px;">${c.id.toUpperCase()}</span></div>`;
+  :`<div style="width:80px;height:80px;background:${S.id==="minimal"?"#fff":acc};color:${S.id==="minimal"?"#111":"#fff"};border-radius:6px;${S.id==="minimal"?"border:2px solid #111;":""}display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:22px;text-align:center;flex-shrink:0;line-height:1.2;font-weight:900;">${c.logo}<span style="font-size:8px;font-weight:700;opacity:.75;margin-top:2px;letter-spacing:1.5px;">${c.id.toUpperCase()}</span></div>`;
 
 const pages = invList.map(inv => {
 const sub=inv.items.reduce((s,it)=>s+pN(it.qty)*pN(it.price),0);
@@ -474,63 +542,64 @@ const stC=isCancelled?"#6b7280":due<=0?"#16a34a":paid>0?"#b45309":"#dc2626";
 const stT=isCancelled?"ملغية":due<=0?"مدفوعة":paid>0?"مدفوعة جزئياً":"غير مدفوعة";
 const empty=Math.max(0,5-inv.items.length);
 const itemRows=inv.items.map((it,i)=>`
-<tr style="background:${i%2===1?"#f9fafb":"#fff"};border-bottom:1px solid #e5e7eb;">
-  <td style="padding:9px 8px;text-align:center;color:#9ca3af;font-size:11px;border-left:1px solid #e5e7eb;">${i+1}</td>
+<tr style="background:${zebraOf(i)};border-bottom:1px solid ${rowBorder};">
+  <td style="padding:9px 8px;text-align:center;color:#9ca3af;font-size:11px;border-left:1px solid ${rowBorder};">${i+1}</td>
   <td style="padding:9px 12px;font-weight:600;color:#111;">${it.name||""}</td>
   <td style="padding:9px 12px;color:#6b7280;font-size:11.5px;">${it.desc||""}</td>
-  <td style="padding:9px 10px;text-align:center;font-weight:600;border-right:1px solid #e5e7eb;border-left:1px solid #e5e7eb;">${it.qty}</td>
-  <td style="padding:9px 12px;text-align:left;direction:ltr;border-left:1px solid #e5e7eb;">${fKWD(it.price)}</td>
+  <td style="padding:9px 10px;text-align:center;font-weight:600;border-right:1px solid ${rowBorder};border-left:1px solid ${rowBorder};">${it.qty}</td>
+  <td style="padding:9px 12px;text-align:left;direction:ltr;border-left:1px solid ${rowBorder};">${fKWD(it.price)}</td>
   <td style="padding:9px 12px;text-align:left;font-weight:700;direction:ltr;">${fKWD(pN(it.qty)*pN(it.price))}</td>
 </tr>`).join("");
 const emptyRows=Array.from({length:empty}).map(()=>`<tr style="border-bottom:1px solid #f0f0f0;"><td colspan="6" style="height:32px;"></td></tr>`).join("");
 return `<div class="page">
 ${isCancelled?`<div class="watermark">ملغية</div>`:""}
+${S.topBar?`<div style="height:7px;background:linear-gradient(90deg,${acc},${lightenHex(acc,.25)});border-radius:4px;margin-bottom:12px;"></div>`:""}
 <div style="position:relative;z-index:1;">
 
-<div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:14px;border-bottom:3px double #111827;margin-bottom:16px;">
+<div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:${S.id==="modern"?"0":"14px"};border-bottom:${S.headerBorder};${S.id==="modern"?"border-bottom:none;":""}margin-bottom:16px;${S.id==="modern"?"border-bottom:2px solid "+acc+";padding-bottom:12px;":""}">
   <div style="display:flex;align-items:flex-start;gap:14px;">
     ${logoBlock}
     <div>
-      <div style="font-size:18px;font-weight:900;color:#111827;margin-bottom:4px;letter-spacing:-.3px;">${c.name}</div>
+      <div style="font-size:18px;font-weight:900;color:${titleColor};margin-bottom:4px;letter-spacing:-.3px;">${c.name}</div>
       <div style="font-size:10px;color:#6b7280;line-height:2.1;">${c.nameAr}<br/>${c.address} — ${c.city}<br/><span style="direction:ltr;display:inline-block;">${c.phone}</span> &nbsp;|&nbsp; ${c.email}</div>
     </div>
   </div>
   <div style="text-align:left;">
-    <div style="font-size:32px;font-weight:900;color:#111827;letter-spacing:-2px;line-height:1;margin-bottom:4px;">فـاتـورة</div>
+    <div style="font-size:32px;font-weight:${S.titleWeight};color:${titleColor};letter-spacing:-2px;line-height:1;margin-bottom:4px;">فـاتـورة</div>
     <div style="font-size:11px;color:#6b7280;font-weight:600;direction:ltr;margin-bottom:8px;"># ${inv.invNum}</div>
-    <div style="display:inline-block;border:2px solid ${stC};color:${stC};border-radius:4px;padding:3px 14px;font-size:11px;font-weight:800;letter-spacing:.5px;">${stT}</div>
+    <div style="display:inline-block;${S.statusBadge(stC,stT)};border-radius:${S.id==="modern"?"20px":"4px"};padding:3px 14px;font-size:11px;font-weight:800;letter-spacing:.5px;">${stT}</div>
   </div>
 </div>
 
-<div style="display:grid;grid-template-columns:1.9fr 1fr 1fr;border:1.5px solid #d1d5db;border-radius:8px;overflow:hidden;margin-bottom:16px;">
-  <div style="padding:12px 16px;border-left:1.5px solid #d1d5db;">
+<div style="display:grid;grid-template-columns:1.9fr 1fr 1fr;border:${boxBorder};border-radius:${S.radius};overflow:hidden;margin-bottom:16px;">
+  <div style="padding:12px 16px;border-left:${S.id==="minimal"?"1px solid #999":S.id==="modern"?`1.5px solid ${acc}30`:"1.5px solid #d1d5db"};">
     <div style="font-size:8.5px;font-weight:800;color:#9ca3af;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;">صادرة إلى</div>
     <div style="font-size:15px;font-weight:800;color:#111;margin-bottom:3px;">${inv.clientName||"—"}</div>
     <div style="font-size:12.5px;font-weight:700;direction:ltr;text-align:right;color:#374151;margin-bottom:2px;">${inv.clientPhone||""}</div>
     ${inv.clientAddress?`<div style="font-size:11px;color:#6b7280;margin-top:2px;">${inv.clientAddress}</div>`:""}
   </div>
-  <div style="padding:12px 14px;border-left:1.5px solid #d1d5db;">
+  <div style="padding:12px 14px;border-left:${S.id==="minimal"?"1px solid #999":S.id==="modern"?`1.5px solid ${acc}30`:"1.5px solid #d1d5db"};">
     <div style="font-size:8.5px;font-weight:800;color:#9ca3af;letter-spacing:2px;text-transform:uppercase;margin-bottom:5px;">تاريخ الإصدار</div>
     <div style="font-size:13px;font-weight:700;color:#111;margin-bottom:10px;">${fDate(inv.date)}</div>
     <div style="font-size:8.5px;font-weight:800;color:#9ca3af;letter-spacing:2px;text-transform:uppercase;margin-bottom:5px;">تاريخ الاستحقاق</div>
     <div style="font-size:13px;font-weight:700;color:#111;">${fDate(inv.dueDate)}</div>
   </div>
-  <div style="padding:12px 14px;background:#f9fafb;">
+  <div style="padding:12px 14px;background:${amountBg};">
     <div style="font-size:8.5px;font-weight:800;color:#9ca3af;letter-spacing:2px;text-transform:uppercase;margin-bottom:5px;">المبلغ المستحق</div>
-    <div style="font-size:21px;font-weight:900;color:${stC};direction:ltr;text-align:right;line-height:1.1;margin-bottom:10px;">${isCancelled?"—":fKWD(due)}</div>
+    <div style="font-size:21px;font-weight:900;color:${S.amountColor===true?(due<=0?"#16a34a":acc):(S.amountColor===false?"#111":stC)};direction:ltr;text-align:right;line-height:1.1;margin-bottom:10px;">${isCancelled?"—":fKWD(due)}</div>
     <div style="font-size:8.5px;font-weight:800;color:#9ca3af;letter-spacing:2px;text-transform:uppercase;margin-bottom:5px;">المسؤول</div>
     <div style="font-size:12px;font-weight:700;color:#374151;">${c.manager}</div>
   </div>
 </div>
 
-<table style="width:100%;border-collapse:collapse;border:1.5px solid #d1d5db;border-radius:8px;overflow:hidden;margin-bottom:14px;">
+<table style="width:100%;border-collapse:collapse;border:${boxBorder};border-radius:${S.radius};overflow:hidden;margin-bottom:14px;">
   <thead>
-    <tr style="background:#111827;color:#fff;">
-      <th style="padding:10px 8px;width:30px;text-align:center;font-size:10.5px;font-weight:700;border-left:1px solid rgba(255,255,255,.12);">#</th>
+    <tr style="${theadBgStyle};color:${S.theadColor};${S.id==="minimal"?"border-bottom:2px solid #000;":""}">
+      <th style="padding:10px 8px;width:30px;text-align:center;font-size:10.5px;font-weight:700;border-left:${S.id==="minimal"?"1px solid #ddd":"1px solid "+S.theadBorder};">#</th>
       <th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:700;">المنتج / الخدمة</th>
       <th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;">الوصف</th>
-      <th style="padding:10px 10px;text-align:center;font-size:11px;font-weight:700;width:52px;border-left:1px solid rgba(255,255,255,.12);border-right:1px solid rgba(255,255,255,.12);">الكمية</th>
-      <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;width:94px;border-left:1px solid rgba(255,255,255,.12);">سعر الوحدة</th>
+      <th style="padding:10px 10px;text-align:center;font-size:11px;font-weight:700;width:52px;border-left:${S.id==="minimal"?"1px solid #ddd":"1px solid "+S.theadBorder};border-right:${S.id==="minimal"?"1px solid #ddd":"1px solid "+S.theadBorder};">الكمية</th>
+      <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;width:94px;border-left:${S.id==="minimal"?"1px solid #ddd":"1px solid "+S.theadBorder};">سعر الوحدة</th>
       <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;width:94px;">الإجمالي</th>
     </tr>
   </thead>
@@ -538,37 +607,37 @@ ${isCancelled?`<div class="watermark">ملغية</div>`:""}
 </table>
 
 <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
-  <table style="min-width:260px;border-collapse:collapse;border:1.5px solid #d1d5db;border-radius:6px;overflow:hidden;">
-    <tr style="border-bottom:1px solid #e5e7eb;"><td style="padding:7px 16px;color:#6b7280;font-size:12.5px;">المجموع الجزئي</td><td style="padding:7px 16px;text-align:left;font-size:12.5px;font-weight:600;direction:ltr;">${fKWD(sub)}</td></tr>
-    ${ship>0?`<tr style="border-bottom:1px solid #e5e7eb;"><td style="padding:7px 16px;color:#6b7280;font-size:12.5px;">التوصيل</td><td style="padding:7px 16px;text-align:left;font-size:12.5px;font-weight:600;direction:ltr;">${fKWD(ship)}</td></tr>`:""}
-    <tr style="background:#111827;color:#fff;"><td style="padding:10px 16px;font-size:13.5px;font-weight:800;">إجمالي الفاتورة</td><td style="padding:10px 16px;text-align:left;font-size:13.5px;font-weight:900;direction:ltr;">${fKWD(tot)}</td></tr>
-    <tr style="border-bottom:1px solid #e5e7eb;"><td style="padding:7px 16px;font-size:12.5px;color:#374151;">المدفوع</td><td style="padding:7px 16px;text-align:left;font-size:12.5px;font-weight:700;direction:ltr;">${fKWD(paid)}</td></tr>
-    <tr style="border-top:2px solid #111827;"><td style="padding:10px 16px;font-size:13.5px;font-weight:800;color:${stC};">${isCancelled?"الحالة":"المبلغ المستحق"}</td><td style="padding:10px 16px;text-align:left;font-size:14px;font-weight:900;color:${stC};direction:ltr;">${isCancelled?stT:fKWD(due)}</td></tr>
+  <table style="min-width:260px;border-collapse:collapse;border:${boxBorder};border-radius:${S.id==="minimal"?"0px":"6px"};overflow:hidden;">
+    <tr style="border-bottom:1px solid ${rowBorder};"><td style="padding:7px 16px;color:#6b7280;font-size:12.5px;">المجموع الجزئي</td><td style="padding:7px 16px;text-align:left;font-size:12.5px;font-weight:600;direction:ltr;">${fKWD(sub)}</td></tr>
+    ${ship>0?`<tr style="border-bottom:1px solid ${rowBorder};"><td style="padding:7px 16px;color:#6b7280;font-size:12.5px;">التوصيل</td><td style="padding:7px 16px;text-align:left;font-size:12.5px;font-weight:600;direction:ltr;">${fKWD(ship)}</td></tr>`:""}
+    <tr style="${totalBgStyle};color:${S.totalColor};"><td style="padding:10px 16px;font-size:13.5px;font-weight:800;">إجمالي الفاتورة</td><td style="padding:10px 16px;text-align:left;font-size:13.5px;font-weight:900;direction:ltr;">${fKWD(tot)}</td></tr>
+    <tr style="border-bottom:1px solid ${rowBorder};"><td style="padding:7px 16px;font-size:12.5px;color:#374151;">المدفوع</td><td style="padding:7px 16px;text-align:left;font-size:12.5px;font-weight:700;direction:ltr;">${fKWD(paid)}</td></tr>
+    <tr style="border-top:${totalTopBorder};"><td style="padding:10px 16px;font-size:13.5px;font-weight:800;color:${stC};">${isCancelled?"الحالة":"المبلغ المستحق"}</td><td style="padding:10px 16px;text-align:left;font-size:14px;font-weight:900;color:${stC};direction:ltr;">${isCancelled?stT:fKWD(due)}</td></tr>
   </table>
 </div>
 
 ${(inv._pays&&inv._pays.length)?`
 <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
-  <table style="min-width:320px;border-collapse:collapse;border:1.5px solid #d1d5db;border-radius:6px;overflow:hidden;">
-    <thead><tr style="background:#f3f4f6;border-bottom:1.5px solid #d1d5db;">
-      <th colspan="4" style="padding:8px 14px;text-align:right;font-size:10.5px;font-weight:800;color:#374151;letter-spacing:.5px;">💳 سجل الدفعات (${inv._pays.length})</th>
+  <table style="min-width:320px;border-collapse:collapse;border:${boxBorder};border-radius:${S.id==="minimal"?"0px":"6px"};overflow:hidden;">
+    <thead><tr style="background:${S.id==="minimal"?"#fff":S.id==="modern"?`${acc}12`:"#f3f4f6"};border-bottom:${S.id==="minimal"?"2px solid #000":"1.5px solid "+(S.id==="modern"?acc+"40":"#d1d5db")};">
+      <th colspan="4" style="padding:8px 14px;text-align:right;font-size:10.5px;font-weight:800;color:${S.id==="modern"?acc:"#374151"};letter-spacing:.5px;">💳 سجل الدفعات (${inv._pays.length})</th>
     </tr></thead>
     <tbody>
-      ${inv._pays.map(p=>`<tr style="border-bottom:1px solid #f0f0f0;">
+      ${inv._pays.map(p=>`<tr style="border-bottom:1px solid ${S.id==="minimal"?"#eee":"#f0f0f0"};">
         <td style="padding:6px 14px;color:#6b7280;font-size:11.5px;">${fDate(p.date)}</td>
         <td style="padding:6px 14px;font-weight:700;color:#16a34a;font-size:11.5px;direction:ltr;text-align:left;">${fKWD(p.amount)}</td>
-        <td style="padding:6px 14px;"><span style="background:#dcfce7;color:#15803d;border-radius:4px;padding:1px 8px;font-size:10.5px;font-weight:700;">${payMethodLabel[p.method]||p.method||"—"}</span></td>
+        <td style="padding:6px 14px;"><span style="background:${S.id==="minimal"?"transparent":"#dcfce7"};color:${S.id==="minimal"?"#15803d":"#15803d"};${S.id==="minimal"?"border:1px solid #999;":""}border-radius:4px;padding:1px 8px;font-size:10.5px;font-weight:700;">${payMethodLabel[p.method]||p.method||"—"}</span></td>
         <td style="padding:6px 14px;color:#9ca3af;font-size:10.5px;">${p.note||""}</td>
       </tr>`).join("")}
     </tbody>
   </table>
 </div>`:""}
 
-${inv.notes?`<div style="border:1.5px solid #d1d5db;border-radius:6px;padding:10px 14px;margin-bottom:12px;background:#f9fafb;"><div style="font-size:8.5px;font-weight:800;color:#9ca3af;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;">ملاحظات</div><div style="font-size:12px;color:#374151;line-height:1.75;">${inv.notes}</div></div>`:""}
+${inv.notes?`<div style="border:${boxBorder};border-radius:${S.id==="minimal"?"0px":"6px"};padding:10px 14px;margin-bottom:12px;background:${S.id==="modern"?`${acc}08`:"#f9fafb"};${S.id==="minimal"?"background:#fff;":""}"><div style="font-size:8.5px;font-weight:800;color:#9ca3af;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;">ملاحظات</div><div style="font-size:12px;color:#374151;line-height:1.75;">${inv.notes}</div></div>`:""}
 
-<div style="padding-top:10px;border-top:1.5px solid #d1d5db;display:flex;justify-content:space-between;align-items:center;">
+<div style="padding-top:10px;border-top:${S.id==="minimal"?"1px solid #999":"1.5px solid #d1d5db"};display:flex;justify-content:space-between;align-items:center;">
   <div style="font-size:9.5px;color:#9ca3af;font-weight:600;">الشركة القابضة المتحدة ذ.م.م &nbsp;—&nbsp; United Holding Group LLC</div>
-  <div style="font-size:10.5px;font-weight:800;color:#374151;">${c.nameAr} &nbsp;|&nbsp; ${c.phone}</div>
+  <div style="font-size:10.5px;font-weight:800;color:${S.id==="modern"?acc:"#374151"};">${c.nameAr} &nbsp;|&nbsp; ${c.phone}</div>
 </div>
 
 </div></div>`;
@@ -592,7 +661,17 @@ body{font-family:'Tajawal','Cairo',Arial,sans-serif;direction:rtl;color:#1a1a2e;
 </style></head><body>${pages.join("")}</body></html>`;
 }
 
-async function doPrint(list, company){
+// lightenHex: lighten a hex color by t (0..1) toward white — print-template helper
+function lightenHex(hex,t){
+const m=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(String(hex||""));
+if(!m)return hex;
+const r=Math.round(parseInt(m[1],16)+(255-parseInt(m[1],16))*t);
+const g=Math.round(parseInt(m[2],16)+(255-parseInt(m[2],16))*t);
+const b=Math.round(parseInt(m[3],16)+(255-parseInt(m[3],16))*t);
+return "#"+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
+}
+
+async function doPrint(list, company, styleId){
 if(!list.length)return;
 const w=window.open("","_blank","width=900,height=700");
 if(!w){alert("يرجى السماح بالـ Popups");return;}
@@ -602,8 +681,37 @@ const enriched=await Promise.all(list.map(async inv=>{
   try{ pays=(await api.listPayments(inv.id))||[]; }catch{}
   return {...inv,_pays:pays};
 }));
-w.document.open();w.document.write(buildHTML(enriched, company));w.document.close();
+w.document.open();w.document.write(buildHTML(enriched, company, styleId));w.document.close();
 setTimeout(()=>{try{w.focus();w.print();}catch(e){}},900);
+}
+
+// ─── PDF export (HTML → PDF via /api/pdf, downloads a real .pdf file) ──
+async function doPdfExport(list, company, opts){
+const {toast, setBusy, styleId}=opts||{};
+const t=typeof toast==="function"?toast:()=>{};
+if(!list.length)return;
+try{
+  if(setBusy)setBusy(true);
+  // Enrich with payment records so the PDF shows the full payment history
+  const enriched=await Promise.all(list.map(async inv=>{
+    let pays=[];
+    try{ pays=(await api.listPayments(inv.id))||[]; }catch{}
+    return {...inv,_pays:pays};
+  }));
+  const html=buildHTML(enriched, company, styleId);
+  const base=list.length===1?`فاتورة_${(list[0].invNum||list[0].id)}`:`فواتير_${list.length}`;
+  const blob=await api.exportPdf(html, base);
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url; a.download=`${base}.pdf`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),5000);
+  t(list.length===1?"✅ تم تصدير الفاتورة إلى PDF":"✅ تم تصدير "+list.length+" فواتير إلى PDF");
+}catch(e){
+  t((e&&e.message)||"فشل تصدير PDF","err");
+}finally{
+  if(setBusy)setBusy(false);
+}
 }
 
 // ─── Bulk parser ──────────────────────────────────────────────────
@@ -792,6 +900,52 @@ return(
 );
 }
 
+// ── KPI count-up animation hook (easeOutCubic, remembers previous value) ──
+function useCountUp(target, duration=850){
+const [val,setVal]=useState(0);
+const prevRef=useRef(0);
+useEffect(()=>{
+  const from=prevRef.current;
+  const to=typeof target==="number"&&isFinite(target)?target:0;
+  const start=performance.now();
+  let raf=0;
+  const tick=now=>{
+    const p=from===to?1:Math.min(1,(now-start)/duration);
+    const eased=1-Math.pow(1-p,3);
+    setVal(from+(to-from)*eased);
+    if(p<1)raf=requestAnimationFrame(tick);
+    else prevRef.current=to;
+  };
+  raf=requestAnimationFrame(tick);
+  return()=>cancelAnimationFrame(raf);
+},[target,duration]);
+return val;
+}
+
+// Animated KPI card — numbers count up from their previous value
+function KpiCard({k, onNavigate}){
+const numeric=typeof k.num==="number";
+const v=useCountUp(numeric?k.num:0, 850);
+const display=numeric
+  ? (k.money?fKWD(v):(k.decimals!=null?v.toFixed(k.decimals):String(Math.round(v)))+(k.suffix||""))
+  : k.val;
+return(
+<div key={k.label} style={{background:k.bg,borderRadius:"14px",padding:"14px 16px",border:`1.5px solid ${k.c}22`,...(k.go&&onNavigate?{cursor:"pointer"}:{})}}
+  onClick={k.go&&onNavigate?()=>onNavigate(k.go):undefined}
+  title={k.go?"اضغط للعرض":""}
+  role={k.go&&onNavigate?"button":undefined}
+  aria-label={`${k.label}: ${display}`}>
+<div style={{fontSize:"22px",marginBottom:"6px"}}>{k.icon}</div>
+<div style={{fontSize:"10px",color:"var(--ia-sub)",fontWeight:700,textTransform:"uppercase",letterSpacing:".4px",marginBottom:"3px",display:"flex",alignItems:"center",gap:"5px"}}>{k.label}{k.go&&onNavigate&&<span style={{fontSize:"9px",opacity:.55,fontWeight:900,transform:"scaleX(-1)",display:"inline-block"}}>↩</span>}</div>
+<div style={{fontSize:"17px",fontWeight:900,color:k.c,direction:"ltr",textAlign:"right"}}>{display}</div>
+<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"5px"}}>
+<span style={{fontSize:"11px",color:"var(--ia-sub)"}}>{k.sub}</span>
+{k.badge&&<span style={{fontSize:"11px",fontWeight:700,color:k.badgeC,background:k.badgeC+"1a",padding:"1px 8px",borderRadius:"20px"}}>{k.badge}</span>}
+</div>
+</div>
+);
+}
+
 function Dashboard({invoices, company, onNavigate}){
 const { dark } = useTheme();
 const ch = chartColors(dark);
@@ -820,26 +974,16 @@ const cnt=invoices.filter(x=>x.date?.startsWith(key)).length;
 return{label,rev,cnt};
 });
 const kpis=[
-{icon:"💰",label:"إجمالي الإيرادات",val:fKWD(totR),sub:`${invoices.length} فاتورة`,c:colTx,bg:cardBg,go:{view:"list",status:"all"}},
-{icon:"📅",label:"إيرادات هذا الشهر",val:fKWD(tR),sub:`${tInvs.length} فاتورة`,c:txAdapt("#16a34a",dark),bg:softAdapt("#dcfce7",dark),badge:`${gUp?"▲":"▼"} ${Math.abs(gPct).toFixed(1)}%`,badgeC:txAdapt(gUp?"#16a34a":"#dc2626",dark)},
-{icon:"⏳",label:"مستحقات غير مدفوعة",val:fKWD(unpaidA),sub:`${unpaid.length} فاتورة`,c:txAdapt("#b45309",dark),bg:softAdapt("#fef3c7",dark),go:{view:"list",status:"unp"}},
-{icon:"👥",label:"إجمالي العملاء",val:uniqueC+" عميل",sub:`متوسط ${fKWD(avg)}`,c:txAdapt("#7c3aed",dark),bg:softAdapt("#ede9fe",dark),go:{view:"customers"}},
+{icon:"💰",label:"إجمالي الإيرادات",val:fKWD(totR),num:totR,money:true,sub:`${invoices.length} فاتورة`,c:colTx,bg:cardBg,go:{view:"list",status:"all"}},
+{icon:"📅",label:"إيرادات هذا الشهر",val:fKWD(tR),num:tR,money:true,sub:`${tInvs.length} فاتورة`,c:txAdapt("#16a34a",dark),bg:softAdapt("#dcfce7",dark),badge:`${gUp?"▲":"▼"} ${Math.abs(gPct).toFixed(1)}%`,badgeC:txAdapt(gUp?"#16a34a":"#dc2626",dark)},
+{icon:"⏳",label:"مستحقات غير مدفوعة",val:fKWD(unpaidA),num:unpaidA,money:true,sub:`${unpaid.length} فاتورة`,c:txAdapt("#b45309",dark),bg:softAdapt("#fef3c7",dark),go:{view:"list",status:"unp"}},
+{icon:"👥",label:"إجمالي العملاء",val:uniqueC+" عميل",num:uniqueC,suffix:" عميل",sub:`متوسط ${fKWD(avg)}`,c:txAdapt("#7c3aed",dark),bg:softAdapt("#ede9fe",dark),go:{view:"customers"}},
 ];
 return(
 <div>
 <div className="kpi-grid">
 {kpis.map(k=>(
-<div key={k.label} style={{background:k.bg,borderRadius:"14px",padding:"14px 16px",border:`1.5px solid ${k.c}22`,...(k.go&&onNavigate?{cursor:"pointer"}:{})}}
-  onClick={k.go&&onNavigate?()=>onNavigate(k.go):undefined}
-  title={k.go?"اضغط للعرض":""}>
-<div style={{fontSize:"22px",marginBottom:"6px"}}>{k.icon}</div>
-<div style={{fontSize:"10px",color:"var(--ia-sub)",fontWeight:700,textTransform:"uppercase",letterSpacing:".4px",marginBottom:"3px",display:"flex",alignItems:"center",gap:"5px"}}>{k.label}{k.go&&onNavigate&&<span style={{fontSize:"9px",opacity:.55,fontWeight:900,transform:"scaleX(-1)",display:"inline-block"}}>↩</span>}</div>
-<div style={{fontSize:"17px",fontWeight:900,color:k.c,direction:"ltr",textAlign:"right"}}>{k.val}</div>
-<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"5px"}}>
-<span style={{fontSize:"11px",color:"var(--ia-sub)"}}>{k.sub}</span>
-{k.badge&&<span style={{fontSize:"11px",fontWeight:700,color:k.badgeC,background:k.badgeC+"1a",padding:"1px 8px",borderRadius:"20px"}}>{k.badge}</span>}
-</div>
-</div>
+  <KpiCard key={k.label} k={k} onNavigate={onNavigate}/>
 ))}
 </div>
 <div className="chart-grid">
@@ -1510,6 +1654,7 @@ const sendAll = () => {
   if (!chosen.length) { toast_("حدّد فاتورة واحدة على الأقل", "warn"); return; }
   chosen.forEach((inv, i) => {
     const href = waReminderHref(inv, company);
+    logReminderSent(inv, company, href);
     setTimeout(() => { try { window.open(href, "_blank"); } catch {} }, i * 400);
   });
   toast_("🚀 جارٍ فتح واتساب لـ " + chosen.length + " عميل");
@@ -1571,7 +1716,7 @@ return(
             </div>
             <a href={waReminderHref(inv,company)} target="_blank" rel="noopener noreferrer" className="btn wa-btn" title="إرسال تذكير لهذا العميل"
               style={{color:"#fff",padding:"5px 8px",fontSize:"12px",textDecoration:"none",flexShrink:0}}
-              onClick={e=>e.stopPropagation()}>📣</a>
+              onClick={e=>{e.stopPropagation();logReminderSent(inv,company,waReminderHref(inv,company));}}>📣</a>
           </div>
         );
       })}
@@ -1601,6 +1746,9 @@ const [bulkText,setBulkText]=useState("");
 const [bulkParsed,setBulkParsed]=useState([]);
 const [bulkStep,setBulkStep]=useState(0);
 const [toast,setToast]=useState(null);
+const [pdfBusy,setPdfBusy]=useState(false);
+const [printStyle,setPrintStyle]=useState(()=>{try{return localStorage.getItem("tw_print_style")||"classic";}catch{return"classic";}});
+const setPStyle=v=>{setPrintStyle(v);try{localStorage.setItem("tw_print_style",v);}catch{}};
 const [delModal,setDelModal]=useState(null);
 const [showAliphia,setShowAliphia]=useState(false);
 const [showAdmin,setShowAdmin]=useState(false);
@@ -1732,7 +1880,7 @@ const deleteSelected=async()=>{
 };
 const printSelected=()=>{
   const list=invoices.filter(inv=>selectedIds.includes(inv.id)).sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
-  if(list.length)doPrint(list,company);
+  if(list.length)doPrint(list,company,printStyle);
 };
 
 // Auto-register the invoice's client in the saved-client directory (dedupe by phone).
@@ -1791,13 +1939,16 @@ api.bulkCreateInvoices(newBulk,company?.sk).then(()=>refreshInvoices()).catch(()
 setBulkStep(2);toast_(`✅ تم حفظ ${bulkParsed.length} فاتورة`);
 };
 
-const doPrintRange=()=>{
+const printRangeList=()=>{
 const fn=parseInt(toW(printRange.from).replace(/\D/g,""))||0;
 const tn=parseInt(toW(printRange.to).replace(/\D/g,""))||999999;
-const list=invoices.filter(inv=>{const n=parseInt(inv.invNum?.replace(/\D/g,"")||0);return n>=fn&&n<=tn;})
+return invoices.filter(inv=>{const n=parseInt(inv.invNum?.replace(/\D/g,"")||0);return n>=fn&&n<=tn;})
 .sort((a,b)=>parseInt(a.invNum?.replace(/\D/g,"")||0)-parseInt(b.invNum?.replace(/\D/g,"")||0));
+};
+const doPrintRange=()=>{
+const list=printRangeList();
 if(!list.length){toast_("لا توجد فواتير في هذا النطاق","warn");return;}
-doPrint(list, company);
+doPrint(list, company, printStyle);
 };
 
 const SORTS={
@@ -1844,6 +1995,16 @@ const TABS=[
 {id:"print",l:"🖨️ طباعة"},
 {id:"purchase",l:"🛒 المشتريات"},
 ];
+
+// dynamic browser-tab title: "القسم | الشركة — نظام إدارة الحسابات"
+useEffect(()=>{
+  const extra={edit:"تعديل فاتورة",bulk:"الإدخال المجمع"};
+  const t=TABS.find(x=>x.id===view);
+  const tabLabel=t?t.l.replace(/^\S+\s/,""):(extra[view]||"");
+  document.title=company
+    ?`${tabLabel?tabLabel+" | ":""}${company.nameAr} — نظام إدارة الحسابات`
+    :"نظام إدارة الحسابات — الشركة القابضة المتحدة";
+},[company,view]);
 
 if(authLoading)return(
 <div style={{minHeight:"100vh",background:"#0f1f3d",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontFamily:"Cairo,sans-serif",fontSize:"16px",flexDirection:"column",gap:"16px"}}>
@@ -1903,7 +2064,7 @@ return(
   </div>
 
   {/* Toast */}
-  {toast&&<div style={{position:"fixed",top:60,left:"50%",transform:"translateX(-50%)",zIndex:9999,background:toast.type==="warn"?"#f59e0b":"#16a34a",color:"#fff",padding:"8px 20px",borderRadius:"50px",fontWeight:700,fontSize:"13px",boxShadow:"0 4px 16px rgba(0,0,0,.2)",animation:"toastIn .2s",whiteSpace:"nowrap"}}>{toast.msg}</div>}
+  {toast&&<div role="status" aria-live="polite" style={{position:"fixed",top:60,left:"50%",transform:"translateX(-50%)",zIndex:9999,background:toast.type==="warn"?"#f59e0b":"#16a34a",color:"#fff",padding:"8px 20px",borderRadius:"50px",fontWeight:700,fontSize:"13px",boxShadow:"0 4px 16px rgba(0,0,0,.2)",animation:"toastIn .2s",whiteSpace:"nowrap"}}>{toast.msg}</div>}
 
   {/* Bulk WhatsApp reminders modal (overdue) */}
   {showBulkWa&&(
@@ -2091,11 +2252,12 @@ return(
                             <a href={waReminderHref(inv,company)} target="_blank" rel="noopener noreferrer" className="btn wa-btn"
                               title="إرسال تذكير بالسداد عبر واتساب (رسالة جاهزة)"
                               style={{color:"#fff",padding:"5px 8px",fontSize:"12px",textDecoration:"none"}}
-                              onClick={e=>e.stopPropagation()}>
+                              onClick={e=>{e.stopPropagation();logReminderSent(inv,company,waReminderHref(inv,company));}}>
                               📣
                             </a>
                           )}
-                          {!!perms.print_invoice&&<button className="btn" title="طباعة الفاتورة" style={{background:col,color:"#fff",padding:"5px 8px",fontSize:"12px"}} onClick={e=>{e.stopPropagation();doPrint([inv],company);}}>🖨️</button>}
+                          {!!perms.print_invoice&&<button className="btn" title="طباعة الفاتورة" style={{background:col,color:"#fff",padding:"5px 8px",fontSize:"12px"}} onClick={e=>{e.stopPropagation();doPrint([inv],company,printStyle);}}>🖨️</button>}
+                          {!!perms.print_invoice&&<button className="btn" title="تصدير PDF" disabled={pdfBusy} style={{background:"#dc2626",color:"#fff",padding:"5px 8px",fontSize:"12px"}} onClick={e=>{e.stopPropagation();doPdfExport([inv],company,{toast:toast_,setBusy:setPdfBusy,styleId:printStyle});}}>📄</button>}
                           {!!perms.edit_invoice&&<button className="btn" title="تعديل الفاتورة" style={{background:"#f59e0b",color:"#fff",padding:"5px 8px",fontSize:"12px"}} onClick={e=>{e.stopPropagation();openEdit(inv);}}>✏️</button>}
                           {!!perms.delete_invoice&&<button className="btn btn-red" title="حذف الفاتورة" style={{padding:"5px 8px",fontSize:"12px"}} onClick={e=>{e.stopPropagation();setDelModal(inv);}}>🗑️</button>}
                         </div>
@@ -2148,7 +2310,8 @@ return(
       <div style={{animation:"fadeUp .25s"}}>
         <div style={{display:"flex",gap:"8px",marginBottom:"12px",flexWrap:"wrap",alignItems:"center"}}>
           <button className="btn btn-ghost" onClick={()=>setSelInv(null)}>← رجوع</button>
-          {!!perms.print_invoice&&<button className="btn" title="طباعة الفاتورة" style={{background:col,color:"#fff"}} onClick={()=>doPrint([selInv],company)}>🖨️ طباعة</button>}
+          {!!perms.print_invoice&&<button className="btn" title="طباعة الفاتورة" style={{background:col,color:"#fff"}} onClick={()=>doPrint([selInv],company,printStyle)}>🖨️ طباعة</button>}
+          {!!perms.print_invoice&&<button className="btn" title="تصدير الفاتورة إلى ملف PDF" style={{background:"#dc2626",color:"#fff"}} disabled={pdfBusy} onClick={()=>doPdfExport([selInv],company,{toast:toast_,setBusy:setPdfBusy,styleId:printStyle})}>{pdfBusy?"⏳ جاري…":"📄 PDF"}</button>}
           {!!perms.edit_invoice&&<button className="btn" title="تعديل الفاتورة" style={{background:"#f59e0b",color:"#fff"}} onClick={()=>openEdit(selInv)}>✏️ تعديل</button>}
           {!!perms.delete_invoice&&<button className="btn btn-red" title="حذف الفاتورة" onClick={()=>setDelModal(selInv)}>🗑️ حذف</button>}
           {(()=>{
@@ -2156,7 +2319,8 @@ return(
             return href&&iT(selInv)-pN(selInv.paid||0)>0?(
               <a href={href} target="_blank" rel="noopener noreferrer" className="btn wa-btn"
                 title="إرسال تذكير بالسداد عبر واتساب (رسالة جاهزة)"
-                style={{color:"#fff",textDecoration:"none"}}>
+                style={{color:"#fff",textDecoration:"none"}}
+                onClick={()=>logReminderSent(selInv,company,href)}>
                 📣 تذكير واتساب
               </a>
             ):null;
@@ -2170,6 +2334,7 @@ return(
           await refreshInvoices();
           try{ const fresh=await api.getInvoice(selInv.id); if(fresh)setSelInv(fresh); }catch{}
         }}/>
+        <RemindersPanel inv={selInv} company={company}/>
       </div>
     )}
 
@@ -2376,12 +2541,28 @@ return(
       <div style={{animation:"fadeUp .25s"}}>
         <div className="card" style={{padding:"22px",marginBottom:"12px"}}>
           <div style={{fontSize:"16px",fontWeight:900,color:colTx,marginBottom:"14px"}}>🖨️ طباعة من رقم إلى رقم</div>
+          <div style={{display:"flex",gap:"10px",marginBottom:"16px",flexWrap:"wrap"}}>
+            <div style={{fontSize:"11px",fontWeight:700,color:"var(--ia-muted)",textTransform:"uppercase",letterSpacing:".5px",alignSelf:"center"}}>نمط الفاتورة:</div>
+            {Object.values(PRINT_STYLES).map(st=>(
+              <button key={st.id} onClick={()=>{setPStyle(st.id);toast_(`تم اختيار نمط ${st.label}`);}}
+                title={`نمط ${st.label}${st.id==="modern"?" — بألوان الشركة":st.id==="minimal"?" — أبيض وأسود موفّر للحبر":""}`}
+                style={{flex:"1",minWidth:"120px",maxWidth:"180px",border:printStyle===st.id?`2px solid ${col}`:"1.5px solid var(--ia-border2)",borderRadius:"10px",padding:"10px 12px",background:printStyle===st.id?softAdapt(company.cardBg,dark):"var(--ia-inp-bg)",cursor:"pointer",fontFamily:"inherit",transition:"all .15s",display:"flex",alignItems:"center",gap:"8px"}}>
+                <span style={{fontSize:"18px"}}>{st.icon}</span>
+                <div style={{textAlign:"right",minWidth:0,flex:1}}>
+                  <div style={{fontSize:"12.5px",fontWeight:900,color:printStyle===st.id?colTx:"var(--ia-text)"}}>{st.label}</div>
+                  <div style={{fontSize:"10px",color:"var(--ia-sub)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{st.id==="classic"?"التصميم الأصلي":st.id==="modern"?"ألوان الشركة":"أبيض وأسود"}</div>
+                </div>
+                {printStyle===st.id&&<span style={{fontSize:"13px",color:colTx,fontWeight:"900"}}>✓</span>}
+              </button>
+            ))}
+          </div>
           <div className="print-grid">
             <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>من رقم الفاتورة</label>
               <input className="inp" placeholder="INV10001 أو 10001" value={printRange.from} onChange={e=>setPrintRange(r=>({...r,from:e.target.value}))}/></div>
             <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>إلى رقم الفاتورة</label>
               <input className="inp" placeholder="INV10010 أو 10010" value={printRange.to} onChange={e=>setPrintRange(r=>({...r,to:e.target.value}))}/></div>
             <button className="btn print-btn" style={{background:col,color:"#fff",height:"40px"}} onClick={doPrintRange}>🖨️ طباعة</button>
+            <button className="btn" title="تصدير الفواتير في النطاق إلى ملف PDF واحد" disabled={pdfBusy} style={{background:"#dc2626",color:"#fff",height:"40px"}} onClick={()=>{const list=printRangeList();doPdfExport(list,company,{toast:toast_,setBusy:setPdfBusy,styleId:printStyle});}}>{pdfBusy?"⏳ جاري…":"📄 تصدير PDF"}</button>
           </div>
           <p style={{fontSize:"11px",color:"var(--ia-muted)",marginTop:"8px"}}>⚠️ يجب السماح بالـ Popups في المتصفح لتعمل الطباعة</p>
         </div>
@@ -2390,7 +2571,7 @@ return(
           <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
             {invoices.slice().sort((a,b)=>parseInt(a.invNum?.replace(/\D/g,"")||0)-parseInt(b.invNum?.replace(/\D/g,"")||0)).map(inv=>(
               <div key={inv.id} style={{border:`1px solid ${col}33`,borderRadius:"8px",padding:"10px 14px",background:cardBg,fontSize:"12px",cursor:"pointer",transition:"all .15s"}}
-                onClick={()=>doPrint([inv],company)}>
+                onClick={()=>doPrint([inv],company,printStyle)}>
                 <div style={{fontWeight:700,color:colTx}}>{inv.invNum}</div>
                 <div style={{color:"var(--ia-sub)",marginTop:"2px",fontSize:"11px"}}>{inv.clientName}</div>
                 <div style={{fontWeight:700,marginTop:"2px"}}>{fKWD(iT(inv))}</div>

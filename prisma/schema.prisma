@@ -32,6 +32,7 @@ model Client {
 model Invoice {
   id            Int      @id @default(autoincrement())
   payments      Payment[]
+  reminders     ReminderLog[]
   invoiceNumber String
   companySlug   String?
   clientId      Int?
@@ -97,4 +98,20 @@ model PurchaseInvoice {
   createdAt        DateTime @default(now())
 
   @@map("purchase_invoices")
+}
+
+model ReminderLog {
+  id          Int      @id @default(autoincrement())
+  invoiceId   Int?
+  companySlug String?
+  clientName  String?
+  clientPhone String?
+  channel     String   @default("whatsapp") // whatsapp | call | manual
+  message     String?
+  amount      Float? // remaining amount at reminder time
+  createdAt   DateTime @default(now())
+  invoice     Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+
+  @@index([companySlug])
+  @@map("reminder_logs")
 }
