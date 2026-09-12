@@ -825,11 +825,12 @@ return(
 }
 
 // ─── Customers ────────────────────────────────────────────────────
-function Customers({invoices, company, onImportDone}){
+function Customers({invoices, company, onImportDone, onOpenInvoice}){
 const { perms } = useAuth();
 const [search,setSearch]=useState("");
 const [sort,setSort]=useState("spent");
 const [showImport,setShowImport]=useState(false);
+const [selCustomer,setSelCustomer]=useState(null);
 const col = company.color;
 
 const map={};
@@ -844,6 +845,8 @@ let customers=Object.values(map);
 if(search){const s=toW(search).toLowerCase();customers=customers.filter(c=>c.phone.includes(s)||c.name.toLowerCase().includes(s));}
 customers.sort((a,b)=>sort==="spent"?b.totalSpent-a.totalSpent:sort==="count"?b.count-a.count:b.lastDate.localeCompare(a.lastDate));
 
+const customerInvoices=selCustomer?invoices.filter(inv=>(inv.clientPhone||"")===selCustomer.phone).sort((a,b)=>new Date(b.date||0)-new Date(a.date||0)):[];
+
 return(
 <div>
 {showImport&&(
@@ -853,6 +856,103 @@ existingInvoices={invoices}
 onImport={list=>{onImportDone(list);setShowImport(false);}}
 onClose={()=>setShowImport(false)}
 />
+)}
+
+{/* ── Customer Detail Modal ── */}
+{selCustomer&&(
+<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",direction:"rtl"}} onClick={()=>setSelCustomer(null)}>
+<div className="card" style={{width:"100%",maxWidth:"640px",maxHeight:"90vh",overflow:"hidden",display:"flex",flexDirection:"column",animation:"fadeUp .25s"}} onClick={e=>e.stopPropagation()}>
+
+  {/* Modal header */}
+  <div style={{background:col,padding:"16px 20px",display:"flex",alignItems:"center",gap:"12px",flexShrink:0}}>
+    <div style={{width:"46px",height:"46px",background:"rgba(255,255,255,.18)",borderRadius:"12px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"20px",fontWeight:900,color:"#fff",flexShrink:0}}>
+      {(selCustomer.name||"؟").trim().charAt(0)}
+    </div>
+    <div style={{flex:1,minWidth:0}}>
+      <div style={{color:"#fff",fontWeight:900,fontSize:"15px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{selCustomer.name}</div>
+      <div style={{color:"rgba(255,255,255,.75)",fontSize:"12px",direction:"ltr",textAlign:"right"}}>{selCustomer.phone||"—"}</div>
+    </div>
+    <button onClick={()=>setSelCustomer(null)} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"8px",padding:"6px 12px",color:"#fff",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer",flexShrink:0}}>✕ إغلاق</button>
+  </div>
+
+  <div style={{overflowY:"auto",flex:1,padding:"18px 20px"}}>
+
+    {/* Contact actions */}
+    <div style={{display:"flex",gap:"8px",marginBottom:"14px",flexWrap:"wrap"}}>
+      {selCustomer.phone&&(
+        <>
+        <a href={`https://wa.me/965${selCustomer.phone.replace(/^\+?965/,"")}`} target="_blank" rel="noopener noreferrer" className="btn" style={{background:"#16a34a",color:"#fff",textDecoration:"none",padding:"9px 16px"}}>💬 واتساب</a>
+        <a href={`tel:+965${selCustomer.phone.replace(/^\+?965/,"")}`} className="btn" style={{background:"#2563eb",color:"#fff",textDecoration:"none",padding:"9px 16px"}}>📞 اتصال</a>
+        </>
+      )}
+      {selCustomer.address&&(
+        <div style={{display:"inline-flex",alignItems:"center",gap:"6px",background:"#f8fafc",border:"1px solid #e5e7eb",borderRadius:"8px",padding:"9px 14px",fontSize:"12px",color:"#374151",fontWeight:600,flex:1,minWidth:"140px"}}>
+          📍 {selCustomer.address}
+        </div>
+      )}
+    </div>
+
+    {/* Stats */}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:"8px",marginBottom:"16px"}}>
+      <div style={{background:company.cardBg,borderRadius:"10px",padding:"10px 14px",border:`1px solid ${col}22`}}>
+        <div style={{fontSize:"10px",color:"#6b7280",fontWeight:700,marginBottom:"3px"}}>إجمالي الإنفاق</div>
+        <div style={{fontSize:"16px",fontWeight:900,color:col}}>{fKWD(selCustomer.totalSpent)}</div>
+      </div>
+      <div style={{background:"#dbeafe",borderRadius:"10px",padding:"10px 14px",border:"1px solid #93c5fd44"}}>
+        <div style={{fontSize:"10px",color:"#1e40af",fontWeight:700,marginBottom:"3px"}}>عدد الفواتير</div>
+        <div style={{fontSize:"16px",fontWeight:900,color:"#1d4ed8"}}>{selCustomer.count} فاتورة</div>
+      </div>
+      <div style={{background:"#dcfce7",borderRadius:"10px",padding:"10px 14px",border:"1px solid #86efac44"}}>
+        <div style={{fontSize:"10px",color:"#166534",fontWeight:700,marginBottom:"3px"}}>أول شراء</div>
+        <div style={{fontSize:"13px",fontWeight:800,color:"#15803d"}}>{fDate(selCustomer.firstDate)}</div>
+      </div>
+      <div style={{background:"#fef3c7",borderRadius:"10px",padding:"10px 14px",border:"1px solid #fde68a44"}}>
+        <div style={{fontSize:"10px",color:"#92400e",fontWeight:700,marginBottom:"3px"}}>آخر شراء</div>
+        <div style={{fontSize:"13px",fontWeight:800,color:"#b45309"}}>{fDate(selCustomer.lastDate)}</div>
+      </div>
+    </div>
+
+    {/* Products purchased */}
+    {selCustomer.products.length>0&&(
+      <div style={{marginBottom:"16px"}}>
+        <div style={{fontSize:"11px",fontWeight:900,color:"#6b7280",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"8px"}}>🛍️ المنتجات المشتراة ({selCustomer.products.length})</div>
+        <div style={{display:"flex",gap:"6px",flexWrap:"wrap"}}>
+          {selCustomer.products.map(p=>(
+            <span key={p} style={{background:"#f3f4f6",border:"1px solid #e5e7eb",borderRadius:"20px",padding:"4px 12px",fontSize:"11.5px",color:"#374151",fontWeight:600}}>{p}</span>
+          ))}
+        </div>
+      </div>
+    )}
+
+    {/* Invoice history */}
+    <div style={{fontSize:"11px",fontWeight:900,color:"#6b7280",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"8px"}}>🧾 سجل الفواتير — اضغط لعرض الفاتورة</div>
+    <div style={{border:"1px solid #e5e7eb",borderRadius:"10px",overflow:"hidden",maxHeight:"300px",overflowY:"auto"}}>
+      <table style={{width:"100%",borderCollapse:"collapse",fontSize:"12.5px"}}>
+        <thead><tr style={{background:"#f8fafc",position:"sticky",top:0,zIndex:1}}>
+          {["رقم","التاريخ","الإجمالي","المدفوع","الحالة"].map(h=>(
+            <th key={h} style={{padding:"8px 12px",fontSize:"10.5px",fontWeight:700,color:"#6b7280",textAlign:"right"}}>{h}</th>
+          ))}
+        </tr></thead>
+        <tbody>
+          {customerInvoices.map((inv,i)=>{
+            const st=getStatus(inv);
+            return(
+              <tr key={inv.id} onClick={()=>{setSelCustomer(null);if(onOpenInvoice)onOpenInvoice(inv);}}
+                style={{borderBottom:"1px solid #f3f4f6",background:i%2===0?"#fff":"#fafafa",cursor:"pointer"}}>
+                <td style={{padding:"8px 12px"}}><span className="b-inv">{inv.invNum}</span></td>
+                <td style={{padding:"8px 12px",color:"#6b7280",fontSize:"11px"}}>{fDate(inv.date)}</td>
+                <td style={{padding:"8px 12px",fontWeight:800,color:col}}>{fKWD(iT(inv))}</td>
+                <td style={{padding:"8px 12px",color:"#16a34a",fontWeight:600}}>{fKWD(pN(inv.paid||0))}</td>
+                <td style={{padding:"8px 12px"}}><span className={`b-${st}`}>{stLabel[st]}</span></td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
 )}
 <div style={{display:"flex",gap:"10px",marginBottom:"14px",alignItems:"center",flexWrap:"wrap"}}>
 <input className="inp" style={{flex:1,minWidth:"200px",padding:"9px 14px"}} placeholder="🔍 ابحث باسم العميل أو التلفون..." value={search} onChange={e=>setSearch(e.target.value)}/>
@@ -895,7 +995,9 @@ onClick={()=>setShowImport(true)}
 </tr></thead>
 <tbody>
 {customers.map((c,i)=>(
-<tr key={c.phone} style={{borderBottom:"1px solid #f3f4f6",background:i%2===0?"#fff":"#fafafa"}}>
+<tr key={c.phone} onClick={()=>setSelCustomer(c)}
+style={{borderBottom:"1px solid #f3f4f6",background:selCustomer&&selCustomer.phone===c.phone?`${col}0d`:(i%2===0?"#fff":"#fafafa"),cursor:"pointer"}}
+className="trow">
 <td style={{padding:"11px 12px",fontWeight:600,fontSize:"13px"}}>{c.name}</td>
 <td style={{padding:"11px 12px",direction:"ltr",textAlign:"right",color:"#2563eb",fontSize:"13px"}}>{c.phone}</td>
 <td style={{padding:"11px 12px",fontWeight:700,color:col}}>{fKWD(c.totalSpent)}</td>
@@ -932,6 +1034,7 @@ const [showAdmin,setShowAdmin]=useState(false);
 const [editingInv,setEditingInv]=useState(null);
 const [editForm,setEditForm]=useState(null);
 const [selectedIds,setSelectedIds]=useState([]);
+const [statusFilter,setStatusFilter]=useState("all");
 const [purchasePreSelect,setPurchasePreSelect]=useState([]);
 
 const emptyForm=()=>({clientName:"",clientPhone:"",clientAddress:"",items:[{name:"",desc:"",qty:1,price:""}],shipping:0,date:today(),dueDate:addD(today(),30),paid:0,notes:""});
@@ -1086,12 +1189,24 @@ doPrint(list, company);
 };
 
 const filtered=invoices.filter(inv=>{
+if(statusFilter!=="all"&&getStatus(inv)!==statusFilter)return false;
 if(!search)return true;
 const s=toW(search).toLowerCase();
 return inv.clientPhone?.includes(s)||inv.clientName?.toLowerCase().includes(s)||inv.invNum?.toLowerCase().includes(s);
 }).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+const statusCounts={all:invoices.length,paid:0,part:0,unp:0,cancel:0};
+invoices.forEach(inv=>{statusCounts[getStatus(inv)]=(statusCounts[getStatus(inv)]||0)+1;});
 const allSel=filtered.length>0&&filtered.every(inv=>selectedIds.includes(inv.id));
 const toggleSelectAll=()=>setSelectedIds(allSel?[]:filtered.map(inv=>inv.id));
+
+const exportInvoicesCSV=()=>{
+  if(!company)return;
+  const a=document.createElement("a");
+  a.href=`/api/invoices/export?companySlug=${encodeURIComponent(company.sk)}`;
+  a.download=`Invoices_${company.id}_${today()}.csv`;
+  document.body.appendChild(a);a.click();a.remove();
+  toast_("⬇️ تم تنزيل ملف CSV");
+};
 
 const TABS=[
 {id:"dash",l:"📊 Dashboard"},
@@ -1187,6 +1302,7 @@ return(
         <Customers
           invoices={invoices}
           company={company}
+          onOpenInvoice={inv=>{setSelInv(inv);setView("list");}}
           onImportDone={async newInvs=>{
             setInvoices(p=>[...p,...newInvs]);
             api.bulkCreateInvoices(newInvs,company?.sk).then(()=>refreshInvoices()).catch(()=>{});
@@ -1204,7 +1320,40 @@ return(
           <button className="btn aliphia-btn" style={{color:"#fff",gap:"6px"}} onClick={()=>setShowAliphia(true)}>
             <span style={{fontSize:"15px"}}>📥</span> استيراد Aliphia
           </button>
+          <button className="btn" style={{background:"#0f766e",color:"#fff",gap:"6px"}} onClick={exportInvoicesCSV}>
+            <span style={{fontSize:"15px"}}>⬇️</span> تصدير CSV
+          </button>
           <span style={{fontSize:"12px",color:"#6b7280",whiteSpace:"nowrap"}}>{filtered.length} فاتورة</span>
+        </div>
+
+        {/* Status filter chips */}
+        <div style={{display:"flex",gap:"7px",marginBottom:"12px",flexWrap:"wrap",alignItems:"center"}}>
+          {["all","paid","part","unp","cancel"].map(sf=>{
+            const active=statusFilter===sf;
+            const cnt=statusCounts[sf]||0;
+            const c=stColor[sf]||col;
+            return(
+              <button key={sf} onClick={()=>{setStatusFilter(sf);setSelectedIds([]);}}
+                style={{
+                  border:`1.5px solid ${active?c:"#e5e7eb"}`,
+                  background:active?`${c}14`:"#fff",
+                  color:active?c:"#6b7280",
+                  borderRadius:"20px",
+                  padding:"5px 13px",
+                  fontFamily:"inherit",
+                  fontSize:"12px",
+                  fontWeight:700,
+                  cursor:"pointer",
+                  transition:"all .15s",
+                  display:"inline-flex",
+                  alignItems:"center",
+                  gap:"6px",
+                }}>
+                {sf==="all"?"📋 الكل":sf==="paid"?"✅ ":sf==="part"?"🟡 ":sf==="unp"?"🔴 ":"⛔ "}{sf!=="all"?stLabel[sf]:""}
+                <span style={{background:active?`${c}22`:"#f3f4f6",borderRadius:"12px",padding:"1px 7px",fontSize:"10px",fontWeight:900}}>{cnt}</span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Bulk actions bar */}

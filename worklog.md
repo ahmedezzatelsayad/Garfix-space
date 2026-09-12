@@ -73,3 +73,25 @@ Unresolved issues / risks / next-phase recommendations:
 - The Aliphia import + Meta Audience CSV export flows were not E2E-tested (require a real CSV file upload + file download) — logic was ported verbatim; test in next phase.
 - AdminDashboard "شعارات الشركات" (logo upload) stores base64 in localStorage — works but not tested E2E.
 - Next-phase ideas: real authentication (NextAuth), per-company dashboard API usage (frontend currently computes stats client-side), invoice PDF export, Arabic date localization, pagination for large invoice lists, clients CRUD UI (API exists, UI derives customers from invoices as in original).
+
+---
+Task ID: r2 (cron webDevReview round 2 — 2026-09-13)
+Agent: main (Z.ai Code)
+Task: Scheduled QA round + 3 new features (status filter chips, customer detail modal, CSV export)
+
+Work Log:
+- Read worklog; QA smoke: healthz ok, homepage 200, login → Tawfeer dashboard (165.3 KD), zero browser errors.
+- Cleaned test artifacts via the UI delete-modal flow (INV10010 «عميل واتساب تجريبي», INV10009 «عميل اختبار المتصفح») — this also E2E-verified the previously-untested delete confirmation flow. DB back to 8 Tawfeer seed invoices; PUR-AI-979107 kept as purchases demo.
+- New feature 1 — status filter chips in invoices list: statusFilter state + chips row (📋 الكل / ✅ مدفوعة / 🟡 جزئي / 🔴 غير مدفوعة / ⛔ ملغية) each with live counts from statusCounts; wired into `filtered`; chips styled per-status color (stColor), pill design with count badges; resets row selection on change.
+- New feature 2 — customer detail modal in Customers component: selCustomer state; rows now clickable (trow hover + selected-row tint); modal = company-colored header with initial avatar + name/phone + close; contact actions (💬 واتساب wa.me/965…, 📞 اتصال tel:+965…, 📍 address chip); 4 stat cards (إجمالي الإنفاق، عدد الفواتير، أول شراء، آخر شراء); product chips list; invoice-history table (sticky header, clickable rows → onOpenInvoice → App sets selInv + switches to list detail view).
+- New feature 3 — CSV export: new GET /api/invoices/export?companySlug= route (UTF-8 BOM for Excel Arabic, 15 Arabic columns incl. المنتجات، المتبقي، الحالة; attachment Content-Disposition; reuses serialize.ts helpers) + «⬇️ تصدير CSV» button in list toolbar (anchor-click download + toast).
+- E2E verified with agent-browser: chips filter paid=1/unpaid=2/all=8 rows ✓; customer modal (عبدالله حسن: 23.9 KD، 1 فاتورة، واتساب/اتصال، INV10007 row) ✓; modal invoice click → invoice detail (صادرة إلى + المبلغ المستحق) ✓; export request 200 + toast ✓; mobile 390px no horizontal overflow ✓; `bun run lint` → 0 problems; dev.log clean.
+
+Stage Summary:
+- Round 2 complete: project stable (all round-1 flows re-verified), delete flow now E2E-tested, DB cleaned of test rows, and 3 polished features added (status filter chips with counts, full customer 360° detail modal with WhatsApp/call actions and click-through invoice history, invoices CSV export with Excel-safe Arabic encoding).
+
+Unresolved issues / risks / next-phase priorities:
+- Aliphia CSV import + Meta Audience CSV export still not E2E-tested (need real file upload/download) — top candidate for next round.
+- Company logo upload (AdminDashboard → شعارات الشركات) untested E2E.
+- Auth remains localStorage-only (demo-grade).
+- Next-phase ideas: invoice PDF export, pagination/virtualization for large lists, clients CRUD UI (API exists), reports page using /api/dashboard/* endpoints, print preview in-app instead of window.open, dark mode.
