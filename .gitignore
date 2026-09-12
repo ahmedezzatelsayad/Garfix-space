@@ -52,3 +52,16 @@ prompt
 server.log
 # Skills directory
 /skills/
+# r10: sandbox infra & private data
+/db/
+/infra/
+/download/
+/upload/
+/tool-results/
+/agent-ctx/
+/examples/
+/tests/
+mini-services/*/node_modules/
+mini-services/*/service.log
+*.db
+next-dev.log

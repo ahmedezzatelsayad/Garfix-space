@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { readBody, serializeCatalogItem } from "@/lib/serialize";
+import { cacheWrap, invalidateCatalog } from "@/lib/cache";
 
-// GET /api/catalog?companySlug=
+// GET /api/catalog?companySlug= — (r10: كاش Valkey 60 ثانية)
 export async function GET(req: NextRequest) {
   try {
     const companySlug = req.nextUrl.searchParams.get("companySlug") ?? undefined;
 
-    const rows = await db.productCatalog.findMany({
-      where: companySlug ? { companySlug } : {},
-      orderBy: { id: "asc" },
-    });
+    const rows = await cacheWrap(`catalog:${companySlug ?? "all"}`, 60, () =>
+      db.productCatalog.findMany({
+        where: companySlug ? { companySlug } : {},
+        orderBy: { id: "asc" },
+      }),
+    );
 
     return NextResponse.json(rows.map(serializeCatalogItem));
   } catch (err) {
@@ -36,6 +39,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    await invalidateCatalog(created.companySlug ?? undefined);
     return NextResponse.json(serializeCatalogItem(created), { status: 201 });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 400 });

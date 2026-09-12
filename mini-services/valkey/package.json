@@ -1,0 +1,9 @@
+{
+  "name": "valkey-service",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Valkey cache supervisor (Redis-compatible, port 6379)",
+  "scripts": {
+    "dev": "bun --hot index.ts"
+  }
+}

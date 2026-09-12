@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import ZAI from "z-ai-web-dev-sdk";
+import { chatComplete } from "@/lib/ai-provider";
 
 interface CatalogProduct {
   id: number;
@@ -66,15 +66,15 @@ IMPORTANT: Respond ONLY with a JSON object with an "items" array. No markdown, n
   ]
 }`;
 
-    const zai = await ZAI.create();
-    const completion = await zai.chat.completions.create({
-      messages: [
-        { role: "assistant", content: systemPrompt },
+    // r10: يمر عبر مزوّد الذكاء الموحّد — DeepSeek عند تفعيله، وإلا المزوّد المدمج
+    const completion = await chatComplete(
+      [
+        { role: "system", content: systemPrompt },
         { role: "user", content: rawText.trim() },
       ],
-      thinking: { type: "disabled" },
-    });
-    const content = completion.choices[0]?.message?.content ?? "{}";
+      { json: true, maxTokens: 3000 },
+    );
+    const content = completion.content || "{}";
 
     let items: unknown[];
     try {
@@ -101,7 +101,7 @@ IMPORTANT: Respond ONLY with a JSON object with an "items" array. No markdown, n
       );
     }
 
-    return NextResponse.json({ items });
+    return NextResponse.json({ items, model: completion.model, provider: completion.provider, latencyMs: completion.latencyMs });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ error: message }, { status: 500 });

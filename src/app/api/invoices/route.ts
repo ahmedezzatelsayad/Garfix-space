@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { num, readBody, serializeInvoice, todayISODate } from "@/lib/serialize";
+import { cacheWrap, invalidateInvoices } from "@/lib/cache";
 
-// GET /api/invoices?companySlug=&status=&search=
+// GET /api/invoices?companySlug=&status=&search= — (r10: كاش Valkey 15 ثانية)
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = req.nextUrl;
@@ -11,15 +12,16 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get("status") ?? undefined;
     const search = searchParams.get("search") ?? undefined;
 
-    const where: Prisma.InvoiceWhereInput = {};
-    if (companySlug) where.companySlug = companySlug;
-    if (status) where.status = status;
-    if (search) where.clientName = { contains: search };
-
-    const rows = await db.invoice.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-    });
+    const rows = await cacheWrap(`invoices:${companySlug ?? "all"}:${status ?? ""}:${search ?? ""}`, 15, () =>
+      db.invoice.findMany({
+        where: {
+          ...(companySlug ? { companySlug } : {}),
+          ...(status ? { status } : {}),
+          ...(search ? { clientName: { contains: search } } : {}),
+        } as Prisma.InvoiceWhereInput,
+        orderBy: { createdAt: "desc" },
+      }),
+    );
 
     return NextResponse.json(rows.map(serializeInvoice));
   } catch (err) {
@@ -69,6 +71,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    await invalidateInvoices(created.companySlug ?? undefined);
     return NextResponse.json(serializeInvoice(created), { status: 201 });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 400 });

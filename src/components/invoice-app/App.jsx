@@ -9,6 +9,9 @@ import FirebaseLogin from "./pages/FirebaseLogin";
 import AdminDashboard from "./pages/AdminDashboard";
 import PurchasesTab from "./components/PurchasesTab";
 import AIBulkProcessor from "./components/AIBulkProcessor";
+import SmartChat from "./components/SmartChat";
+import DeepSeekSettings from "./components/DeepSeekSettings";
+import BackupRecovery from "./components/BackupRecovery";
 import ReportsTab from "./components/ReportsTab";
 import PaymentsPanel from "./components/PaymentsPanel";
 import RemindersPanel from "./components/RemindersPanel";
@@ -2483,8 +2486,11 @@ const TABS=[
 {id:"new",l:"➕ جديد"},
 {id:"bulk",l:"📦 مجمع"},
 {id:"ai",l:"🤖 AI"},
+{id:"chat",l:"💬 المساعد الذكي"},
 {id:"print",l:"🖨️ طباعة"},
 {id:"purchase",l:"🛒 المشتريات"},
+{id:"deepseek",l:"🧠 DeepSeek"},
+{id:"system",l:"💾 النظام"},
 ];
 
 // dynamic browser-tab title: "القسم | الشركة — نظام إدارة الحسابات"
@@ -2545,7 +2551,7 @@ return(
       <button onClick={logout} style={{background:"rgba(0,0,0,.2)",border:"1px solid rgba(255,255,255,.2)",borderRadius:"6px",color:"rgba(255,255,255,.8)",padding:"5px 10px",fontFamily:"inherit",fontSize:"12px",fontWeight:700,cursor:"pointer",flexShrink:0}}>خروج</button>
     </div>
     <div className="navbar-tabs">
-      {TABS.filter(t=>{if(t.id==="new")return!!perms.create_invoice;if(t.id==="bulk")return!!perms.bulk_input;if(t.id==="customers")return!!perms.view_customers;if(t.id==="print")return!!perms.print_invoice;return true;}).map(t=>(
+      {TABS.filter(t=>{if(t.id==="new")return!!perms.create_invoice;if(t.id==="bulk")return!!perms.bulk_input;if(t.id==="customers")return!!perms.view_customers;if(t.id==="print")return!!perms.print_invoice;if(t.id==="deepseek"||t.id==="system")return isAdmin;return true;}).map(t=>(
         <button key={t.id} className={`nav-tab${view===t.id?" active":""}`}
           onClick={()=>{setView(t.id);setSelInv(null);setBulkStep(0);}}>
           {t.l}
@@ -3130,6 +3136,24 @@ return(
           company={company}
           onPurchaseSaved={()=>{}}
         />
+      </div>
+    )}
+
+    {view==="chat"&&(
+      <div style={{animation:"fadeUp .25s"}}>
+        <SmartChat company={company} />
+      </div>
+    )}
+
+    {view==="deepseek"&&(
+      <div style={{animation:"fadeUp .25s"}}>
+        <DeepSeekSettings company={company} />
+      </div>
+    )}
+
+    {view==="system"&&(
+      <div style={{animation:"fadeUp .25s"}}>
+        <BackupRecovery company={company} />
       </div>
     )}
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { num, parseIdParam, readBody, serializeInvoice } from "@/lib/serialize";
+import { invalidateInvoices } from "@/lib/cache";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -89,6 +90,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     if (paid !== undefined) updates.paid = num(paid);
 
     const updated = await db.invoice.update({ where: { id }, data: updates });
+    await invalidateInvoices(updated.companySlug ?? undefined);
     return NextResponse.json(serializeInvoice(updated));
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 400 });
@@ -110,6 +112,7 @@ export async function DELETE(_req: NextRequest, { params }: RouteContext) {
     }
 
     await db.invoice.delete({ where: { id } });
+    await invalidateInvoices(existing.companySlug ?? undefined);
     return new NextResponse(null, { status: 204 });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 400 });

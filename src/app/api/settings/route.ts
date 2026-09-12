@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { cacheWrap, invalidateSettings } from "@/lib/cache";
 
 /**
  * Server-side company settings (r9) — replaces localStorage-only persistence
@@ -37,21 +38,28 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "keys غير صالحة" }, { status: 400 });
   }
 
-  const rows = await db.setting.findMany({
-    where: { companySlug, key: { in: keys } },
-    select: { key: true, value: true, updatedAt: true },
-  });
+  const { settings, companySlug: slugOut } = await cacheWrap(
+    `settings:${companySlug}:${keysRaw}`,
+    60,
+    async () => {
+      const rows = await db.setting.findMany({
+        where: { companySlug, key: { in: keys } },
+        select: { key: true, value: true, updatedAt: true },
+      });
 
-  const settings: Record<string, unknown> = {};
-  for (const row of rows) {
-    try {
-      settings[row.key] = JSON.parse(row.value);
-    } catch {
-      settings[row.key] = null; // corrupted value → treat as absent
-    }
-  }
+      const settings: Record<string, unknown> = {};
+      for (const row of rows) {
+        try {
+          settings[row.key] = JSON.parse(row.value);
+        } catch {
+          settings[row.key] = null; // corrupted value → treat as absent
+        }
+      }
+      return { settings, companySlug };
+    },
+  );
 
-  return NextResponse.json({ settings, companySlug });
+  return NextResponse.json({ settings, companySlug: slugOut });
 }
 
 export async function PUT(req: NextRequest) {
@@ -94,6 +102,8 @@ export async function PUT(req: NextRequest) {
     create: { key, companySlug, value: serialized },
     select: { key: true, companySlug: true, value: true, updatedAt: true },
   });
+
+  await invalidateSettings(companySlug);
 
   return NextResponse.json({
     key: saved.key,

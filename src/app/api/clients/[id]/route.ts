@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { num, parseIdParam, readBody, serializeInvoice } from "@/lib/serialize";
+import { invalidateClients } from "@/lib/cache";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -69,6 +70,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     }
 
     const updated = await db.client.update({ where: { id }, data: updates });
+    await invalidateClients();
     return NextResponse.json(updated);
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 400 });
@@ -90,6 +92,7 @@ export async function DELETE(_req: NextRequest, { params }: RouteContext) {
     }
 
     await db.client.delete({ where: { id } });
+    await invalidateClients();
     return new NextResponse(null, { status: 204 });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 400 });

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Payment } from "@prisma/client";
 import { db } from "@/lib/db";
 import { num, parseIdParam, readBody, todayISODate } from "@/lib/serialize";
+import { invalidateInvoices } from "@/lib/cache";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -101,6 +102,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       return payment;
     });
 
+    await invalidateInvoices(undefined);
     return NextResponse.json(serializePayment(created), { status: 201 });
   } catch (err) {
     if (err instanceof PaymentRouteError) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { num, parseIdParam } from "@/lib/serialize";
+import { invalidateInvoices } from "@/lib/cache";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -46,6 +47,7 @@ export async function DELETE(_req: NextRequest, { params }: RouteContext) {
       await tx.payment.delete({ where: { id } });
     });
 
+    await invalidateInvoices(undefined);
     return new NextResponse(null, { status: 204 });
   } catch (err) {
     if (err instanceof PaymentRouteError) {

@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { readBody, serializePurchaseInvoice, todayISODate } from "@/lib/serialize";
+import { cacheWrap, cacheDelPattern } from "@/lib/cache";
 
-// GET /api/purchase-invoices?companySlug=
+// GET /api/purchase-invoices?companySlug= — (r10: كاش Valkey 30 ثانية)
 export async function GET(req: NextRequest) {
   try {
     const companySlug = req.nextUrl.searchParams.get("companySlug") ?? undefined;
 
-    const rows = await db.purchaseInvoice.findMany({
-      where: companySlug ? { companySlug } : {},
-      orderBy: { createdAt: "desc" },
-    });
+    const rows = await cacheWrap(`purchases:${companySlug ?? "all"}`, 30, () =>
+      db.purchaseInvoice.findMany({
+        where: companySlug ? { companySlug } : {},
+        orderBy: { createdAt: "desc" },
+      }),
+    );
 
     return NextResponse.json(rows.map(serializePurchaseInvoice));
   } catch (err) {
@@ -38,6 +41,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    await cacheDelPattern("purchases:*");
     return NextResponse.json(serializePurchaseInvoice(created), { status: 201 });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 400 });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { parseIdParam, readBody, serializeInvoice } from "@/lib/serialize";
+import { invalidateInvoices } from "@/lib/cache";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -29,6 +30,7 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
       data: { status: String(status) },
     });
 
+    await invalidateInvoices(updated.companySlug ?? undefined);
     return NextResponse.json(serializeInvoice(updated));
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 400 });
