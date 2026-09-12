@@ -59,6 +59,18 @@ const fDate= s => { if(!s)return""; const[y,m,d]=s.split("-"); return`${d}/${m}/
 const today= ()=> new Date().toISOString().split("T")[0];
 const addD = (s,n)=>{ const d=new Date(s); d.setDate(d.getDate()+n); return d.toISOString().split("T")[0]; };
 const norm = p => toW(String(p||"")).replace(/[^\d+]/g,"");
+// r9: canonical Kuwaiti phone key — digits only with a leading 965 country-code stripped,
+// so "+96595544332", "96595554433" and "95544332" all group to "95544332" (8-digit local).
+// Used for customer aggregation, credit-limit keys and outstanding balances ONLY (display keeps the original).
+const phKey = p => { const d=norm(p||"").replace(/^\+/g,""); return /^965\d{8}$/.test(d)?d.slice(3):d; };
+// r9: credit-limit lookup tolerant to legacy norm-keyed maps (canonical phKey first, exact-norm fallback)
+const creditLimitOf=(map,phone)=>{
+  const k=phKey(phone||"");
+  if(!k)return 0;
+  if(map&&map[k]!=null)return pN(map[k]);
+  const n=norm(phone||"");
+  return pN((map&&map[n])||0);
+};
 const iT   = inv => inv.items.reduce((s,it)=>s+pN(it.qty)*pN(it.price),0)+pN(inv.shipping||0);
 const nxtN = list=>{ const ns=list.map(i=>parseInt(i.invNum?.replace(/\D/g,"")||0)); return"INV"+(Math.max(0,...ns)+1); };
 const getStatus = inv => { if(inv.status==='cancelled')return'cancel'; const tot=iT(inv);const paid=pN(inv.paid||0); return paid>=tot?"paid":paid>0?"part":"unp"; };
@@ -97,8 +109,8 @@ const waReminderHref = (inv, company) => {
   return `https://wa.me/965${phone}?text=${encodeURIComponent(lines.join("\n"))}`;
 };
 
-// ── Fire-and-forget audit log for every sent WhatsApp reminder ──
-function logReminderSent(inv, company, href){
+// ── Fire-and-forget audit log for every sent WhatsApp reminder / payment request / statement ──
+function logReminderSent(inv, company, href, channel){
   try{
     let message=null;
     if(href){ const m=href.split("text=")[1]; if(m){ try{ message=decodeURIComponent(m).slice(0,1500); }catch{} } }
@@ -107,7 +119,7 @@ function logReminderSent(inv, company, href){
       clientPhone: inv.clientPhone||null,
       clientName: inv.clientName||null,
       companySlug: company?.sk||null,
-      channel: "whatsapp",
+      channel: channel||"whatsapp",
       message,
       amount: Math.max(0, iT(inv)-pN(inv.paid||0)),
     }).then(()=>{ try{ window.dispatchEvent(new CustomEvent("reminder-logged",{detail:{invoiceId:inv.id}})); }catch{} })
@@ -120,9 +132,14 @@ function dbGet(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):nul
 function dbSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
 
 // ── Per-company payment-gateway link template (KNET / KPay / MyFatoorah) ──
-// Stored in localStorage as tw_paylink_{companyId}; supports {amount}, {invoice}, {phone} placeholders.
+// localStorage tw_paylink_{companyId} = instant cache; server Setting "paylink_tpl" (r9) = cross-device sync.
+// Supports {amount}, {invoice}, {phone} placeholders.
 function getPayLinkTpl(companyId){ try{ return localStorage.getItem("tw_paylink_"+(companyId||"")) || ""; }catch{ return ""; } }
-function setPayLinkTpl(companyId, tpl){ try{ localStorage.setItem("tw_paylink_"+(companyId||""), String(tpl||"").trim()); }catch{} }
+function setPayLinkTpl(company, tpl){
+  const v=String(tpl||"").trim();
+  try{ localStorage.setItem("tw_paylink_"+(company?.id||""), v); }catch{}
+  if(company?.sk) api.saveSetting(company.sk,"paylink_tpl",v).catch(()=>{}); // r9 write-through to server
+}
 function buildPayLink(tpl, inv, amount){
   if(!tpl) return "";
   return String(tpl)
@@ -146,16 +163,52 @@ function payRequestMessage(inv, company, amount, link){
 }
 const waHrefWithText=(phone,text)=>`https://wa.me/965${norm(phone||"").replace(/^\+?965/,"")}?text=${encodeURIComponent(text)}`;
 
-// ── Per-company client credit limits: localStorage tw_credit_{companyId} → { [phone]: limitKD } ──
+// ── Per-company client credit limits: { [phone]: limitKD } ──
+// localStorage tw_credit_{companyId} = instant cache; server Setting "credit" (r9) = cross-device sync.
 function loadCreditMap(companyId){ try{ const v=JSON.parse(localStorage.getItem("tw_credit_"+(companyId||""))||"{}"); return (v&&typeof v==="object")?v:{}; }catch{ return {}; } }
-function saveCreditMap(companyId,map){ try{ localStorage.setItem("tw_credit_"+(companyId||""),JSON.stringify(map||{})); }catch{} }
+function saveCreditMap(company,map){
+  try{ localStorage.setItem("tw_credit_"+(company?.id||""),JSON.stringify(map||{})); }catch{}
+  if(company?.sk) api.saveSetting(company.sk,"credit",map||{}).catch(()=>{}); // r9 write-through to server
+}
+// r9: pull server-side settings into the local caches (server wins; migrates legacy local-only data up).
+// Returns the server credit map when present (null otherwise) so callers can update their state.
+async function syncSettingsFromServer(company){
+  if(!company?.sk)return null;
+  try{
+    const s=await api.getSettings(company.sk,["paylink_tpl","credit","credit_block"]);
+    if(typeof s.paylink_tpl==="string"){
+      try{ localStorage.setItem("tw_paylink_"+company.id,s.paylink_tpl); }catch{}
+    }else{
+      const local=getPayLinkTpl(company.id);
+      if(local) api.saveSetting(company.sk,"paylink_tpl",local).catch(()=>{}); // migrate legacy local value up
+    }
+    if(typeof s.credit_block==="string"){
+      try{ localStorage.setItem("tw_credit_block_"+company.id,s.credit_block); }catch{}
+    }
+    if(s.credit&&typeof s.credit==="object"&&Object.keys(s.credit).length>0){
+      try{ localStorage.setItem("tw_credit_"+company.id,JSON.stringify(s.credit)); }catch{}
+      return s.credit;
+    }
+    const localMap=loadCreditMap(company.id);
+    if(Object.keys(localMap).length>0) api.saveSetting(company.sk,"credit",localMap).catch(()=>{}); // migrate legacy
+    return null;
+  }catch{ return null; }
+}
+// r9: credit hard-block flag (per company) — when "1", non-admin users cannot SAVE an invoice
+// that pushes the client over their credit limit; admins save with a warning only.
+function getCreditBlock(companyId){ try{ return localStorage.getItem("tw_credit_block_"+(companyId||""))==="1"; }catch{ return false; } }
+function setCreditBlock(company,on){
+  try{ localStorage.setItem("tw_credit_block_"+(company?.id||""),on?"1":"0"); }catch{}
+  if(company?.sk) api.saveSetting(company.sk,"credit_block",on?"1":"0").catch(()=>{});
+}
 // Outstanding balance for one client phone (non-cancelled invoices, remaining after payments)
+// r9: matches via phKey so +965 / 965 / local spellings of the same number all count.
 function outstandingOf(invoices, phone){
-  const ph=norm(phone||"");
+  const ph=phKey(phone||"");
   if(!ph) return 0;
   return invoices.reduce((s,inv)=>{
     if(inv.status==="cancelled") return s;
-    if(norm(inv.clientPhone||"")!==ph) return s;
+    if(phKey(inv.clientPhone||"")!==ph) return s;
     return s+Math.max(0,iT(inv)-pN(inv.paid||0));
   },0);
 }
@@ -684,7 +737,8 @@ ${inv.notes?`<div style="border:${boxBorder};border-radius:${S.id==="minimal"?"0
 
 </div></div>`;
 });
-return `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8">
+const printDocTitle=invList.length===1?`فاتورة ${invList[0].invNum||invList[0].invoiceNumber||invList[0].id} — ${c.nameAr}`:`فواتير (${invList.length}) — ${c.nameAr}`;
+return `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>${printDocTitle}</title>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -1474,7 +1528,7 @@ return(
 
 // ─── Customers ────────────────────────────────────────────────────
 function Customers({invoices, company, onImportDone, onOpenInvoice, clients, refreshClients, toast_, printStyle}){
-const { perms } = useAuth();
+const { perms, isAdmin } = useAuth();
 const { dark } = useTheme();
 const col = company.color;
 const colTx = txAdapt(col, dark);
@@ -1484,23 +1538,44 @@ const [sort,setSort]=useState("spent");
 const [showImport,setShowImport]=useState(false);
 const [selCustomer,setSelCustomer]=useState(null);
 const [stmtBusy,setStmtBusy]=useState(false);
+// r9: credit hard-block enforcement flag (admin-controlled, synced server-side)
+const [creditBlock,setCreditBlockState]=useState(()=>getCreditBlock(company?.id));
+const toggleCreditBlock=()=>{
+  const v=!creditBlock;
+  setCreditBlockState(v);
+  setCreditBlock(company,v);
+  toast_(v?"⛔ تم تفعيل المنع الصارم لتجاوز حدود الائتمان — لن يستطيع غير المديرين حفظ فواتير متجاوزة":"✅ تم تعطيل المنع الصارم — سيقتصر الأمر على التحذير فقط");
+};
 // ── Credit limits (per-company, localStorage) ──
 const [creditMap,setCreditMap]=useState(()=>loadCreditMap(company?.id));
 const [creditCo,setCreditCo]=useState(company?.id);
 const [creditInput,setCreditInput]=useState("");
 const [creditFor,setCreditFor]=useState(null);
 // render-time sync when company or selected customer changes (lint-clean pattern, like `company` derivation)
-if(creditCo!==company?.id){ setCreditCo(company?.id); setCreditMap(loadCreditMap(company?.id)); setCreditInput(""); }
+if(creditCo!==company?.id){ setCreditCo(company?.id); setCreditMap(loadCreditMap(company?.id)); setCreditInput(""); setCreditBlockState(getCreditBlock(company?.id)); }
 if(selCustomer&&creditFor!==norm(selCustomer.phone)){ setCreditFor(norm(selCustomer.phone)); setCreditInput(""); }
 
+// r9: pull server-side credit limits + hard-block flag (cross-device sync — server map replaces local cache)
+useEffect(()=>{
+  let live=true;
+  if(!company?.sk)return;
+  syncSettingsFromServer(company).then(map=>{
+    if(!live)return;
+    setCreditBlockState(getCreditBlock(company.id));
+    if(!map)return;
+    setCreditMap(prev=>JSON.stringify(prev)===JSON.stringify(map)?prev:map);
+  });
+  return()=>{live=false;};
+},[company?.sk]);
+
 const saveCredit=()=>{
-  const ph=norm(selCustomer?.phone||"");
+  const ph=phKey(selCustomer?.phone||"");
   if(!ph)return;
   const map={...creditMap};
   const v=pN(creditInput);
   if(v>0)map[ph]=v; else delete map[ph];
   setCreditMap(map);
-  saveCreditMap(company.id,map);
+  saveCreditMap(company,map);
   toast_(v>0?`✅ تم تعيين حد الائتمان ${fKWD(v)}`:"🗑️ تم إزالة حد الائتمان");
 };
 
@@ -1509,7 +1584,7 @@ const exportStatement=async cust=>{
   if(stmtBusy||!cust)return;
   try{
     setStmtBusy(true);
-    const custInvs=invoices.filter(inv=>(inv.clientPhone||"")===cust.phone);
+    const custInvs=invoices.filter(inv=>phKey(inv.clientPhone||"")===phKey(cust.phone));
     const enriched=await Promise.all(custInvs.map(async inv=>{
       let pays=[];
       try{ pays=(await api.listPayments(inv.id))||[]; }catch{}
@@ -1531,10 +1606,59 @@ const exportStatement=async cust=>{
   }
 };
 
+// ── r9: concise account-statement summary over WhatsApp (logged as channel "statement") ──
+const statementSummaryOf=cust=>{
+  const custInvs=invoices.filter(inv=>phKey(inv.clientPhone||"")===phKey(cust.phone)&&inv.status!=="cancelled");
+  const billed=custInvs.reduce((s,i)=>s+iT(i),0);
+  const paid=custInvs.reduce((s,i)=>s+pN(i.paid||0),0);
+  const bal=Math.max(0,billed-paid);
+  const openInvs=custInvs.filter(i=>iT(i)-pN(i.paid||0)>0.0001);
+  const oldest=openInvs.reduce((m,i)=>Math.max(m,overdueDays(i)),0);
+  return{custInvs,billed,paid,bal,oldest};
+};
+const statementWaHref=cust=>{
+  if(!cust?.phone)return "";
+  const {custInvs,billed,paid,bal,oldest}=statementSummaryOf(cust);
+  const lines=[
+    `عميلنا العزيز ${cust.name}،`,
+    `📋 كشف حساب من ${company.nameAr} حتى ${new Date().toLocaleDateString("ar-KW")}`,
+    `🧾 عدد الفواتير: ${custInvs.length}`,
+    `💰 إجمالي المبيعات: ${fKWD(billed)}`,
+    `✅ المدفوع: ${fKWD(paid)}`,
+    bal>0?`⏳ الرصيد المستحق: ${fKWD(bal)}`:`🎉 لا يوجد رصيد مستحق — حسابكم مسدد بالكامل`,
+    bal>0&&oldest>0?`⏰ أقدم استحقاق متأخر: ${oldest} يوم`:"",
+    bal>0?`نرجو التكرم بمراجعة الحساب وتسوية الرصيد، ويمكننا إرسال كشف حساب PDF مفصل عند الطلب.`:"",
+    `شكراً لتعاونكم 🌹`,
+    `${company.nameAr} — ${company.phone}`,
+  ].filter(Boolean);
+  return waHrefWithText(cust.phone,lines.join("\n"));
+};
+const sendStatementWa=cust=>{
+  const href=statementWaHref(cust);
+  if(!href){toast_("لا يوجد رقم هاتف لهذا العميل","warn");return;}
+  const {bal}=statementSummaryOf(cust);
+  try{
+    api.logReminder({
+      invoiceId:null,
+      clientPhone:cust.phone||null,
+      clientName:cust.name||null,
+      companySlug:company?.sk||null,
+      channel:"statement",
+      message:decodeURIComponent(href.split("text=")[1]||"").slice(0,1500),
+      amount:bal,
+    }).then(()=>{try{window.dispatchEvent(new CustomEvent("reminder-logged",{detail:{invoiceId:null}}));}catch{}}).catch(()=>{});
+  }catch{}
+  toast_("📣 تم فتح محادثة كشف الحساب");
+};
+
 const map={};
+// r9: group by canonical phKey so phone spellings (+965 / 965 / local) merge into one customer;
+// the DISPLAY phone upgrades to the longest spelling seen (nicest for calls/WhatsApp).
 [...invoices].sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt)).forEach(inv=>{
-const ph=inv.clientPhone||"";
+const ph=phKey(inv.clientPhone||"");
 if(!map[ph])map[ph]={phone:ph,name:inv.clientName||ph||"—",address:inv.clientAddress||"",totalSpent:0,count:0,lastDate:"",firstDate:inv.date,products:[]};
+const rawPh=inv.clientPhone||"";
+if(rawPh.length>map[ph].phone.length)map[ph].phone=rawPh;
 map[ph].totalSpent+=iT(inv);map[ph].count+=1;
 if(!map[ph].lastDate||inv.date>map[ph].lastDate)map[ph].lastDate=inv.date;
 inv.items.forEach(it=>{if(it.name&&!map[ph].products.includes(it.name))map[ph].products.push(it.name);});
@@ -1543,7 +1667,7 @@ let customers=Object.values(map);
 if(search){const s=toW(search).toLowerCase();customers=customers.filter(c=>c.phone.includes(s)||c.name.toLowerCase().includes(s));}
 customers.sort((a,b)=>sort==="spent"?b.totalSpent-a.totalSpent:sort==="count"?b.count-a.count:b.lastDate.localeCompare(a.lastDate));
 
-const customerInvoices=selCustomer?invoices.filter(inv=>(inv.clientPhone||"")===selCustomer.phone).sort((a,b)=>new Date(b.date||0)-new Date(a.date||0)):[];
+const customerInvoices=selCustomer?invoices.filter(inv=>phKey(inv.clientPhone||"")===phKey(selCustomer.phone)).sort((a,b)=>new Date(b.date||0)-new Date(a.date||0)):[];
 
 return(
 <div>
@@ -1582,6 +1706,17 @@ onClose={()=>setShowImport(false)}
         style={{background:stmtBusy?"#991b1b":"#dc2626",border:"none",color:"#fff",borderRadius:"8px",padding:"9px 16px",fontFamily:"inherit",fontSize:"12.5px",fontWeight:800,cursor:stmtBusy?"wait":"pointer",boxShadow:"0 2px 8px rgba(0,0,0,.15)"}}>
         {stmtBusy?"⏳ جاري التجهيز…":"📄 كشف حساب PDF"}
       </button>
+      {selCustomer.phone&&(()=>{ // r9: WhatsApp statement summary (balance-aware label)
+        const {bal}=statementSummaryOf(selCustomer);
+        return(
+        <a href={statementWaHref(selCustomer)} target="_blank" rel="noopener noreferrer" className="btn wa-btn"
+          title="إرسال ملخص كشف الحساب عبر واتساب: عدد الفواتير، إجمالي المبيعات، المدفوع والرصيد المستحق — يُسجَّل في سجل التحصيل"
+          onClick={()=>sendStatementWa(selCustomer)}
+          style={{color:"#fff",textDecoration:"none",padding:"9px 16px"}}>
+          {bal>0?`📨 كشف الحساب واتساب (${fKWD(bal)})`:"📨 كشف الحساب واتساب"}
+        </a>
+        );
+      })()}
       {selCustomer.phone&&(
         <>
         <a href={`https://wa.me/965${selCustomer.phone.replace(/^\+?965/,"")}`} target="_blank" rel="noopener noreferrer" className="btn" style={{background:"#16a34a",color:"#fff",textDecoration:"none",padding:"9px 16px"}}>💬 واتساب</a>
@@ -1617,8 +1752,7 @@ onClose={()=>setShowImport(false)}
 
     {/* Credit limit & outstanding */}
     {selCustomer.phone&&(()=>{
-      const ph=norm(selCustomer.phone);
-      const limit=pN(creditMap[ph]||0);
+      const limit=creditLimitOf(creditMap,selCustomer.phone);
       const hasLimit=limit>0;
       const out=outstandingOf(invoices,selCustomer.phone);
       const pct=hasLimit?Math.min(999,out/limit*100):0;
@@ -1633,7 +1767,7 @@ onClose={()=>setShowImport(false)}
         :hasLimit
         ?{t:"🟢 ضمن الحد الآمن",c:"var(--ia-ok-tx)",bg:"var(--ia-ok-bg)",bd:"#86efac55"}
         :null;
-      const shown=creditInput!==""?creditInput:(hasLimit?String(creditMap[ph]||""):"");
+      const shown=creditInput!==""?creditInput:(hasLimit?String(creditLimitOf(creditMap,selCustomer.phone)||""):"");
       return(
       <div style={{background:"var(--ia-soft)",border:"1px solid var(--ia-border)",borderRadius:"10px",padding:"13px 15px",marginBottom:"16px"}}>
         <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"9px",flexWrap:"wrap"}}>
@@ -1727,13 +1861,13 @@ onClick={()=>setShowImport(true)}
 </button>
 {!!perms.export_data&&<button className="btn" style={{background:col,color:"#fff",whiteSpace:"nowrap"}} onClick={()=>exportMetaAudience(invoices)}>⬇️ تصدير Excel للميتا</button>}
 </div>
-<div style={{display:"grid",gridTemplateColumns:customers.some(c=>pN(creditMap[norm(c.phone)]||0)>0)?"repeat(auto-fit,minmax(150px,1fr))":"repeat(3,1fr)",gap:"10px",marginBottom:"14px"}}>
+<div style={{display:"grid",gridTemplateColumns:customers.some(c=>creditLimitOf(creditMap,c.phone)>0)?"repeat(auto-fit,minmax(150px,1fr))":"repeat(3,1fr)",gap:"10px",marginBottom:"14px"}}>
 {[
 {l:"إجمالي العملاء",v:customers.length+" عميل",c:colTx,bg:cardBg},
 {l:"إجمالي الإنفاق",v:fKWD(customers.reduce((s,c)=>s+c.totalSpent,0)),c:txAdapt("#16a34a",dark),bg:softAdapt("#dcfce7",dark)},
 {l:"متوسط الإنفاق / عميل",v:fKWD(customers.length?customers.reduce((s,c)=>s+c.totalSpent,0)/customers.length:0),c:txAdapt("#7c3aed",dark),bg:softAdapt("#ede9fe",dark)},
-...(customers.some(c=>pN(creditMap[norm(c.phone)]||0)>0)?[(()=>{
-  const overN=customers.filter(c=>{const l=pN(creditMap[norm(c.phone)]||0);return l>0&&outstandingOf(invoices,c.phone)>l;}).length;
+...(customers.some(c=>creditLimitOf(creditMap,c.phone)>0)?[(()=>{
+  const overN=customers.filter(c=>{const l=creditLimitOf(creditMap,c.phone);return l>0&&outstandingOf(invoices,c.phone)>l;}).length;
   return{l:"متجاوزو حد الائتمان",v:overN+" عميل",c:overN>0?txAdapt("#dc2626",dark):txAdapt("#16a34a",dark),bg:overN>0?softAdapt("#fee2e2",dark):softAdapt("#dcfce7",dark)};
 })()]:[]),
 ].map(s=>(
@@ -1743,6 +1877,22 @@ onClick={()=>setShowImport(true)}
 </div>
 ))}
 </div>
+
+{/* r9: credit hard-block enforcement toggle (admins only) */}
+{isAdmin&&customers.some(c=>creditLimitOf(creditMap,c.phone)>0)&&(
+<div style={{display:"flex",alignItems:"center",gap:"12px",flexWrap:"wrap",background:creditBlock?"var(--ia-red-bg)":"var(--ia-soft)",border:`1.5px solid ${creditBlock?"var(--ia-red-bd)":"var(--ia-border2)"}`,borderRadius:"10px",padding:"11px 16px",marginBottom:"14px"}}>
+<span style={{fontSize:"18px"}}>{creditBlock?"⛔":"🟢"}</span>
+<div style={{flex:1,minWidth:"220px"}}>
+<div style={{fontSize:"13px",fontWeight:900,color:creditBlock?"var(--ia-red-tx)":"var(--ia-text)"}}>المنع الصارم لتجاوز حدود الائتمان</div>
+<div style={{fontSize:"11px",color:"var(--ia-sub)",lineHeight:1.6}}>{creditBlock?"مُفعّل: لا يستطيع غير المديرين حفظ فاتورة تتجاوز حد ائتمان العميل — يُطبَّق على مستوى الشركة ويُزامن عبر الأجهزة.":"غير مُفعّل: يتجاوز الحد يُظهر تحذيراً فقط دون منع الحفظ."}</div>
+</div>
+<button onClick={toggleCreditBlock}
+title="تبديل سياسة إنفاذ حدود الائتمان لهذه الشركة"
+style={{background:creditBlock?"#dc2626":col,color:"#fff",border:"none",borderRadius:"8px",padding:"8px 16px",fontFamily:"inherit",fontSize:"12.5px",fontWeight:800,cursor:"pointer",boxShadow:"0 2px 8px rgba(0,0,0,.12)",whiteSpace:"nowrap"}}>
+{creditBlock?"🚫 تعطيل المنع الصارم":"🔒 تفعيل المنع الصارم"}
+</button>
+</div>
+)}
 {customers.length===0?(
 <div className="card" style={{padding:"48px",textAlign:"center",color:"var(--ia-muted)"}}><div style={{fontSize:"40px",marginBottom:"10px"}}>👥</div><div style={{fontWeight:600}}>لا توجد عملاء</div></div>
 ):(
@@ -1765,7 +1915,7 @@ className="trow">
 <td style={{padding:"11px 12px",color:"var(--ia-sub)",fontSize:"12px"}}>{fDate(c.lastDate)}</td>
 <td className="col-credit" style={{padding:"11px 12px"}}>{(()=>{
   const out=outstandingOf(invoices,c.phone);
-  const lim=pN(creditMap[norm(c.phone)]||0);
+  const lim=creditLimitOf(creditMap,c.phone);
   const over=lim>0&&out>lim;
   return(
   <span style={{fontSize:"12px",fontWeight:800,color:out<=0?"var(--ia-muted)":over?"var(--ia-red-tx)":"var(--ia-warn-tx)"}}>
@@ -1807,6 +1957,17 @@ const [amount, setAmount] = useState(String(remaining.toFixed(3)));
 const [tpl, setTpl] = useState(() => getPayLinkTpl(company?.id));
 const [showCfg, setShowCfg] = useState(false);
 const [copied, setCopied] = useState(false);
+// r9: reconcile with the server-side company setting (cross-device sync) on mount
+useEffect(()=>{
+  let live=true;
+  if(!company?.sk)return;
+  api.getSettings(company.sk,["paylink_tpl"]).then(s=>{
+    if(!live||typeof s.paylink_tpl!=="string")return;
+    try{ localStorage.setItem("tw_paylink_"+(company?.id||""),s.paylink_tpl); }catch{}
+    setTpl(prev=>prev!==s.paylink_tpl?s.paylink_tpl:prev);
+  }).catch(()=>{});
+  return()=>{live=false;};
+},[company?.sk]);
 const amt = pN(amount) || 0;
 const link = buildPayLink(tpl, inv, amt);
 const msg = payRequestMessage(inv, company, amt, link);
@@ -1829,8 +1990,8 @@ const copyLink = async () => {
 };
 
 const saveTpl = () => {
-  setPayLinkTpl(company?.id, tpl);
-  toast_(tpl.trim() ? "✅ تم حفظ قالب بوابة الدفع" : "🗑️ تم مسح قالب بوابة الدفع");
+  setPayLinkTpl(company, tpl);
+  toast_(tpl.trim() ? "✅ تم حفظ قالب بوابة الدفع (يتزامن عبر أجهزتك)" : "🗑️ تم مسح قالب بوابة الدفع");
 };
 
 return(
@@ -1883,7 +2044,7 @@ return(
           <input className="inp" dir="ltr" style={{fontFamily:"monospace",fontSize:"11.5px"}} placeholder="https://kpay.com.kw/pay/XXXX?amt={amount}" value={tpl} onChange={e=>setTpl(e.target.value)}/>
           <button className="btn" style={{background:teal,color:"#fff",whiteSpace:"nowrap"}} onClick={saveTpl}>💾 حفظ</button>
         </div>
-        <div style={{fontSize:"10.5px",color:"var(--ia-muted)",marginTop:"6px"}}>يُحفظ محلياً لهذه الشركة فقط ({company?.nameAr})</div>
+        <div style={{fontSize:"10.5px",color:"var(--ia-muted)",marginTop:"6px"}}>💾 يُحفظ لشركة {company?.nameAr} على الخادم — يتزامن تلقائياً عبر كل الأجهزة</div>
       </div>
     )}
     {!showCfg && link && (
@@ -1902,7 +2063,7 @@ return(
     <button className="btn" style={{background:teal,color:"#fff",flex:1,justifyContent:"center"}} onClick={copyLink}>{copied?"✅ تم النسخ":"📋 نسخ رابط الدفع"}</button>
     {hasPhone && (
       <a href={waHref} target="_blank" rel="noopener noreferrer" className="btn wa-btn" style={{color:"#fff",textDecoration:"none",flex:1,justifyContent:"center"}}
-        onClick={()=>logReminderSent(inv,company,waHref)}>📣 إرسال واتساب</a>
+        onClick={()=>logReminderSent(inv,company,waHref,"payment_request")}>📣 إرسال واتساب</a>
     )}
     <button className="btn btn-ghost" onClick={onClose}>إغلاق</button>
   </div>
@@ -2040,6 +2201,7 @@ const [bulkStep,setBulkStep]=useState(0);
 const [toast,setToast]=useState(null);
 const [pdfBusy,setPdfBusy]=useState(false);
 const [printStyle,setPrintStyle]=useState("classic");
+const [,setSettingsTick]=useState(0); // r9: re-render tick after server settings land (credit banner in the new-invoice form re-reads localStorage)
 const setPStyle=v=>{setPrintStyle(v);try{localStorage.setItem("tw_print_style_"+(company?.id||""),v);}catch{}};
 const [delModal,setDelModal]=useState(null);
 const [showAliphia,setShowAliphia]=useState(false);
@@ -2080,6 +2242,17 @@ useEffect(()=>{
   let v="classic";
   try{ v=localStorage.getItem("tw_print_style_"+company.id)||localStorage.getItem("tw_print_style")||"classic"; }catch{}
   setPrintStyle(v);
+},[company?.id]);
+
+// r9: sync server-side company settings (pay-link template + credit limits) into the
+// localStorage caches whenever the company changes; server wins, legacy local-only
+// values are migrated up. Bumping the tick re-renders the new-invoice form so its
+// live credit-limit banner re-reads the refreshed cache.
+useEffect(()=>{
+  if(!company)return;
+  let live=true;
+  syncSettingsFromServer(company).then(()=>{ if(live)setSettingsTick(t=>t+1); });
+  return()=>{live=false;};
 },[company?.id]);
 
 const refreshInvoices = useCallback(async () => {
@@ -2205,6 +2378,22 @@ const saveInvoice=async()=>{
 if(!form.clientPhone&&!form.clientName){toast_("يرجى إدخال التلفون أو الاسم","warn");return;}
 const phone=norm(form.clientPhone);
 const name=form.clientName||phone||"عميل";
+// r9: credit hard-block — when the company enforces limits and the client would exceed
+// theirs, non-admin users are blocked from saving (admins proceed with a warning toast).
+{
+  const lim=creditLimitOf(loadCreditMap(company.id),phone);
+  if(lim>0&&getCreditBlock(company.id)){
+    const out=outstandingOf(invoices,phone);
+    const sub=form.items.reduce((s,it)=>s+(parseInt(toW(it.qty))||1)*pN(it.price),0)+pN(form.shipping);
+    if(out+sub>lim){
+      if(!isAdmin){
+        toast_(`⛔ منع الحفظ — تجاوز حد الائتمان: الرصيد ${fKWD(out)} + هذه الفاتورة ${fKWD(sub)} = ${fKWD(out+sub)} (الحد ${fKWD(lim)}). يرجى التحصيل أولاً أو مراجعة الإدارة.`,"err");
+        return;
+      }
+      toast_(`⚠️ تم تجاوز حد الائتمان بفارق ${fKWD(out+sub-lim)} — الحفظ مسموح لك بصفتك مدير النظام`,"warn");
+    }
+  }
+}
 const newInv={id:Date.now(),invNum:nxtN(invoices),clientName:name,clientPhone:phone,
 clientAddress:form.clientAddress,items:form.items.map(it=>({...it,qty:parseInt(toW(it.qty))||1,price:pN(it.price)})),
 shipping:pN(form.shipping),date:form.date,dueDate:form.dueDate,paid:pN(form.paid),notes:form.notes,createdAt:new Date().toISOString()};
@@ -2323,7 +2512,7 @@ const cardBg = softAdapt(company.cardBg, dark); // soft tinted surface (KPI/summ
 
 return(
 <div dir="rtl" style={{minHeight:"100vh",background:"var(--ia-bg)",fontFamily:"'Cairo','Tajawal',sans-serif",color:"var(--ia-text)",display:"flex",flexDirection:"column"}}>
-<style>{`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap'); *{box-sizing:border-box} .inp{width:100%;border:1.5px solid var(--ia-border2);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:13px;background:var(--ia-inp-bg);color:var(--ia-text);outline:none;transition:border .15s,box-shadow .15s} .inp:focus{border-color:${col};box-shadow:0 0 0 3px ${col}1a} .inp:hover{border-color:var(--ia-muted)} .inp::placeholder{color:var(--ia-muted)} .btn{border:none;border-radius:8px;padding:9px 16px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap} .btn:hover{filter:brightness(1.06);box-shadow:0 2px 10px rgba(0,0,0,.12)} .btn:active{opacity:.85;transform:scale(.97)} .btn-ghost{background:var(--ia-ghost-bg);color:var(--ia-ghost-tx)} .btn-outline{background:transparent;border:1.5px solid var(--ia-border2);color:var(--ia-text2)} .btn-outline:hover{border-color:${col};color:${colTx}} .btn-red{background:#dc2626;color:#fff} .card{background:var(--ia-card);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);border:1px solid var(--ia-border)} [data-theme="dark"] .card{box-shadow:0 1px 3px rgba(0,0,0,.35)} .trow{transition:background .12s} .trow:hover,.trow:active{background:var(--ia-hover);cursor:pointer} .inv-table tbody tr:last-child td{border-bottom:none} .b-paid{background:var(--ia-ok-bg);color:var(--ia-ok-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-paid::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-ok-tx);margin-left:5px;vertical-align:middle} .b-part{background:var(--ia-warn-bg);color:var(--ia-warn-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-part::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-warn-tx);margin-left:5px;vertical-align:middle} .b-unp{background:var(--ia-red-bg);color:var(--ia-red-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-unp::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-red-tx);margin-left:5px;vertical-align:middle} .b-cancel{background:var(--ia-chip);color:var(--ia-sub);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;text-decoration:line-through} .b-inv{background:var(--ia-blue-bg);color:var(--ia-blue-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;letter-spacing:.3px} @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}} @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}} .navbar{background:${col};position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,.25)} .navbar-top{display:flex;align-items:center;padding:0 12px;height:48px;gap:6px} .navbar-tabs{display:flex;overflow-x:auto;padding:4px 12px 6px;gap:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none} .navbar-tabs::-webkit-scrollbar{display:none} .aliphia-btn{background:#0f766e;} .nav-tab{background:transparent;color:rgba(255,255,255,.7);border:1px solid transparent;border-radius:6px;padding:5px 11px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s} .nav-tab:hover{color:#fff;background:rgba(255,255,255,.08)} .nav-tab.active{background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.25)} .nav-tab:active{background:rgba(255,255,255,.2)} .inv-table{width:100%;border-collapse:collapse} .inv-table th{padding:10px 10px;font-size:11px;font-weight:700;color:var(--ia-sub);text-align:right;text-transform:uppercase;letter-spacing:.3px} .inv-table td{padding:10px 10px;border-bottom:1px solid var(--ia-border3);font-size:13px} .col-addr,.col-date,.col-phone,.col-credit{display:none} @media(min-width:500px){.col-phone{display:table-cell}} @media(min-width:680px){.col-date{display:table-cell}.col-credit{display:table-cell}} .form-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px} .form-3col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px} .item-row{display:grid;grid-template-columns:2fr 65px 110px auto;gap:7px;margin-bottom:7px;align-items:center} @media(max-width:500px){.form-2col{grid-template-columns:1fr}.form-3col{grid-template-columns:1fr 1fr}.item-row{grid-template-columns:1fr 55px 90px auto}} .kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px} .kpi-grid>div{transition:transform .18s,box-shadow .18s} .kpi-grid>div:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.08)} @media(min-width:600px){.kpi-grid{grid-template-columns:repeat(4,1fr)}} .chart-grid{display:grid;grid-template-columns:1fr;gap:12px} @media(min-width:680px){.chart-grid{grid-template-columns:1.7fr 1fr}} .print-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end} @media(max-width:480px){.print-grid{grid-template-columns:1fr 1fr;} .print-grid .print-btn{grid-column:1/-1}} .cust-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px} @media(max-width:480px){.cust-stats{grid-template-columns:1fr}} .aliphia-btn{background:linear-gradient(135deg,#0f766e,#0d9488)!important;border:none;box-shadow:0 2px 8px rgba(15,118,110,.3);transition:all .2s!important} .aliphia-btn:hover{box-shadow:0 4px 14px rgba(15,118,110,.45)!important;transform:translateY(-1px)} ::-webkit-scrollbar{width:9px;height:9px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:var(--ia-border2);border-radius:8px;border:2px solid var(--ia-bg)} ::-webkit-scrollbar-thumb:hover{background:var(--ia-muted)} .sk{position:relative;overflow:hidden;background:var(--ia-skel);border-radius:6px} .sk::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.65),transparent);animation:shimmer 1.4s infinite} [data-theme="dark"] .sk::after{background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent)} @keyframes shimmer{100%{transform:translateX(100%)}} .sk-sm{height:11px} .sk-lg{height:22px} .btn:focus-visible,.inp:focus-visible{outline:2.5px solid ${col};outline-offset:2px} .nav-tab:focus-visible{outline:2.5px solid #fff;outline-offset:1px} .wa-btn{background:#16a34a!important;transition:all .18s!important} .wa-btn:hover{background:#15803d!important;box-shadow:0 4px 14px rgba(22,163,74,.4)!important;transform:translateY(-1px)} select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:left 10px center;padding-left:26px} .chart-grid>div{transition:box-shadow .18s} .chart-grid>div:hover{box-shadow:0 4px 16px rgba(0,0,0,.06)} [data-theme="dark"] .chart-grid>div:hover{box-shadow:0 4px 16px rgba(0,0,0,.4)} [data-theme="dark"] .kpi-grid>div:hover{box-shadow:0 6px 18px rgba(0,0,0,.45)} [data-theme="dark"] .btn:hover{filter:brightness(1.15)}`}</style>
+<style>{`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap'); *{box-sizing:border-box} .inp{width:100%;border:1.5px solid var(--ia-border2);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:13px;background:var(--ia-inp-bg);color:var(--ia-text);outline:none;transition:border .15s,box-shadow .15s} .inp:focus{border-color:${col};box-shadow:0 0 0 3px ${col}1a} .inp:hover{border-color:var(--ia-muted)} .inp::placeholder{color:var(--ia-muted)} .btn{border:none;border-radius:8px;padding:9px 16px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap} .btn:hover{filter:brightness(1.06);box-shadow:0 2px 10px rgba(0,0,0,.12)} .btn:active{opacity:.85;transform:scale(.97)} .btn-ghost{background:var(--ia-ghost-bg);color:var(--ia-ghost-tx)} .btn-outline{background:transparent;border:1.5px solid var(--ia-border2);color:var(--ia-text2)} .btn-outline:hover{border-color:${col};color:${colTx}} .btn-red{background:#dc2626;color:#fff} .card{background:var(--ia-card);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);border:1px solid var(--ia-border)} [data-theme="dark"] .card{box-shadow:0 1px 3px rgba(0,0,0,.35)} .trow{transition:background .12s} .trow:hover,.trow:active{background:var(--ia-hover);cursor:pointer} .inv-table tbody tr:last-child td{border-bottom:none} .b-paid{background:var(--ia-ok-bg);color:var(--ia-ok-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-paid::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-ok-tx);margin-left:5px;vertical-align:middle} .b-part{background:var(--ia-warn-bg);color:var(--ia-warn-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-part::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-warn-tx);margin-left:5px;vertical-align:middle} .b-unp{background:var(--ia-red-bg);color:var(--ia-red-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-unp::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-red-tx);margin-left:5px;vertical-align:middle} .b-cancel{background:var(--ia-chip);color:var(--ia-sub);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;text-decoration:line-through} .b-inv{background:var(--ia-blue-bg);color:var(--ia-blue-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;letter-spacing:.3px} @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}} @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}} .navbar{background:${col};position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,.25)} .navbar-top{display:flex;align-items:center;padding:0 12px;height:48px;gap:6px} .navbar-tabs{display:flex;overflow-x:auto;padding:4px 12px 6px;gap:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none} .navbar-tabs::-webkit-scrollbar{display:none} .aliphia-btn{background:#0f766e;} .nav-tab{background:transparent;color:rgba(255,255,255,.7);border:1px solid transparent;border-radius:6px;padding:5px 11px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s} .nav-tab:hover{color:#fff;background:rgba(255,255,255,.08)} .nav-tab.active{background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.25)} .nav-tab:active{background:rgba(255,255,255,.2)} .inv-table{width:100%;border-collapse:collapse} .inv-table th{padding:10px 10px;font-size:11px;font-weight:700;color:var(--ia-sub);text-align:right;text-transform:uppercase;letter-spacing:.3px} .inv-table td{padding:10px 10px;border-bottom:1px solid var(--ia-border3);font-size:13px} .col-addr,.col-date,.col-phone,.col-credit{display:none} @media(min-width:500px){.col-phone{display:table-cell}} @media(min-width:680px){.col-date{display:table-cell}.col-credit{display:table-cell}} .form-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px} .form-3col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px} .item-row{display:grid;grid-template-columns:2fr 65px 110px auto;gap:7px;margin-bottom:7px;align-items:center} @media(max-width:500px){.form-2col{grid-template-columns:1fr}.form-3col{grid-template-columns:1fr 1fr}.item-row{grid-template-columns:1fr 55px 90px auto}} .kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px} .kpi-grid>div{transition:transform .18s,box-shadow .18s} .kpi-grid>div:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.08)} @media(min-width:600px){.kpi-grid{grid-template-columns:repeat(4,1fr)}} .chart-grid{display:grid;grid-template-columns:1fr;gap:12px} @media(min-width:680px){.chart-grid{grid-template-columns:1.7fr 1fr}} .print-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end} @media(max-width:480px){.print-grid{grid-template-columns:1fr 1fr;} .print-grid .print-btn{grid-column:1/-1}} .cust-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px} @media(max-width:480px){.cust-stats{grid-template-columns:1fr}} .aliphia-btn{background:linear-gradient(135deg,#0f766e,#0d9488)!important;border:none;box-shadow:0 2px 8px rgba(15,118,110,.3);transition:all .2s!important} .aliphia-btn:hover{box-shadow:0 4px 14px rgba(15,118,110,.45)!important;transform:translateY(-1px)} ::-webkit-scrollbar{width:9px;height:9px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:var(--ia-border2);border-radius:8px;border:2px solid var(--ia-bg)} ::-webkit-scrollbar-thumb:hover{background:var(--ia-muted)} .sk{position:relative;overflow:hidden;background:var(--ia-skel);border-radius:6px} .sk::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.65),transparent);animation:shimmer 1.4s infinite} [data-theme="dark"] .sk::after{background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent)} @keyframes shimmer{100%{transform:translateX(100%)}} .sk-sm{height:11px} .sk-lg{height:22px} .btn:focus-visible,.inp:focus-visible{outline:2.5px solid ${col};outline-offset:2px} .nav-tab:focus-visible{outline:2.5px solid #fff;outline-offset:1px} .wa-btn{background:#16a34a!important;transition:all .18s!important} .wa-btn:hover{background:#15803d!important;box-shadow:0 4px 14px rgba(22,163,74,.4)!important;transform:translateY(-1px)} select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:left 10px center;padding-left:26px} .print-chip:hover{transform:translateY(-2px);border-color:var(--ia-muted)!important;box-shadow:0 5px 16px rgba(0,0,0,.09)} [data-theme="dark"] .print-chip:hover{box-shadow:0 5px 16px rgba(0,0,0,.45)} .chart-grid>div{transition:box-shadow .18s} .chart-grid>div:hover{box-shadow:0 4px 16px rgba(0,0,0,.06)} [data-theme="dark"] .chart-grid>div:hover{box-shadow:0 4px 16px rgba(0,0,0,.4)} [data-theme="dark"] .kpi-grid>div:hover{box-shadow:0 6px 18px rgba(0,0,0,.45)} [data-theme="dark"] .btn:hover{filter:brightness(1.15)}`}</style>
 
   {/* Admin Dashboard Modal */}
   {showAdmin&&<AdminDashboard onClose={()=>setShowAdmin(false)}/>}
@@ -2717,7 +2906,7 @@ return(
         {/* Live credit-limit warning for the entered client phone */}
         {(()=>{const ph=norm(form.clientPhone||"");
           if(!ph)return null;
-          const lim=pN(loadCreditMap(company.id)[ph]||0);
+          const lim=creditLimitOf(loadCreditMap(company.id),ph);
           if(lim<=0)return null;
           const out=outstandingOf(invoices,ph);
           const sub=form.items.reduce((s,it)=>s+(parseInt(toW(it.qty))||1)*pN(it.price),0)+pN(form.shipping);
@@ -2906,17 +3095,28 @@ return(
           <p style={{fontSize:"11px",color:"var(--ia-muted)",marginTop:"8px"}}>⚠️ يجب السماح بالـ Popups في المتصفح لتعمل الطباعة</p>
         </div>
         <div className="card" style={{padding:"20px"}}>
-          <div style={{fontSize:"11px",fontWeight:700,color:"var(--ia-muted)",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"10px"}}>أو اضغط على فاتورة لطباعتها</div>
+          <div style={{fontSize:"11px",fontWeight:700,color:"var(--ia-muted)",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"10px"}}>أو اضغط على فاتورة لطباعتها — {invoices.length} فاتورة</div>
           <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
-            {invoices.slice().sort((a,b)=>parseInt(a.invNum?.replace(/\D/g,"")||0)-parseInt(b.invNum?.replace(/\D/g,"")||0)).map(inv=>(
-              <div key={inv.id} style={{border:`1px solid ${col}33`,borderRadius:"8px",padding:"10px 14px",background:cardBg,fontSize:"12px",cursor:"pointer",transition:"all .15s"}}
+            {invoices.slice().sort((a,b)=>parseInt(a.invNum?.replace(/\D/g,"")||0)-parseInt(b.invNum?.replace(/\D/g,"")||0)).map(inv=>{
+              const st=getStatus(inv);
+              return(
+              <div key={inv.id} style={{border:`1px solid ${col}33`,borderRadius:"10px",padding:"10px 14px",background:cardBg,fontSize:"12px",cursor:"pointer",transition:"all .18s",minWidth:"150px"}}
+                className="print-chip"
                 onClick={()=>doPrint([inv],company,printStyle)}>
-                <div style={{fontWeight:700,color:colTx}}>{inv.invNum}</div>
-                <div style={{color:"var(--ia-sub)",marginTop:"2px",fontSize:"11px"}}>{inv.clientName}</div>
-                <div style={{fontWeight:700,marginTop:"2px"}}>{fKWD(iT(inv))}</div>
-                <div style={{color:colTx,marginTop:"4px",fontSize:"10px"}}>🖨️ اضغط للطباعة</div>
+                <div style={{display:"flex",alignItems:"center",gap:"7px"}}>
+                  <span style={{fontWeight:800,color:colTx,letterSpacing:".3px"}}>{inv.invNum}</span>
+                  <span style={{flex:1}}/>
+                  <span className={`b-${st}`} style={{fontSize:"10px",padding:"1px 8px"}}>{stLabel[st]}</span>
+                </div>
+                <div style={{color:"var(--ia-sub)",marginTop:"3px",fontSize:"11px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:"170px"}}>{inv.clientName}</div>
+                <div style={{display:"flex",alignItems:"baseline",gap:"8px",marginTop:"3px"}}>
+                  <span style={{fontWeight:800,fontSize:"12.5px"}}>{fKWD(iT(inv))}</span>
+                  <span style={{color:"var(--ia-muted)",fontSize:"10px"}}>📅 {fDate(inv.date)}</span>
+                </div>
+                <div style={{color:colTx,marginTop:"5px",fontSize:"10px",fontWeight:700}}>🖨️ اضغط للطباعة</div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>

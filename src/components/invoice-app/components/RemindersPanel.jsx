@@ -13,6 +13,8 @@ const CHANNELS = [
   { id: "whatsapp", label: "واتساب", icon: "💬", color: "#16a34a", bg: "#dcfce7" },
   { id: "call", label: "اتصال", icon: "📞", color: "#2563eb", bg: "#dbeafe" },
   { id: "manual", label: "يدوي", icon: "✍️", color: "#b45309", bg: "#fef3c7" },
+  { id: "payment_request", label: "طلب دفع", icon: "💳", color: "#0d9488", bg: "#ccfbf1" },
+  { id: "statement", label: "كشف حساب", icon: "📄", color: "#7c3aed", bg: "#ede9fe" },
 ];
 
 const timeAgoAr = iso => {

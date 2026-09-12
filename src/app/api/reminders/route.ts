@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
   let clientName = typeof body.clientName === "string" ? body.clientName.trim() : null;
   let clientPhone = typeof body.clientPhone === "string" ? body.clientPhone.trim() : null;
   let companySlug = typeof body.companySlug === "string" ? body.companySlug.trim() || null : null;
-  const channel = ["whatsapp", "call", "manual"].includes(String(body.channel))
+  const channel = ["whatsapp", "call", "manual", "payment_request", "statement"].includes(String(body.channel))
     ? String(body.channel)
     : "whatsapp";
   const message =

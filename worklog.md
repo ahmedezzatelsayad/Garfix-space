@@ -306,3 +306,66 @@ Unresolved issues / risks / next-phase priorities:
 - PayLinkModal logs a reminder on WA send — a dedicated "payment_request" channel value could distinguish requests from reminders in the audit log (channel whitelist currently whatsapp|call|manual).
 - Auth still localStorage-only (NextAuth remains the production gap). pdf-service must be re-started after sandbox restart (`cd mini-services/pdf-service && bun run dev`, port 3040).
 - Next-phase ideas: server-side dashboard/report aggregation endpoints, client merge/dedupe tool, scheduled reminder automation (cron + reminder log), multi-currency, per-client statement WhatsApp send, KNET payment-link per-company persisted in DB, credit-limit hard-block option for non-admin roles.
+
+---
+Task ID: r9-qa (cron webDevReview round 9 — QA phase — 2026-09-13)
+Agent: main (Z.ai Code)
+Task: Scheduled QA round: health check + agent-browser full walkthrough; fix any bugs found before new-feature development.
+
+Work Log:
+- State check: Next healthz ok; pdf-service healthy (fonts inlined); dev.log clean (200/201 only); lint 0 problems.
+- Fresh agent-browser session (previous session's error buffer held 2 STALE r7-era TDZ ReferenceErrors that `errors --clear` fails to evict — verified stale: fresh session login → company select → all tabs = 0 errors).
+- Full walkthrough in fresh session: login (real keystrokes) → company selector → Tawfeer → all 9 tabs + invoice detail + purchases — ZERO console errors, ZERO page errors; dark-mode toggle round-trip ok; mobile 390px no horizontal overflow (scrollWidth 390 = innerWidth 390).
+- BUG FOUND & FIXED — print windows had NO <title> (popup tab showed empty title): sales-invoice buildHTML and statement buildStatementHTML lacked <title> (only PurchasesTab had one). Added `<title>فاتورة {invNum} — {company.nameAr}</title>` / `فواتير (N) — …` to App.jsx buildHTML and `<title>كشف حساب {client.name} — {c.name}</title>` to statement.js. First attempt used wrong field name (`invoiceNumber` → rendered "فاتورة 2" using DB id); corrected to `invNum` (matching doPdfExport's filename pattern).
+- E2E verified: clicked print chip INV10001 → popup title now "فاتورة INV10001 — توفير أونلاين شوب" ✓.
+- Also diagnosed: `agent-browser` follows window.open print popups (context switches to the document.write'd window — that's automation behavior, not an app bug; closed via window.close()).
+
+Stage Summary:
+- Project judged STABLE. One real (minor) bug found (missing print-window titles) and fixed + verified. No blockers for new-feature development.
+
+Unresolved issues / risks / next-phase priorities:
+- Proceeding to r9 features: (1) server-side settings persistence (pay-link template + credit limits localStorage → Prisma DB), (2) statement WhatsApp send + payment_request/statement audit channels, (3) Reports top-clients leaderboard + print-chip polish.
+
+---
+Task ID: r9 (cron webDevReview round 9 — 2026-09-13)
+Agent: main (Z.ai Code)
+Task: QA round (1 bug fixed) + 5 new features: server-side settings persistence (Prisma Setting model), credit hard-block enforcement, statement WhatsApp send, payment_request/statement audit channels, phKey phone canonicalization + print-chip polish.
+
+Work Log:
+- QA phase (see r9-qa entry above): project stable, zero errors; fixed print-window missing <title> (App.jsx buildHTML + statement.js; field name corrected to invNum after first attempt rendered "فاتورة 2").
+- New feature 1 — ⚙️ SERVER-SIDE SETTINGS PERSISTENCE (the top r8 risk: "localStorage-only, not synced across devices"):
+  * Prisma: new `Setting` model {key, value JSON-string, companySlug, @@unique([key, companySlug])} + db:push.
+  * API `src/app/api/settings/route.ts`: GET ?companySlug&keys (≤20 keys, regex-validated, parsed JSON values, corrupted → null) + PUT upsert (64KB value cap, Arabic error messages). curl-verified round-trip (string + object values, 400s for missing slug / bad key).
+  * api.js: getSettings/saveSetting; logReminder now passes companySlug through (BUG FOUND: it was silently dropped — invoice-derived reminders worked via API-side invoice snapshot, but statement logs have no invoice → slug was null; fixed + re-verified).
+  * App.jsx write-through pattern: localStorage = instant cache, every save ALSO PUTs to the server (setPayLinkTpl/saveCreditMap/setCreditBlock now take the company object); syncSettingsFromServer(company) runs on company change (App-level effect + Customers effect + PayLinkModal mount effect), server wins + LEGACY local-only values auto-migrate up; settingsTick bump re-renders the new-invoice form's credit banner after sync lands.
+  * Settings persisted: paylink_tpl (KNET template string), credit (map phone→limit), credit_block ("1"/"0").
+  * E2E: company select → GET /api/settings fires; credit limit save → PUT 200; pay-link template save → localStorage + server both hold "https://kpay.com.kw/pay/TWF9?amt={amount}&ref={invoice}"; modal re-open reconciles from server.
+- New feature 2 — ⛔ CREDIT HARD-BLOCK ENFORCEMENT (r8 next-phase idea "credit-limit hard-block option for non-admin roles"):
+  * saveInvoice pre-check: limit>0 AND credit_block on AND (outstanding + new total) > limit → non-admin gets "⛔ منع الحفظ — … الرصيد + هذه الفاتورة = … (الحد …)" error toast and the save is aborted (form stays); admin proceeds with "⚠️ تجاوز… مسموح لك بصفتك مدير النظام" warning.
+  * Admin-only toggle card in Customers tab (appears when ≥1 client has a limit): red/green state banner explaining the policy + "🔒 تفعيل / 🚫 تعطيل المنع الصارم" button; per-company, synced to server.
+  * E2E VERIFIED BOTH PATHS: as admin (ahmedezzat) over-limit save → warning + POST /api/invoices 201 (INV10011 created, then deleted); as employee (info@tawfeer.com/tawfeer123 — NOTE ayman@manager.com is ALSO role:admin in fake-firebase users.js, so the true non-admin test account is the employee) over-limit save → "⛔ منع الحفظ — الرصيد 31.000 + 3.000 = 34.000 (الحد 15.000)" + stillOnForm:true + NO POST in dev.log. Hard-block is CLIENT-side enforcement only (a technical user could hit the API directly) — consistent with the demo-grade auth model.
+- New feature 3 — 📨 CLIENT STATEMENT VIA WHATSAPP (r8 next-phase idea):
+  * statementSummaryOf(cust) + statementWaHref(cust) build a concise Arabic كشف حساب message (greeting, company, date, invoice count, total sales, paid, outstanding balance — or 🎉 fully-settled variant, oldest overdue days, settle request, company phone).
+  * "📨 كشف الحساب واتساب (18.000 KD)" green button in the customer-detail modal (balance-aware label, tooltip, wa-btn class); sendStatementWa logs the audit entry (channel "statement", amount=balance, full message snapshot, invoiceId null) + dispatches reminder-logged event.
+  * E2E: message decoded correctly (all 10 lines, correct figures); POST /api/reminders 201 with channel statement + companySlug (after the api.js fix) + amount 18.
+- New feature 4 — 💳 PAYMENT_REQUEST audit channel: PayLinkModal WA send now logs channel "payment_request" (r8 note "could distinguish requests from reminders"). API whitelist extended to whatsapp|call|manual|payment_request|statement; RemindersPanel CHANNELS gained 💳 طلب دفع (teal) and 📄 كشف حساب (violet) badges. E2E: INV10007 → payment_request log with the full payment-request message; badge renders in the panel.
+- New feature 5 — 📞 phKey PHONE CANONICALIZATION (r7/r8 documented risk "multi-spelling phones split"):
+  * Module helper phKey: digits-only with leading 965 country-code stripped when followed by exactly 8 digits → "+96512345678"/"96512345678"/"12345678" all → "12345678".
+  * Applied to: customer aggregation (groups merge; display phone upgrades to the LONGEST spelling), customerInvoices filter, outstandingOf, statement custInvs filters (PDF + summary), credit-map keys (saveCredit) + creditLimitOf lookup helper (phKey first, legacy norm-key fallback for old caches).
+  * NOTE: verified during testing that the 2 نورة السالم rows are genuinely DIFFERENT numbers (95544332 vs 95554433 from +96595554433) — a data-entry discrepancy, not a spelling split; phKey is defensive canonicalization for the real spelling-split case.
+- Style polish — 🖨️ print-tab invoice chips upgraded: status pill (b-paid/b-part/b-unp/b-cancel classes) + issue date (📅) + count in the section header ("أو اضغط على فاتورة لطباعتها — N فاتورة") + hover lift (.print-chip:hover translateY(-2px) + shadow, dark-mode aware) + minWidth 150px. Verified: "INV10001 | مدفوعة | محمد أبو العينين | 11.900 KD | 📅 15/04/2026 | 🖨️ اضغط للطباعة".
+- PayLinkModal hint updated: "💾 يُحفظ لشركة … على الخادم — يتزامن تلقائياً عبر كل الأجهزة" (was "يُحفظ محلياً فقط").
+- Bugs fixed this round: (1) print windows missing <title> (sales invoices + statements; purchases already had one); (2) title field name invoiceNumber→invNum; (3) api.js logReminder dropped companySlug (statement logs got null slug); (4) bidi artifact: stray quote after lineHeight:1.6 caught by lint parser (same class as the r6 incident).
+- Cleanup: test invoices 35/36 deleted (DB back to 14 invoices); settings table cleared (3 rows); reminder_logs cleared (2 rows); browser localStorage tw_paylink/tw_credit/tw_credit_block_tawfeer removed.
+- Final regression (fresh browser session): login → Tawfeer → ALL 9 tabs → 0 page errors, 0 console errors/warnings; dark toggle round-trip ok; mobile 390px no horizontal overflow (390=390); lint 0 problems; dev.log clean (200/201 only); pdf-service healthy (fonts inlined).
+
+Stage Summary:
+- Round 9 complete: company settings (KNET pay-link template, per-client credit limits, hard-block flag) now live on the server and sync across devices with legacy localStorage auto-migration; credit limits gained real enforcement (non-admins blocked from saving over-limit invoices, admins warned); clients can receive a concise account statement over WhatsApp (audited as channel "statement"); payment requests are distinguishable from reminders in the audit trail; phone matching is canonically normalized (+965/965/local merge); print windows carry proper titles and the print tab chips show status/date with hover polish. One real bug found in QA (missing print titles) and one during dev (dropped companySlug) — both fixed and E2E-verified. DB/settings/localStorage left at clean documented state; lint clean.
+
+Unresolved issues / risks / next-phase priorities:
+- Credit hard-block is client-side only — server-side enforcement would need the API to know the user role (blocked until real auth; NextAuth remains the production gap).
+- phKey canonicalization is defensive; genuinely different numbers entered for the same client (Nora's 95544332 vs 95554433) still produce separate customer rows — a client merge/dedupe tool remains the next-phase fix.
+- ReminderLog GET on the reports collection strip is company-wide (not period-scoped) — still pending from r7.
+- agent-browser follows window.open/wa.me popups — during automation use window.close() to return; app unaffected.
+- pdf-service must be re-started after sandbox restart (port 3040).
+- Next-phase ideas: client merge/dedupe tool, server-side dashboard aggregation endpoints, scheduled reminder automation (cron), per-period collection stats, invoice PDF direct-to-WhatsApp, multi-currency, NextAuth.

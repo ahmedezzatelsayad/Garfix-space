@@ -115,3 +115,17 @@ model ReminderLog {
   @@index([companySlug])
   @@map("reminder_logs")
 }
+
+// r9: server-side company settings (pay-link templates, credit limits …)
+// value is a JSON string (object/map/array) — converted in the API layer
+model Setting {
+  id          Int      @id @default(autoincrement())
+  key         String // e.g. paylink_tpl_{companyId} | credit_{companyId}
+  value       String   @default("{}")
+  companySlug String?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  @@unique([key, companySlug])
+  @@map("settings")
+}

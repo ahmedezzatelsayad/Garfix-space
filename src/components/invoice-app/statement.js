@@ -120,7 +120,7 @@ export function buildStatementHTML({ client, invoices, company, styleId = "class
 
   const today = new Date().toLocaleDateString("ar-KW");
 
-  return `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8">
+  return `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>كشف حساب ${client?.name || ""} — ${c.name}</title>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}

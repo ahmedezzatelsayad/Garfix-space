@@ -206,9 +206,23 @@ export const api = {
       invoiceId: Number(data.invoiceId) || null,
       clientPhone: data.clientPhone || null,
       clientName: data.clientName || null,
+      companySlug: data.companySlug || null, // r9: pass through (statement logs have no invoice to derive it from)
       channel: data.channel || "whatsapp",
       message: data.message || null,
       amount: data.amount != null ? Number(data.amount) : null,
     });
+  },
+
+  // ── Server-side company settings (r9: sync pay-link template & credit limits across devices) ──
+  async getSettings(companySlug, keys) {
+    if (!companySlug || !keys || !keys.length) return {};
+    const qs = `?companySlug=${encodeURIComponent(companySlug)}&keys=${keys.map(encodeURIComponent).join(",")}`;
+    const data = await request("GET", `/settings${qs}`);
+    return (data && data.settings) || {};
+  },
+
+  async saveSetting(companySlug, key, value) {
+    if (!companySlug) return null;
+    return request("PUT", "/settings", { companySlug, key, value });
   },
 };
