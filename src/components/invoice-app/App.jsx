@@ -12,6 +12,7 @@ import AIBulkProcessor from "./components/AIBulkProcessor";
 import ReportsTab from "./components/ReportsTab";
 import PaymentsPanel from "./components/PaymentsPanel";
 import RemindersPanel from "./components/RemindersPanel";
+import { buildStatementHTML } from "./statement";
 import { useTheme, txAdapt, softAdapt, chartColors, lighten } from "./theme";
 
 // ─── Companies Config ─────────────────────────────────────────────
@@ -1187,6 +1188,7 @@ const [modal,setModal]=useState(null); // {mode:'add'} | {mode:'edit', client}
 const [del,setDel]=useState(null);
 const [imp,setImp]=useState(null);   // clients-CSV import preview: {rows, errors, file}
 const [impBusy,setImpBusy]=useState(false);
+const [dirSearch,setDirSearch]=useState(""); // quick filter for the directory table
 const impFileRef=useRef();
 
 // ── CSV export of the saved-client directory ──
@@ -1250,6 +1252,11 @@ onRefresh();
 toast_("🗑️ تم حذف "+(del.name||"العميل")+" من الدليل","warn");
 };
 
+// quick search filter (name / phone / email / address)
+const shownClients=dirSearch
+ ?clients.filter(c=>{const s=toW(dirSearch).toLowerCase();return (c.name||"").toLowerCase().includes(s)||norm(c.phone||"").includes(s)||(c.email||"").toLowerCase().includes(s)||(c.address||"").includes(s);})
+ :clients;
+
 return(
 <div className="card" style={{overflow:"hidden",animation:"fadeUp .25s"}}>
   {/* Section header */}
@@ -1259,7 +1266,12 @@ return(
       <div style={{fontSize:"14px",fontWeight:900,color:"var(--ia-text)"}}>دليل العملاء المحفوظين</div>
       <div style={{fontSize:"11px",color:"var(--ia-muted)",fontWeight:600}}>للاستخدام السريع عند إنشاء الفواتير — يُحفظ لكل شركة على حدة</div>
     </div>
-    <span style={{background:"var(--ia-blue-bg)",color:"var(--ia-blue-tx)",borderRadius:"20px",padding:"3px 11px",fontSize:"11px",fontWeight:800}}>{clients.length} محفوظ</span>
+    <span style={{background:"var(--ia-blue-bg)",color:"var(--ia-blue-tx)",borderRadius:"20px",padding:"3px 11px",fontSize:"11px",fontWeight:800}}>{dirSearch?shownClients.length+" من "+clients.length:clients.length+" محفوظ"}</span>
+    {clients.length>3&&(
+      <input className="inp" placeholder="🔍 بحث في الدليل…" value={dirSearch} onChange={e=>setDirSearch(e.target.value)}
+        style={{width:"170px",padding:"6px 10px",fontSize:"12px",borderRadius:"8px"}}
+        aria-label="بحث في دليل العملاء"/>
+    )}
     <button className="btn" title="تنزيل الدليل كملف CSV (يفتح في Excel)" style={{background:"var(--ia-ghost-bg)",color:"var(--ia-ghost-tx)",padding:"7px 11px",fontSize:"12px"}} onClick={exportClientsCSV}>⬇️ CSV</button>
     {canEdit&&<button className="btn" title="استيراد عملاء من ملف CSV (الاسم + التلفون مطلوبان)" style={{background:"#0f766e",color:"#fff",padding:"7px 11px",fontSize:"12px"}} onClick={()=>impFileRef.current?.click()}>⬆️ استيراد</button>}
     <input ref={impFileRef} type="file" accept=".csv,.txt" style={{display:"none"}} onChange={e=>{
@@ -1294,7 +1306,7 @@ return(
           ))}
         </tr></thead>
         <tbody>
-          {clients.map((c,i)=>{
+          {shownClients.map((c,i)=>{
             const ph=norm(c.phone||"");
             const st=stats[ph];
             return(
@@ -1331,6 +1343,12 @@ return(
               </tr>
             );
           })}
+          {shownClients.length===0&&dirSearch&&(
+            <tr><td colSpan={7} style={{padding:"24px",textAlign:"center",color:"var(--ia-muted)"}}>
+              <div style={{fontSize:"22px",marginBottom:"6px"}}>🔍</div>
+              لا نتائج مطابقة للبحث «{dirSearch}» — جرّب اسماً أو رقماً آخر
+            </td></tr>
+          )}
         </tbody>
       </table>
     </div>
@@ -1414,7 +1432,7 @@ return(
 }
 
 // ─── Customers ────────────────────────────────────────────────────
-function Customers({invoices, company, onImportDone, onOpenInvoice, clients, refreshClients, toast_}){
+function Customers({invoices, company, onImportDone, onOpenInvoice, clients, refreshClients, toast_, printStyle}){
 const { perms } = useAuth();
 const { dark } = useTheme();
 const col = company.color;
@@ -1424,6 +1442,34 @@ const [search,setSearch]=useState("");
 const [sort,setSort]=useState("spent");
 const [showImport,setShowImport]=useState(false);
 const [selCustomer,setSelCustomer]=useState(null);
+const [stmtBusy,setStmtBusy]=useState(false);
+
+// ── Client account statement PDF (كشف حساب) ──
+const exportStatement=async cust=>{
+  if(stmtBusy||!cust)return;
+  try{
+    setStmtBusy(true);
+    const custInvs=invoices.filter(inv=>(inv.clientPhone||"")===cust.phone);
+    const enriched=await Promise.all(custInvs.map(async inv=>{
+      let pays=[];
+      try{ pays=(await api.listPayments(inv.id))||[]; }catch{}
+      return {...inv,_pays:pays};
+    }));
+    const html=buildStatementHTML({client:cust,invoices:enriched,company,styleId:printStyle||"classic"});
+    const base="كشف_حساب_"+String(cust.name||"عميل").replace(/\s+/g,"_").slice(0,40);
+    const blob=await api.exportPdf(html,base);
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url; a.download=base+".pdf";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),5000);
+    toast_("✅ تم تصدير كشف الحساب PDF");
+  }catch(e){
+    toast_((e&&e.message)||"فشل تصدير كشف الحساب","err");
+  }finally{
+    setStmtBusy(false);
+  }
+};
 
 const map={};
 [...invoices].sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt)).forEach(inv=>{
@@ -1471,6 +1517,11 @@ onClose={()=>setShowImport(false)}
 
     {/* Contact actions */}
     <div style={{display:"flex",gap:"8px",marginBottom:"14px",flexWrap:"wrap"}}>
+      <button onClick={()=>exportStatement(selCustomer)} disabled={stmtBusy}
+        title="تصدير كشف حساب كامل: كل الفواتير والمدفوعات والرصيد وتقادم الذمم"
+        style={{background:stmtBusy?"#991b1b":"#dc2626",border:"none",color:"#fff",borderRadius:"8px",padding:"9px 16px",fontFamily:"inherit",fontSize:"12.5px",fontWeight:800,cursor:stmtBusy?"wait":"pointer",boxShadow:"0 2px 8px rgba(0,0,0,.15)"}}>
+        {stmtBusy?"⏳ جاري التجهيز…":"📄 كشف حساب PDF"}
+      </button>
       {selCustomer.phone&&(
         <>
         <a href={`https://wa.me/965${selCustomer.phone.replace(/^\+?965/,"")}`} target="_blank" rel="noopener noreferrer" className="btn" style={{background:"#16a34a",color:"#fff",textDecoration:"none",padding:"9px 16px"}}>💬 واتساب</a>
@@ -1747,8 +1798,8 @@ const [bulkParsed,setBulkParsed]=useState([]);
 const [bulkStep,setBulkStep]=useState(0);
 const [toast,setToast]=useState(null);
 const [pdfBusy,setPdfBusy]=useState(false);
-const [printStyle,setPrintStyle]=useState(()=>{try{return localStorage.getItem("tw_print_style")||"classic";}catch{return"classic";}});
-const setPStyle=v=>{setPrintStyle(v);try{localStorage.setItem("tw_print_style",v);}catch{}};
+const [printStyle,setPrintStyle]=useState("classic");
+const setPStyle=v=>{setPrintStyle(v);try{localStorage.setItem("tw_print_style_"+(company?.id||""),v);}catch{}};
 const [delModal,setDelModal]=useState(null);
 const [showAliphia,setShowAliphia]=useState(false);
 const [showAdmin,setShowAdmin]=useState(false);
@@ -1779,6 +1830,15 @@ const availableCompanies = Object.values(COMPANIES).filter(co =>
 const company = (!authLoading && selectedCompany===null && availableCompanies.length===1)
   ? availableCompanies[0]
   : selectedCompany;
+
+// per-company persisted print style (falls back to the legacy global key once).
+// Must run AFTER the `company` derivation above (TDZ) and before early returns.
+useEffect(()=>{
+  if(!company)return;
+  let v="classic";
+  try{ v=localStorage.getItem("tw_print_style_"+company.id)||localStorage.getItem("tw_print_style")||"classic"; }catch{}
+  setPrintStyle(v);
+},[company?.id]);
 
 const refreshInvoices = useCallback(async () => {
   if (!company) return;
@@ -2113,6 +2173,7 @@ return(
           clients={clients}
           refreshClients={refreshClients}
           toast_={toast_}
+          printStyle={printStyle}
           onOpenInvoice={inv=>{setSelInv(inv);setView("list");}}
           onImportDone={async newInvs=>{
             setInvoices(p=>[...p,...newInvs]);

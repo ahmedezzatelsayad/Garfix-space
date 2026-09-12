@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
 import { useTheme, txAdapt, softAdapt, chartColors } from "../theme";
+import { api } from "../api";
 
 // ─── Reports & Analytics Tab ──────────────────────────────────────
 // Comprehensive analytics computed client-side from the company invoices
@@ -34,6 +35,7 @@ const PAY_METHODS = { cash: "نقدي", knet: "كي نت", online: "تحويل",
 
 export default function ReportsTab({ invoices = [], company, purchases = [] }) {
   const [period, setPeriod] = useState(6); // months; 0 = all
+  const [reminders, setReminders] = useState(null); // collection activity (audit log)
   const { dark } = useTheme();
   const ch = chartColors(dark);
   const col = company?.color || "#1e3a5f";
@@ -144,6 +146,54 @@ export default function ReportsTab({ invoices = [], company, purchases = [] }) {
   const maxCustRev = stats.topCustomers[0]?.rev || 1;
   const maxProdQty = stats.topProducts[0]?.qty || 1;
 
+  // ── receivables aging buckets (تقادم الذمم) ──
+  const aging = (() => {
+    const buckets = [
+      { id: "current", label: "غير مستحقة", sub: "لم يحل موعد السداد", amount: 0, count: 0, color: "#16a34a" },
+      { id: "d30", label: "١–٣٠ يوم", sub: "تأخير قصير", amount: 0, count: 0, color: "#65a30d" },
+      { id: "d60", label: "٣١–٦٠ يوم", sub: "تأخير متوسط", amount: 0, count: 0, color: "#d97706" },
+      { id: "d90", label: "٦١–٩٠ يوم", sub: "تأخير طويل", amount: 0, count: 0, color: "#ea580c" },
+      { id: "d90p", label: "+٩٠ يوم", sub: "مخاطرة عالية", amount: 0, count: 0, color: "#dc2626" },
+    ];
+    scoped.forEach(inv => {
+      if (getStatus(inv) === "cancel") return;
+      const rem = iT(inv) - pN(inv.paid || 0);
+      if (rem <= 0.0001) return;
+      let od = 0;
+      if (inv.dueDate) {
+        const d = new Date(inv.dueDate + "T00:00:00");
+        if (!isNaN(d)) od = Math.max(0, Math.floor((Date.now() - d.getTime()) / 86400000));
+      }
+      const idx = od <= 0 ? 0 : od <= 30 ? 1 : od <= 60 ? 2 : od <= 90 ? 3 : 4;
+      buckets[idx].amount += rem;
+      buckets[idx].count += 1;
+    });
+    return buckets;
+  })();
+  const agingTotal = aging.reduce((s, b) => s + b.amount, 0);
+
+  // ── collection-activity stats from the reminder audit log ──
+  useEffect(() => {
+    let on = true;
+    if (!company?.sk) { setReminders([]); return () => { on = false; }; }
+    api.listReminders(company.sk)
+      .then(list => { if (on) setReminders(list || []); })
+      .catch(() => { if (on) setReminders([]); });
+    return () => { on = false; };
+  }, [company?.sk]);
+
+  const reminderStats = (() => {
+    if (!reminders || !reminders.length) return null;
+    const now = new Date();
+    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const thisMonth = reminders.filter(r => String(r.createdAt || "").startsWith(monthKey)).length;
+    const last = reminders[0]; // API returns newest first
+    const lastD = new Date(last.createdAt);
+    const lastTxt = isNaN(lastD.getTime()) ? "" : lastD.toLocaleDateString("ar-KW");
+    const totalAmount = reminders.reduce((s, r) => s + pN(r.amount), 0);
+    return { count: reminders.length, thisMonth, lastTxt, totalAmount };
+  })();
+
   // ── auto insights ──
   const insights = (() => {
     const list = [];
@@ -151,6 +201,8 @@ export default function ReportsTab({ invoices = [], company, purchases = [] }) {
     else if (stats.collectionRate >= 50) list.push({ icon: "🟡", c: txAdapt("#d97706", dark), t: `نسبة التحصيل ${stats.collectionRate.toFixed(0)}% — يمكن متابعة العملاء غير المدفوعين لرفعها` });
     else if (stats.totalRev > 0) list.push({ icon: "🔴", c: txAdapt("#dc2626", dark), t: `نسبة التحصيل منخفضة (${stats.collectionRate.toFixed(0)}%) — ${stats.outstanding.toFixed(1)} KD مستحقة عليك متابعتها` });
     if (stats.overdue.length > 0) list.push({ icon: "⏰", c: txAdapt("#dc2626", dark), t: `${stats.overdue.length} فاتورة متأخرة عن الاستحقاق بإجمالي ${fKWD(stats.overdueAmt)} — تواصل مع العملاء` });
+    if (aging[4].amount > 0) list.push({ icon: "🚨", c: txAdapt("#dc2626", dark), t: `${aging[4].count} فاتورة متأخرة أكثر من ٩٠ يوم (${fKWD(aging[4].amount)}) — أولوية تحصيل قصوى` });
+    else if (aging[3].amount > 0) list.push({ icon: "⚠️", c: txAdapt("#ea580c", dark), t: `${aging[3].count} فاتورة في نطاق ٦١–٩٠ يوم (${fKWD(aging[3].amount)}) — اقتربت من مرحلة المخاطرة` });
     if (stats.bestMonth && stats.bestMonth.rev > 0) list.push({ icon: "🏆", c: dark ? colTx : col, t: `أفضل شهر في الفترة: ${stats.bestMonth.label} بإيرادات ${fKWD(stats.bestMonth.rev)}` });
     if (stats.topProducts[0]) list.push({ icon: "📦", c: txAdapt("#7c3aed", dark), t: `المنتج الأكثر مبيعاً: ${stats.topProducts[0].name} (${stats.topProducts[0].qty} قطعة)` });
     if (stats.topCustomers[0]) list.push({ icon: "👑", c: txAdapt("#b45309", dark), t: `أفضل عميل: ${stats.topCustomers[0].name} بإجمالي ${fKWD(stats.topCustomers[0].rev)}` });
@@ -289,6 +341,65 @@ export default function ReportsTab({ invoices = [], company, purchases = [] }) {
           ) : <div style={{ textAlign: "center", color: "var(--ia-muted)", padding: "40px 0" }}>لا توجد مبالغ</div>}
         </div>
       </div>
+
+      {/* Receivables aging analysis (تقادم الذمم) */}
+      <div style={{ ...card, marginBottom: "12px" }}>
+        <div style={{ ...sectionTitle, marginBottom: "12px" }}>
+          ⏰ تقادم الذمم (Aging)
+          {agingTotal > 0 && (
+            <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--ia-red-tx)", background: "var(--ia-red-bg)", padding: "1px 10px", borderRadius: "20px" }}>
+              {fKWD(agingTotal)} مستحقة
+            </span>
+          )}
+          <span style={{ flex: 1 }} />
+          <span style={{ fontSize: "10.5px", color: "var(--ia-muted)", fontWeight: 600 }}>توزيع المتبقي حسب أيام التأخير</span>
+        </div>
+        {agingTotal > 0 ? (
+          <>
+            {/* stacked distribution bar */}
+            <div style={{ display: "flex", height: "16px", borderRadius: "8px", overflow: "hidden", marginBottom: "12px", background: "var(--ia-chip)", direction: "rtl" }} role="img" aria-label={`توزيع ${fKWD(agingTotal)} على فئات التقادم`}>
+              {aging.filter(b => b.amount > 0).map(b => (
+                <div key={b.id} style={{ width: `${(b.amount / agingTotal * 100).toFixed(1)}%`, background: b.color, transition: "width .4s" }} title={`${b.label}: ${fKWD(b.amount)} — ${b.count} فاتورة`} />
+              ))}
+            </div>
+            {/* bucket cards */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(104px,1fr))", gap: "8px" }}>
+              {aging.map(b => {
+                const active = b.amount > 0;
+                return (
+                  <div key={b.id} style={{ background: active ? `${b.color}${dark ? "26" : "14"}` : "var(--ia-soft)", border: `1px solid ${active ? b.color + "55" : "var(--ia-border)"}`, borderRadius: "10px", padding: "10px 8px", textAlign: "center", transition: "all .15s" }}>
+                    <div style={{ fontSize: "10px", fontWeight: 800, color: "var(--ia-sub)", marginBottom: "4px" }}>{b.label}</div>
+                    <div style={{ fontSize: "13.5px", fontWeight: 900, color: active ? txAdapt(b.color, dark) : "var(--ia-muted)", direction: "ltr" }}>{fKWD(b.amount)}</div>
+                    <div style={{ fontSize: "9.5px", color: "var(--ia-muted)", marginTop: "3px" }}>{active ? b.count + " فاتورة" : b.sub}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        ) : (
+          <div style={{ textAlign: "center", color: "var(--ia-muted)", padding: "26px 0", fontSize: "13px" }}>
+            <div style={{ fontSize: "26px", marginBottom: "6px" }}>🎉</div>
+            لا توجد مستحقات غير مدفوعة في هذه الفترة — كل الفواتير محصّلة!
+          </div>
+        )}
+      </div>
+
+      {/* Collection activity (reminder audit log) */}
+      {reminderStats && (
+        <div style={{ ...card, marginBottom: "12px", display: "flex", alignItems: "center", gap: "14px", flexWrap: "wrap", background: `linear-gradient(135deg,${softAdapt("#f0fdf4", dark)} 0%,${softAdapt("#dcfce7", dark)} 100%)`, border: "1.5px solid #16a34a33" }}>
+          <div style={{ width: "44px", height: "44px", background: "#16a34a22", borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px", flexShrink: 0 }}>📣</div>
+          <div style={{ minWidth: "160px", flex: 1 }}>
+            <div style={{ fontSize: "13px", fontWeight: 900, color: "var(--ia-text)" }}>نشاط تذكيرات التحصيل</div>
+            <div style={{ fontSize: "11.5px", color: "var(--ia-sub)", marginTop: "2px" }}>
+              {reminderStats.count} تذكير مرسل{reminderStats.lastTxt ? ` — آخر تذكير ${reminderStats.lastTxt}` : ""}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+            <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--ia-ok-tx)", background: "var(--ia-ok-bg)", padding: "3px 12px", borderRadius: "20px" }}>{reminderStats.thisMonth} هذا الشهر</span>
+            <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--ia-warn-tx)", background: "var(--ia-warn-bg)", padding: "3px 12px", borderRadius: "20px", direction: "ltr" }}>~{fKWD(reminderStats.totalAmount)} مُطالَب بها</span>
+          </div>
+        </div>
+      )}
 
       {/* Top customers + products */}
       <div className="chart-grid" style={{ marginBottom: "12px" }}>
