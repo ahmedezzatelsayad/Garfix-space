@@ -566,3 +566,50 @@ Work Log:
 
 Stage Summary:
 - r13 مكتملة ومرفوعة: موقع عام متعدد الصفحات (الرئيسية/الفريق/رسالة المؤسس/الدخول) يُدار محتواه من تبويب 🌐 الموقع داخل النظام، طبقة أمان خادمية موقّعة تحمي كل المسارات الإدارية، جذر مشكلة «اختفاء مسار ai/test» (نمط test في .gitignore) مكتشف ومصلح، README احترافي محدَّث بلقطات حقيقية، والمستودع على GitHub محدَّث. الكرون الدوري مسؤول عن الجولات القادمة.
+
+---
+Task ID: 14-infra
+Agent: general-purpose (infra revival)
+Task: إعادة بناء PostgreSQL 17 + Valkey 8.1.1 + تشغيل كل الخدمات بعد إعادة تشغيل الـ sandbox (تنفيذ حرفي لوصفة 1-infra)
+
+Work Log:
+- الحالة عند البدء: infra/ محذوفة كلياً، لا عمليات postgres/valkey/next/bun، المنافذ 3000/5432/6379/3040 مغلقة، db/custom.db (SQLite) باقٍ كمصدر للترحيل، .env ما زال يشير إلى file:...custom.db.
+- PostgreSQL 17.11 (Debian trixie): apt-get download للثلاث حزم في /tmp/pgdebs → dpkg-deb -x إلى infra/pg (لاحظ: يجب mkdir -p infra/pg أولاً وإلا فشل الاستخراج بـ "failed to create directory") — ldd نظيف. initdb -U garfix --auth=trust كمستخدم z مع LD_LIBRARY_PATH=infra/pg/usr/lib/x86_64-linux-gnu.
+- postgresql.conf: unix_socket_directories='/tmp' + listen_addresses='127.0.0.1' + port=5432. pg_ctl start → pg_isready: accepting connections. ALTER ROLE garfix PASSWORD 'garfix2024' + CREATE DATABASE garfix OWNER garfix.
+- إصلاح .env: DATABASE_URL=file:...custom.db → postgresql://garfix:garfix2024@127.0.0.1:5432/garfix?schema=public (سطر واحد فقط؛ لا VALKEY_URL ولا أسطر أخرى موجودة).
+- اكتشاف مهم: متغير DATABASE_URL القديم (file:...custom.db) كان مصدَّراً في بيئة الشل المستمر للجلسة ويتفوق على .env في Bun → seed-site فشل بـ "URL must start with postgresql://" رغم صحة .env. الحل: unset DATABASE_URL في الجلسة (ونفس الشيء يلزم لأي سكربت يعتمد process.env) — ثم نجح.
+- `DATABASE_URL=... bun run db:push` نجح (Prisma 6.19.2 + توليد Client).
+- مشكلة updatedAt المعروفة تكررت حرفياً (SQLite القديم بلا العمود → 23502 not-null) → SET DEFAULT now() → الترحيل نجح → DROP DEFAULT (المخطط مطابق تماماً الآن).
+- `bun scripts/migrate-sqlite-to-pg.ts`: 4 شركات (Tawfeer/Mahhal/Boss Neolife/Laqta)، 1 عميل، 14 فاتورة، 6 كتالوج، 1 مشتريات + إعادة ضبط sequences (Company←5، invoices←18) — تطابق sqlite=pg في الجداول الثمانية.
+- `bun scripts/seed-site.ts` (بعد unset): site_content=14 مفتاحاً + team_members=4 أعضاء.
+- Valkey 8.1.1 من المصدر: تاربال GitHub (3.8MB) → infra/valkey/valkey-8.1.1 → make deps (hiredis linenoise hdr_histogram fpconv lua fast_float_c_interface) → make -C src valkey-server MALLOC=libc (12.66MB، بلا valkey-cli عمداً). valkey.conf: bind 127.0.0.1، port 6379، daemonize no، dir db/valkey-data، maxmemory 256mb، allkeys-lru، appendonly yes.
+- تشغيل الحارس: `cd mini-services/keepalive && ( setsid nohup bun run dev > service.log 2>&1 < /dev/null & )` — اكتشف Valkey/pdf/next متوقفة فأعادها كلها (مسح .next ثم next dev) خلال ~20 ثانية.
+
+Stage Summary:
+- كل الخدمات الأربع حية: PostgreSQL 127.0.0.1:5432 (pg_isready ok) • Valkey 127.0.0.1:6379 (AOF في db/valkey-data) • pdf-service :3040 (chromium جاهز) • next dev :3000 (Ready in 1043ms).
+- التحقق النهائي: GET /api/healthz → 200 status=ok مع database engine=postgresql ok=true (latency 1–37ms) و cache engine=valkey connected=true — والكاش يعمل فعلياً على Valkey (hits=1/misses=3/writes=3/memKeys=3 بعد طلبات متكررة، ليس fallback الذاكرة) • GET / → 200 • GET /api/companies → 4 شركات • GET /api/site/team → 4 أعضاء • GET /api/site/stats → {companies:4, invoices:14, clients:1, currencies:1} • psql: Company=4/invoices=14/product_catalog=6/site_content=14/team_members=4 • dev.log وnext-dev.log صفر أخطاء (200 فقط) • keepalive service.log وpdf service.log نظيفة • ioredis من node_modules: PING=PONG وversion=8.1.1 وSET/GET يعملان.
+- انحرافان صغيران عن الوصفة (كلاهما موثق أعلاه): ① mkdir -p infra/pg قبل dpkg-deb -x؛ ② unset DATABASE_URL في الشل المستمر لأن قيمة قديمة مصدَّرة كانت تتغلب على .env (جذر فشل seed-site الأول) — درس مهم لأي إحياء قادم: تحقق من `env | grep DATABASE` قبل تشغيل السكربتات.
+
+---
+Task ID: r14
+Agent: main (Z.ai Code)
+Task: إضافة BullMQ كطبقة طوابير مهام خلفية كاملة فوق Valkey (طلب المستخدم: «هل ضفت bullq»)
+
+Work Log:
+- إحياء البنية التحتية بعد إعادة إنشاء الـ sandbox بالكامل (ضاع infra/ ورجعت .env لـ SQLite): وكيل فرعي 14-infra نفّذ وصفة 1-infra حرفياً — PostgreSQL 17.11 + Valkey 8.1.1 + ترحيل البيانات (4 شركات/14 فاتورة) + seed-site + keepalive يدير كل الخدمات. اكتشاف جديد وُثّق: متغير DATABASE_URL=file:... القديم كان مصدَّراً في بيئة الشل ويتفوق على .env في Bun.
+- تثبيت bullmq@6.3.4 في المشروع الرئيسي + ioredis صراحةً في job-worker (كان يحلّها عبر مجلد الأب).
+- src/lib/queue.ts: جانب المنتِج — طابور «garfix-tasks» (globalThis-cached)، قائمة بيضاء JOB_TYPES، enqueueJob، workerHealth (نبض :3041 بمهلة 800ms)، queueOverview (عدادات + Job Schedulers + آخر 24 مهمة مكتملة/فاشلة بالمدد والنتائج).
+- mini-services/job-worker (منفذ 3041): عامل BullMQ بمعالجات: backup (نفس صيغة /api/backup حرفياً — مفاتيح camelCase وأسماء الجداول الحقيقية مع @@map حتى تستعيدها زر Recovery مباشرة، + جداول الموقع العام team_members/site_content) · cache-warm (23 نقطة نهاية: 3 عامة + 5×4 شركات) · cleanup-backups (14 يوماً مع الاحتفاظ بأحدث 5) · db-maintenance (VACUUM ANALYZE). سجّل 4 Job Schedulers بـ upsertJobScheduler (backup 03:00 يومياً · cache-warm كل ساعة · cleanup سبتاً 04:30 · VACUUM 04:15 — Africa/Cairo). حارس تفرد: خروج فوري إذا كان 3041 محجوزاً.
+- API: src/app/api/jobs/route.ts — GET (إحصائيات شاملة) + POST (enqueue/retry/remove) بـ requireAdmin. اختبار curl: 401 بلا جلسة، رفض اسم مهمة خارج القائمة البيضاء، enqueue يعمل والمهمة تُعالج فوراً.
+- واجهة JobsPanel.jsx في تبويب 💬 النظام (تحت BackupRecovery): 6 بطاقات عدادات + بطاقة العامل (معالجة/فاشلة/مدة/آخر مهمة/تعالج الآن) + أزرار تنفيذ فوري للمهام الأربع + جدول المجدولة بمواعيدها التالية + جدول آخر 24 مهمة (حالة/مدة/قبل كم/مقتطف نتيجة عربي لكل نوع) + زر إعادة محاولة للفاشلة + تحديث تلقائي كل 5 ثوانٍ + رسالة «مدير فقط» لغير المديرين.
+- keepalive: أضيف ensureJobWorker (المنفذ 3041) — والحارس التقف التعديل تلقائياً بـ hot-reload وأشغّل العامل بنفسه (اختُبر فعلياً بقتل كل العمال — أعادها خلال ثوانٍ).
+- Valkey: تغيير maxmemory-policy من allkeys-lru إلى noeviction (مطلب BullMQ الصارم — بيانات الطوابير لا تُخلَت) مع إعادة تشغيل عبر الحارس؛ الكاش له سقوط آمن للذاكرة عند امتلاء الذاكرة.
+- مشاكل حقيقية حُلّت أثناء التطوير: (1) BullMQ v6 يرفض «:» في اسم الطابور → garfix-tasks؛ (2) getRepeatableJobs/removeRepeatableByKey غير موجودين في v6 → واجهة Job Schedulers (upsertJobScheduler/getJobSchedulers)؛ (3) عمال زومبي: bun --hot يبقي العملية حية بعد خطأ الوحدة (EADDRINUSE) مع Worker نشط بالكود القديم يستهلك المهام — 9 نسخ تراكمت! الحل: حارس التفرد + قتل الانتومبي بالـ PID؛ (4) DATABASE_URL=file: القديم المصدر بالشل جعل العامل يتصل بـ PG بدور z → pickPgUrl يقبل postgres فقط.
+- next.config.ts: serverExternalPackages: [bullmq, ioredis] (require ديناميكي + روابط أصلية).
+- README: مخطط معماري محدَّث (صندوقا job-worker والجدولة + 5 منافذ للحارس + noeviction) · جدول API صف «طوابير المهام» + 38 مساراً · ميزة BullMQ في قسم النظام · قسم كامل «طوابير المهام الخلفية (BullMQ)» بجدول المهام الأربع وجدولها · صف النسخ التلقائي في قسم Backup · خطوتا تثبيت/تشغيل job-worker · صفان جديدان في استكشاف الأخطاء (عامل متوقف + تحذير noeviction) · خارطة طريق (التذكيرات المجدولة عبر BullMQ) · جدول منجز r14 · لقطة r14-jobs-panel.png في قسم لقطات التطبيق.
+- تحقق نهائي: المهام الأربع مكتملة (backup 29ms/24.2KB ببيانات مطابقة · cache-warm 23 نقطة بلا أخطاء · cleanup سياسة صحيحة · VACUUM 81ms) · العدادات متطابقة بين الطابور والعامل · agent-browser: لوحة تعمل (جداول + أزرار + إشعارات toast) بلا أي خطأ console، VLM قيّم اللقطة «احترافية ونظيفة ومناسبة لبيئة الإنتاج»، لقطة جوال 390px · lint نظيف (تحذير قديم واحد) · dev.log بلا أخطاء.
+
+Stage Summary:
+- BullMQ يعمل من طرف إلى طرف: نسخ احتياطية تلقائية يومياً 03:00 قابلة للاستعادة بزر Recovery، تسخين كاش ساعي، تنظيف أسبوعي، وصيانة قاعدة يومية — مع لوحة مراقبة حيّة للمدير وAPI محمي.
+- 5 خدمات الآن تحت الحارس: 3000 · 5432 · 6379 · 3040 · 3041.
+- دروس موثقة للجولات القادمة: noeviction إلزامي لـ BullMQ · حارس التفرد يمنع زومبي bun --hot · متغيرات الشل القديمة تتفوق على .env.

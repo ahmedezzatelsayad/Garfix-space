@@ -6,6 +6,9 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
+  // r14: bullmq يستخدم require ديناميكي لـ ioredis (اختيارية) + روابط msgpackr الأصلية —
+  // يجب إبقاؤهما خارج حزمة Turbopack كي يعملان في وقت التشغيل.
+  serverExternalPackages: ["bullmq", "ioredis"],
   // r13: ترويسات أمان عامة (بدون X-Frame-Options حتى لا يتعطل لوحة المعاينة)
   async headers() {
     return [

@@ -146,6 +146,7 @@ a public multi-page website, and signed server sessions guarding admin routes.]
 - ⚙️ إدارة مستخدمين وأدوار (مدير / موظف) بصلاحيات دقيقة لكل شركة
 - 🌙 وضع ليلي كامل عبر التطبيق (40+ متغير CSS) بدون وميض + persisted
 - ⚡ كاش **Valkey** للمسارات الساخنة (القوائم 15 ثانية، لوحة التحكم 30 ثانية…) مع إبطال عند كل كتابة + سقوط آمن للذاكرة المحلية
+- 🐂 **طوابير مهام BullMQ** (منذ r14): نسخ احتياطية تلقائية يومياً 03:00 + تسخين كاش كل ساعة + تنظيف أسبوعي + `VACUUM ANALYZE` يومي — مع لوحة مراقبة حيّة في تبويب 💾 النظام (عدادات · مدد التنفيذ · إعادة محاولة الفاشلة · تنفيذ فوري بأزرار)
 - 💾 نسخ احتياطي / استعادة ذرّية + مراقبة حيّة لحالة PostgreSQL و Valkey كل 15 ثانية
 - 🏭 حارس **keepalive** ذاتي الإصلاح (تفاصيل في قسم البنية التحتية)
 - 🔒 طبقة أمان خادمية: جلسات موقّعة httpOnly (HMAC-SHA256 · 30 يوماً) تحمي المسارات الإدارية + تحديد معدل الدخول + ترويسات أمان — التفاصيل في [قسم الأمان](#-الأمان-security)
@@ -229,6 +230,12 @@ a public multi-page website, and signed server sessions guarding admin routes.]
   <img src="docs/screenshots/app-dark.png" width="800" alt="لوحة التحكم — الوضع الليلي"/>
 </p>
 
+**🐂 طوابير المهام (BullMQ)** — لوحة المراقبة الحيّة في تبويب 💾 النظام:
+
+<p align="center">
+  <img src="docs/screenshots/r14-jobs-panel.png" width="800" alt="لوحة طوابير المهام BullMQ"/>
+</p>
+
 ---
 
 ## 🏗️ معمارية النظام (Architecture)
@@ -243,16 +250,24 @@ a public multi-page website, and signed server sessions guarding admin routes.]
 ┌───────────────────────────────────────────────────────────────┐
 │              Next.js 16 — http://localhost:3000               │
 │      App Router · React 19 · Tailwind CSS 4 · shadcn/ui       │
-│           37 مسار API (Route Handlers · TypeScript)           │
+│           38 مسار API (Route Handlers · TypeScript)           │
 └──────────────┬───────────────────────────────┬───────────────┘
-               │ Prisma ORM                    │ ioredis
+               │ Prisma ORM                    │ ioredis + bullmq
                ▼                               ▼
 ┌──────────────────────┐        ┌──────────────────────┐
 │    PostgreSQL 17     │        │      Valkey 8.1      │
 │    localhost:5432    │        │    localhost:6379    │
-│     user: garfix     │        │   كاش LRU · 256MB    │
-│      db: garfix      │        │  (سقوط آمن للذاكرة)  │
+│     user: garfix     │        │ كاش + طوابير مهام   │
+│      db: garfix      │        │  256MB · noeviction │
 └──────────────────────┘        └──────────────────────┘
+                                        │
+                          bullmq Worker (المستهلك)
+                                        ▼
+┌───────────────────────┐      ┌────────────────────────┐
+│  job-worker (bun)     │      │  مهام مجدولة cron     │
+│   localhost:3041      │      │  backup · cache-warm   │
+│  معالج المهام الأربع  │      │  cleanup · maintenance │
+└───────────────────────┘      └────────────────────────┘
 
 ┌───────────────────────┐      ┌────────────────────────┐
 │   pdf-service (bun)   │      │  DeepSeek API (خارجي)  │
@@ -267,7 +282,7 @@ a public multi-page website, and signed server sessions guarding admin routes.]
 │  • يعيد تشغيل أي خدمة متوقفة فوراً (detached · setsid/nohup)  │
 │  • يمسح كاش Turbopack التالف قبل إعادة تشغيل Next.js          │
 │  • يمرر DATABASE_URL الصحيحة لخادم التطوير                    │
-│  • يراقب المنافذ الأربعة: 3000 · 5432 · 6379 · 3040           │
+│  • يراقب المنافذ الخمسة: 3000 · 5432 · 6379 · 3040 · 3041     │
 └───────────────────────────────────────────────────────────────┘
 ```
 
@@ -286,8 +301,9 @@ a public multi-page website, and signed server sessions guarding admin routes.]
 | التذكيرات والإعدادات | `GET/POST /api/reminders` · `GET/PUT /api/settings` |
 | الذكاء الاصطناعي | `POST /api/ai/chat` (SSE) · `GET/PUT /api/ai/config` · `POST /api/ai/test` · `GET/DELETE /api/ai/conversations` · `GET /api/ai/conversations/[id]` · `POST /api/ai/process-items` |
 | النظام | `GET /api/healthz` · `GET /api/backup` · `POST /api/recovery` · `POST /api/pdf` (proxy → :3040) |
+| طوابير المهام | `GET /api/jobs` (إحصائيات + آخر المهام + المجدولة) · `POST /api/jobs` (enqueue / retry / remove) — مدير فقط |
 
-> **37 ملف مسار** في `src/app/api` (تحقّق مباشر). العمليات الإدارية الحساسة (الشركات، إعداد/اختبار الذكاء، النسخ الاحتياطي/الاستعادة، دمج العملاء، محتوى الموقع) تتطلب **جلسة مدير** على الخادم — القائمة الكاملة في [قسم الأمان](#-الأمان-security).
+> **38 ملف مسار** في `src/app/api` (تحقّق مباشر). العمليات الإدارية الحساسة (الشركات، إعداد/اختبار الذكاء، النسخ الاحتياطي/الاستعادة، دمج العملاء، محتوى الموقع، طوابير المهام) تتطلب **جلسة مدير** على الخادم — القائمة الكاملة في [قسم الأمان](#-الأمان-security).
 
 ---
 
@@ -415,10 +431,11 @@ bun run scripts/seed-site.ts   # (اختياري) محتوى الموقع الع
 
 > ملاحظة: مجلدا `infra/` و `db/` غير مضمّنين في المستودع (`.gitignore`) — يحتاج كل جهاز جديد إلى تهيئتهما مرة واحدة.
 
-### 5) خدمة PDF
+### 5) خدمات PDF والطوابير
 
 ```bash
 cd mini-services/pdf-service && bun install && cd ../..
+cd mini-services/job-worker && bun install && cd ../..
 ```
 
 ### 6) التشغيل — عبر الحارس keepalive (موصى به)
@@ -427,13 +444,14 @@ cd mini-services/pdf-service && bun install && cd ../..
 cd mini-services/keepalive && ( setsid nohup bun run dev > service.log 2>&1 < /dev/null & ) && cd ../..
 ```
 
-سيقوم الحارس بتشغيل/مراقبة الخدمات الأربع: PostgreSQL (:5432) · Valkey (:6379) · pdf-service (:3040) · Next.js (:3000).
+سيقوم الحارس بتشغيل/مراقبة الخدمات الخمس: PostgreSQL (:5432) · Valkey (:6379) · pdf-service (:3040) · job-worker (:3041) · Next.js (:3000).
 
 **أو التشغيل اليدوي المنفصل:**
 
 ```bash
 bun run dev                                   # Next.js → http://localhost:3000
 cd mini-services/pdf-service && bun run dev   # خدمة PDF → :3040
+cd mini-services/job-worker && bun run dev    # عامل المهام → :3041
 ```
 
 ### 7) افتح التطبيق
@@ -534,18 +552,19 @@ cd mini-services/pdf-service && bun run dev   # خدمة PDF → :3040
 
 ### الحارس الرئيسي `mini-services/keepalive`
 
-حلقة فحص كل **8 ثوانٍ** تراقب المنافذ الأربعة (`3000 / 5432 / 6379 / 3040`) وتعيد تشغيل أي خدمة متوقفة:
+حلقة فحص كل **8 ثوانٍ** تراقب المنافذ الخمسة (`3000 / 5432 / 6379 / 3040 / 3041`) وتعيد تشغيل أي خدمة متوقفة:
 
 - **PostgreSQL** — عبر `pg_ctl` بالمسار المستخرج في `infra/pg` مع `LD_LIBRARY_PATH` الصحيح
-- **Valkey** — تشغيل `valkey-server` بالمسار المبني في `infra/valkey`
+- **Valkey** — تشغيل `valkey-server` بالمسار المبني في `infra/valkey` (سياسة `noeviction` — مطلب BullMQ)
 - **pdf-service** — `bun run dev` داخل مجلده
+- **job-worker** — `bun run dev` داخل مجلده مع تمرير `DATABASE_URL` (عامل طوابير BullMQ)
 - **Next.js dev** — يمسح مجلد `.next` التالف أولاً (كاش Turbopack يفسد عند القتل المفاجئ) ثم يشغّل `bun run dev` **مع تمرير `DATABASE_URL` الصحيحة صراحةً** (لتفادي متغير شل قديم يتفوق على `.env`)
 
 كل إعادة تشغيل تتم بنمط double-fork (`setsid nohup … &`) بحيث تعيش الخدمة حتى لو توقف الحارس نفسه.
 
 ### بعد إعادة تشغيل الجهاز
 
-أمر واحد يعيد كل شيء (الخدمات الأربع):
+أمر واحد يعيد كل شيء (الخدمات الخمس):
 
 ```bash
 cd mini-services/keepalive && ( setsid nohup bun run dev > service.log 2>&1 < /dev/null & )
@@ -557,6 +576,22 @@ cd mini-services/keepalive && ( setsid nohup bun run dev > service.log 2>&1 < /d
 
 `src/lib/cache.ts` تغلّف Valkey بـ ioredis مع: `cacheWrap` للقراءات الساخنة (قوائم الفواتير 15 ثانية، إحصاءات لوحة التحكم 30 ثانية، سياق المساعد الذكي 20 ثانية…)، إبطال شامل عند كل كتابة (POST/PUT/DELETE)، إحصاءات hits/misses، وسقوط آمن إلى ذاكرة محلية عند تعطل الخدمة.
 
+### طوابير المهام الخلفية (BullMQ) — منذ r14
+
+طبقة `src/lib/queue.ts` (الجانب المُنتِج داخل Next.js) + خدمة `mini-services/job-worker` (الجانب المستهلك) فوق **نفس نسخة Valkey** — الطابور `garfix-tasks`:
+
+| المهمة | ماذا تفعل | الجدولة (Africa/Cairo) |
+|---|---|---|
+| `backup` | تفريغ كامل للقاعدة إلى `download/backups/garfix-backup-auto-*.json` **بنفس صيغة زر Recovery** (قابلة للاستعادة فوراً) | يومياً 03:00 |
+| `cache-warm` | نداء 23 نقطة نهاية (لوحات 4 شركات + الصفحات العامة) لتسخين كاش Valkey مسبقاً | كل ساعة |
+| `cleanup-backups` | حذف النسخ الأقدم من 14 يوماً مع الاحتفاظ الدائم بأحدث 5 | سبتاً 04:30 |
+| `db-maintenance` | `VACUUM ANALYZE` — استعادة المساحة والأداء | يومياً 04:15 |
+
+- **إعادة المحاولة تلقائياً**: 3 محاولات بتراجع أُسّي (4s) لكل مهمة فاشلة
+- **لوحة مراقبة** في تبويب 💾 النظام (مدير فقط): عدادات حيّة (منتظرة/نشطة/مكتملة/فاشلة/مؤجلة) + حالة العامل + مواعيد المجدولة التالية + آخر 24 مهمة بمددها ونتائجها + أزرار تنفيذ فوري + زر إعادة محاولة للفاشلة
+- **حارس التفرد** في العامل: نسخة واحدة فقط لكل جهاز (خروج فوري إذا كان المنفذ 3041 محجوزاً — يمنع تراكم عمال زومبي عند استخدام `bun --hot`)
+- **API**: `GET /api/jobs` للمراقبة و `POST /api/jobs` للإدارة — قائمة بيضاء صارمة لأنواع المهام + جلسة مدير إلزامية
+
 ---
 
 ## 💾 النسخ الاحتياطي والاستعادة (Backup and Recovery)
@@ -566,6 +601,7 @@ cd mini-services/keepalive && ( setsid nohup bun run dev > service.log 2>&1 < /d
 | العملية | الطريقة | التفاصيل |
 |---|---|---|
 | 📤 **النسخ الاحتياطي** | زر التنزيل · `GET /api/backup` | ملف JSON كامل (`garfix-accounts` v2) يشمل كل الجداول مع عدّادات — **مفتاح DeepSeek لا يُضم أبداً** لأسباب أمنية |
+| 🤖 **النسخ التلقائي** | طابور BullMQ `backup` | نسخة يومياً 03:00 إلى `download/backups/` **بنفس صيغة الاستعادة** + حذف الأقدم من 14 يوماً تلقائياً (سبتاً) — بلا تدخل يدوي |
 | 📥 **الاستعادة** | زر **Recovery** · `POST /api/recovery` | استبدال ذرّي داخل Transaction واحدة: رفع الملف → معاينة وعدّادات → كتابة كلمة «استعادة» للتأكيد → إعادة ضبط الـ sequences تلقائياً (الفواتير الجديدة تكمل الترقيم الصحيح) |
 
 > 🧪 التدفق مُختبَر E2E: حذف فاتورتين ← رفع النسخة ← عادت الـ 14 فاتورة والترقيم سليم.
@@ -584,6 +620,8 @@ cd mini-services/keepalive && ( setsid nohup bun run dev > service.log 2>&1 < /d
 | خطأ اتصال بقاعدة بيانات قديمة رغم أن `.env` صحيح | متغير `DATABASE_URL` **مصدَّر في جلسة الشل** ويتفوق على `.env` | `unset DATABASE_URL` أو مرِّر القيمة صراحةً: `DATABASE_URL=postgresql://… bun run dev` |
 | `db.<model> is not a function` بعد تعديل مخطط Prisma | خادم التطوير ما زال يحمل نسخة قديمة من عميل Prisma | بعد `bun run db:push` نفّذ `touch next.config.ts` — يعيد Next تشغيل نفسه ويحمّل العميل الجديد |
 | تصدير PDF يفشل برسالة عربية (502) | خدمة pdf-service متوقفة | `cd mini-services/pdf-service && bun run dev` (المنفذ 3040) — أو اترك الحارس يعيدها |
+| المهام المجدولة لا تعمل / عدادات الطوابير صفر | خدمة job-worker متوقفة | `cd mini-services/job-worker && bun run dev` (المنفذ 3041) — أو اترك الحارس يعيدها · تحقق `curl localhost:3041/healthz` |
+| تحذير `Eviction policy … should be noeviction` في سجل العامل | سياسة Valkey للإخلاء | مطلوب `noeviction` لصحة بيانات الطوابير — عدّل `infra/valkey/valkey.conf` وأعد تشغيل Valkey (الكاش له سقوط آمن للذاكرة) |
 | كل الخدمات متوقفة بعد إعادة تشغيل الجهاز | الحارس keepalive نفسه توقف | أمر إعادة التشغيل الواحد في [قسم البنية التحتية](#-البنية-التحتية-والحارس-keepalive-infrastructure) |
 | أول طلب PDF بطيء (حتى ~8 ثوانٍ) | تحميل خط Tajawal وتضمينه للمرة الأولى | طبيعي — الطلبات التالية بحدود ~0.2 ثانية (الكاش مضمَّن) |
 | اختبار DeepSeek يرجع `401 Authentication Fails` | مفتاح غير صالح أو منتهٍ | أنشئ مفتاحاً جديداً من platform.deepseek.com وأعد الحفظ |
@@ -611,7 +649,7 @@ cd mini-services/keepalive && ( setsid nohup bun run dev > service.log 2>&1 < /d
 | 🟠 متوسطة | SEO / meta منفصل لكل صفحة من صفحات الموقع | التوجيه hash داخل SPA بمسار واحد |
 | 🟠 متوسطة | إطار زمني للتقارير داخل الشات | «ما مبيعات الشهر الماضي؟» بإجابة من الخادم |
 | 🟠 متوسطة | صفحة إعدادات لكل شركة داخل النظام | قوالب الطباعة، الروابط، الهوية — مركزية |
-| 🟡 لاحقاً | أتمتة التذكيرات المجدولة (cron + سجل التذكيرات) | جدولة التحصيل الدوري |
+| 🟡 لاحقاً | أتمتة التذكيرات المجدولة عبر طوابير BullMQ | الجدولة والطوابير جاهزة منذ r14 — يكفي معالج `reminder` جديد في job-worker |
 | 🟡 لاحقاً | WhatsApp Business API | تأكيد تسليم فعلي بدل افتراض الإرسال عند النقر |
 | 🟡 لاحقاً | تجميع التقارير على الخادم | بدل الحساب العميلي — لقوائم ضخمة |
 
@@ -619,6 +657,7 @@ cd mini-services/keepalive && ( setsid nohup bun run dev > service.log 2>&1 < /d
 
 | البند | الجولة |
 |---|---|
+| طوابير مهام **BullMQ** كاملة: عامل مستقل + مهام مجدولة (نسخ يومي/تسخين ساعي/تنظيف أسبوعي/VACUUM) + لوحة مراقبة حيّة + API إداري | r14 |
 | طبقة جلسات الخادم الموقّعة + حماية المسارات الإدارية + ترويسات الأمان | r13 |
 | الموقع العام متعدد الصفحات + إدارة محتواه من تبويب «🌐 الموقع» | r13 |
 | لقطات شاشة حقيقية في `docs/screenshots/` (بدل placeholders) | r13 |

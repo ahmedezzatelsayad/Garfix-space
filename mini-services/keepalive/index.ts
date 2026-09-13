@@ -1,6 +1,6 @@
 /**
  * mini-service: keepalive — الحارس الرئيسي للبنية التحتية
- * يراقب كل 8 ثوانٍ: PostgreSQL (5432) • Valkey (6379) • pdf-service (3040) • Next.js (3000)
+ * يراقب كل 8 ثوانٍ: PostgreSQL (5432) • Valkey (6379) • pdf-service (3040) • job-worker (3041) • Next.js (3000)
  * ويُعيد تشغيل أي خدمة متوقفة فوراً (spawn detached — تعيش حتى لو أُوقف الحارس لاحقاً).
  */
 import { spawn, execFile } from "node:child_process";
@@ -63,6 +63,17 @@ async function ensurePdfService(): Promise<void> {
   spawnDetached("bun", ["run", "dev"], { cwd: `${PROJECT}/mini-services/pdf-service`, log: `${PROJECT}/mini-services/pdf-service/service.log` });
 }
 
+/** r14: عامل طوابير BullMQ (job-worker) — يعالج النسخ التلقائية والتسخين والصيانة */
+async function ensureJobWorker(): Promise<void> {
+  if (await portOpen(3041)) return;
+  console.log("[keepalive] job-worker متوقف — إعادة التشغيل…");
+  spawnDetached("bun", ["run", "dev"], {
+    cwd: `${PROJECT}/mini-services/job-worker`,
+    env: { ...process.env, DATABASE_URL },
+    log: `${PROJECT}/mini-services/job-worker/service.log`,
+  });
+}
+
 async function ensureNextDev(): Promise<void> {
   if (await portOpen(3000)) return;
   console.log("[keepalive] Next.js dev متوقف — مسح كاش Turbopack (يَتلف عند القتل المفاجئ) وإعادة التشغيل…");
@@ -84,6 +95,7 @@ async function main(): Promise<void> {
       await ensurePostgres().catch((e) => console.error("[keepalive] pg:", e?.message ?? e));
       await ensureValkey().catch((e) => console.error("[keepalive] valkey:", e?.message ?? e));
       await ensurePdfService().catch((e) => console.error("[keepalive] pdf:", e?.message ?? e));
+      await ensureJobWorker().catch((e) => console.error("[keepalive] jobs:", e?.message ?? e));
       await ensureNextDev().catch((e) => console.error("[keepalive] next:", e?.message ?? e));
     } catch (e) {
       console.error("[keepalive] خطأ:", e instanceof Error ? e.message : e);

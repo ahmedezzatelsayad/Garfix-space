@@ -11,6 +11,7 @@ import AIBulkProcessor from "./components/AIBulkProcessor";
 import SmartChat from "./components/SmartChat";
 import DeepSeekSettings from "./components/DeepSeekSettings";
 import BackupRecovery from "./components/BackupRecovery";
+import JobsPanel from "./components/JobsPanel";
 import CompanyForm from "./components/CompanyForm";
 import SiteManager from "./components/SiteManager";
 import PublicSite from "../site/PublicSite";
@@ -3455,8 +3456,9 @@ return(
     )}
 
     {view==="system"&&(
-      <div style={{animation:"fadeUp .25s"}}>
+      <div style={{animation:"fadeUp .25s", display:"flex", flexDirection:"column", gap:14}}>
         <BackupRecovery company={company} />
+        <JobsPanel company={company} toast={toast_} />
       </div>
     )}
 
