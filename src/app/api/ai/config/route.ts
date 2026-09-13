@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { DEEPSEEK_MODELS, getAiConfig, maskKey } from "@/lib/ai-provider";
 import { invalidateSettings } from "@/lib/cache";
+import { requireAdmin } from "@/lib/auth-server";
 
 // GET /api/ai/config — إعداد DeepSeek الحالي (المفتاح مقنّع)
 export async function GET() {
@@ -26,8 +27,10 @@ export async function GET() {
   }
 }
 
-// PUT /api/ai/config — حفظ المفتاح/الموديل/التفعيل
+// PUT /api/ai/config — حفظ المفتاح/الموديل/التفعيل (r13: للمديرين فقط)
 export async function PUT(req: NextRequest) {
+  const denied = requireAdmin(req);
+  if (denied) return denied;
   try {
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
 

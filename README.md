@@ -15,9 +15,12 @@
 
 **نظام فواتير ومحاسبة متعدد الشركات للسوق الكويتي** — واجهة عربية RTL بالكامل،
 تتبع مدفوعات حقيقي، تحصيل عبر واتساب، تقارير وتحليلات، ومساعد ذكي متصل ببياناتك.
+يستقبلك بموقع عام متعدد الصفحات (رئيسية · فريق · رسالة المؤسس) قبل تسجيل الدخول،
+وتحمي طبقةُ جلساتٍ خادمية موقّعة كلَّ المسارات الإدارية.
 
 [Kuwaiti multi-company invoicing & accounting system — full Arabic RTL UI,
-real payment tracking, WhatsApp collections, analytics, and a data-aware AI assistant.]
+real payment tracking, WhatsApp collections, analytics, a data-aware AI assistant,
+a public multi-page website, and signed server sessions guarding admin routes.]
 
 [![Next.js 16](https://img.shields.io/badge/Next.js%2016-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3C4043?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
@@ -37,27 +40,29 @@ real payment tracking, WhatsApp collections, analytics, and a data-aware AI assi
 
 1. [📖 نظرة عامة (Overview)](#-نظرة-عامة-overview)
 2. [✨ الميزات (Features)](#-الميزات-features)
-3. [📸 لقطات الشاشة (Screenshots)](#-لقطات-الشاشة-screenshots)
-4. [🏗️ معمارية النظام (Architecture)](#-معمارية-النظام-architecture)
-5. [🗄️ نموذج البيانات (Data Model)](#-نموذج-البيانات-data-model)
-6. [📦 متطلبات التشغيل (Requirements)](#-متطلبات-التشغيل-requirements)
-7. [⚙️ التثبيت (Installation)](#-التثبيت-installation)
-8. [🔑 متغيرات البيئة (Environment Variables)](#-متغيرات-البيئة-environment-variables)
-9. [👤 الحسابات الافتراضية (Default Accounts)](#-الحسابات-الافتراضية-default-accounts)
-10. [🖥️ الاستخدام (Usage)](#-الاستخدام-usage)
-11. [🧠 إعداد DeepSeek API](#-إعداد-deepseek-api)
-12. [🏭 البنية التحتية والحارس keepalive (Infrastructure)](#-البنية-التحتية-والحارس-keepalive-infrastructure)
-13. [💾 النسخ الاحتياطي والاستعادة (Backup and Recovery)](#-النسخ-الاحتياطي-والاستعادة-backup-and-recovery)
-14. [🩺 استكشاف الأخطاء (Troubleshooting)](#-استكشاف-الأخطاء-troubleshooting)
-15. [🗺️ خارطة الطريق (Roadmap)](#-خارطة-الطريق-roadmap)
-16. [🤝 المساهمة (Contributing)](#-المساهمة-contributing)
-17. [📄 الرخصة (License)](#-الرخصة-license)
+3. [🌐 الموقع العام (Public Website)](#-الموقع-العام-public-website)
+4. [📸 لقطات الشاشة (Screenshots)](#-لقطات-الشاشة-screenshots)
+5. [🏗️ معمارية النظام (Architecture)](#-معمارية-النظام-architecture)
+6. [🗄️ نموذج البيانات (Data Model)](#-نموذج-البيانات-data-model)
+7. [🔒 الأمان (Security)](#-الأمان-security)
+8. [📦 متطلبات التشغيل (Requirements)](#-متطلبات-التشغيل-requirements)
+9. [⚙️ التثبيت (Installation)](#-التثبيت-installation)
+10. [🔑 متغيرات البيئة (Environment Variables)](#-متغيرات-البيئة-environment-variables)
+11. [👤 الحسابات الافتراضية (Default Accounts)](#-الحسابات-الافتراضية-default-accounts)
+12. [🖥️ الاستخدام (Usage)](#-الاستخدام-usage)
+13. [🧠 إعداد DeepSeek API](#-إعداد-deepseek-api)
+14. [🏭 البنية التحتية والحارس keepalive (Infrastructure)](#-البنية-التحتية-والحارس-keepalive-infrastructure)
+15. [💾 النسخ الاحتياطي والاستعادة (Backup and Recovery)](#-النسخ-الاحتياطي-والاستعادة-backup-and-recovery)
+16. [🩺 استكشاف الأخطاء (Troubleshooting)](#-استكشاف-الأخطاء-troubleshooting)
+17. [🗺️ خارطة الطريق (Roadmap)](#-خارطة-الطريق-roadmap)
+18. [🤝 المساهمة (Contributing)](#-المساهمة-contributing)
+19. [📄 الرخصة (License)](#-الرخصة-license)
 
 ---
 
 ## 📖 نظرة عامة (Overview)
 
-**Garfix** هو نظام إدارة فواتير وحسابات متعدد الشركات مصمَّم للسوق الكويتي: عملة دينار كويتي،
+**Garfix** هو نظام إدارة فواتير وحسابات متعدد الشركات مصمَّم للسوق الكويتي: عملة دينار كويتي افتراضياً (لكل شركة عملتها الخاصة)،
 أرقام هواتف `+965`، رسائل تحصيل عربية، كشوف حساب بالأسلوب المحاسبي الكويتي، ودعم أرقام عربية (`٣ شاحن`).
 
 بدأ المشروع كمنصّة Replit (Express 5 + Drizzle) ثم أُعيد بناؤه بالكامل على **Next.js 16 (App Router)**
@@ -71,6 +76,8 @@ real payment tracking, WhatsApp collections, analytics, and a data-aware AI assi
 | 🤖 **الذكاء الاصطناعي** | مساعد ذكي ببث SSE متصل بلقطة حيّة من كامل بيانات المشروع + معالجة بنود الفواتير من نص خام + مزوّد DeepSeek قابل للتفعيل من الواجهة |
 | 🏭 **بنية تحتية محلية** | PostgreSQL و Valkey يعملان بدون صلاحيات root (استخراج حزم deb + بناء من المصدر) بإشراف حارس ذاتي الإصلاح |
 | 💾 **أمان البيانات** | نسخ احتياطي JSON كامل + استعادة ذرّية عبر زر Recovery داخل التطبيق |
+| 🌐 **موقع عام متعدد الصفحات** | الرئيسية / الفريق / رسالة المؤسس / الدخول — بتوجيه hash، والمحتوى من قاعدة البيانات ويُدار من تبويب «🌐 الموقع» |
+| 🔒 **طبقة أمان خادمية** | جلسات httpOnly موقّعة (HMAC-SHA256) تحمي المسارات الإدارية + تحديد معدل الدخول + ترويسات أمان |
 
 ---
 
@@ -126,43 +133,101 @@ real payment tracking, WhatsApp collections, analytics, and a data-aware AI assi
 - 🧠 **مزوّد موحّد**: DeepSeek عند تفعيله (SSE + وضع JSON) مع **سقوط آمن** تلقائي للمزوّد المدمج عند أي فشل
 - ⚙️ صفحة إعدادات DeepSeek (للمدير فقط): مفتاح مقنّع، اختيار الموديل ببطاقات توضيحية، اختبار اتصال بالزمن، تفعيل بتأكيد مزدوج
 
+### 🌐 الموقع العام
+
+- صفحات عامة بتوجيه hash داخل مسار `/` الواحد: `#/` الرئيسية · `#/team` الفريق · `#/founder` رسالة المؤسس · `#/login` الدخول — يراها الزائر **قبل** تسجيل الدخول، والمدير يعاينها فوق النظام بزر «↩️ العودة للنظام»
+- الرئيسية: هيرو ببطاقة فاتورة عائمة + إحصاءات **حيّة** (`/api/site/stats`) + 6 بطاقات مزايا + شريط الشركات + لمحة المؤسس — والفريق ورسالة المؤسس من قاعدة البيانات
+- إدارة كاملة للمحتوى من تبويب «🌐 الموقع» (مدير فقط) — التفاصيل في [قسم الموقع العام](#-الموقع-العام-public-website)
+- هوية كحلي + ذهبي موحّدة، فوتر ملتصق، متجاوب حتى 390px بلا تمرير أفقي
+
 ### 🛠️ النظام والبنية التحتية
 
-- تعدد شركات مع شعارات قابلة للرفع وألوان هوية لكل شركة
+- إدارة الشركات من الواجهة (إضافة/تعديل): بروفايل كامل لكل شركة — شعار وألوان هوية وبيانات اتصال **وعملة خاصة بها** (KWD افتراضياً)
 - ⚙️ إدارة مستخدمين وأدوار (مدير / موظف) بصلاحيات دقيقة لكل شركة
 - 🌙 وضع ليلي كامل عبر التطبيق (40+ متغير CSS) بدون وميض + persisted
 - ⚡ كاش **Valkey** للمسارات الساخنة (القوائم 15 ثانية، لوحة التحكم 30 ثانية…) مع إبطال عند كل كتابة + سقوط آمن للذاكرة المحلية
 - 💾 نسخ احتياطي / استعادة ذرّية + مراقبة حيّة لحالة PostgreSQL و Valkey كل 15 ثانية
 - 🏭 حارس **keepalive** ذاتي الإصلاح (تفاصيل في قسم البنية التحتية)
+- 🔒 طبقة أمان خادمية: جلسات موقّعة httpOnly (HMAC-SHA256 · 30 يوماً) تحمي المسارات الإدارية + تحديد معدل الدخول + ترويسات أمان — التفاصيل في [قسم الأمان](#-الأمان-security)
 - واجهة متجاوبة حتى 390px بلا تمرير أفقي + عنوان صفحة ديناميكي + إشعارات toast + عدّادات KPI متحركة
+
+---
+
+## 🌐 الموقع العام (Public Website)
+
+منذ r13 يفتح الزائر على **موقع عام متعدد الصفحات** قبل أي شاشة دخول — بتوجيه hash داخل مسار `/` الواحد (SPA واحدة بلا إعادة تحميل ولا مسارات خادم إضافية):
+
+| الصفحة | المسار | المحتوى |
+|---|---|---|
+| 🏠 الرئيسية | `#/` | هيرو ببطاقة فاتورة عائمة + **إحصاءات حيّة** من `GET /api/site/stats` + 6 بطاقات مزايا + شريط الشركات (من `/api/companies`) + لمحة عن المؤسس |
+| 👥 الفريق | `#/team` | بطاقة المؤسس المميّزة + شبكة أعضاء بأفاتارات وروابط اجتماعية |
+| ✉️ رسالة المؤسس | `#/founder` | تصميم خطاب بعلامة اقتباس كبيرة وتوقيع |
+| 🔐 الدخول | `#/login` | شاشة الدخول نفسها داخل إطار مع رابط عودة للموقع |
+
+- **معاينة المدير:** بعد الدخول يمكن فتح نفس الصفحات فوق النظام (نفس الـ hashes) مع زر «↩️ العودة للنظام»
+- **البيانات من قاعدة البيانات:** جدولا `team_members` و`site_content` (14 مفتاحاً مزروعة بـ `scripts/seed-site.ts`) مع قيم افتراضية hardcoded عند غياب البيانات
+- **الإدارة كاملة من داخل النظام:** تبويب «🌐 الموقع» (`SiteManager.jsx` — مدير فقط): تحرير كل حقول المحتوى + إدارة أعضاء الفريق (إضافة / تعديل / حذف / إعادة ترتيب بالأسهم / نشر-مسودة) + أزرار معاينة فورية للصفحات الثلاث
+- **التصميم:** هوية كحلي + ذهبي مطابقة لشاشة الدخول، فوتر ملتصق بأسفل الشاشة، mobile-first — متجاوب حتى 390px بلا تمرير أفقي (متحقَّق)
 
 ---
 
 ## 📸 لقطات الشاشة (Screenshots)
 
-> **TODO:** التقط لقطات الشاشة التالية واحفظها في المسارات أدناه، ثم أزل تعليقات الصور في الأسفل.
+لقطات **حقيقية** من النظام (`docs/screenshots/` — جولة r13): الموقع العام أولاً كما يراه الزائر، ثم التطبيق بعد الدخول.
 
-| الشاشة | المسار المقترح |
-|---|---|
-| لوحة التحكم (وضع نهاري) | `docs/screenshots/dashboard.png` |
-| لوحة التحكم (وضع ليلي) | `docs/screenshots/dashboard-dark.png` |
-| قائمة الفواتير مع شرائح التصفية | `docs/screenshots/invoices-list.png` |
-| تفاصيل فاتورة (دفعات + تذكيرات) | `docs/screenshots/invoice-detail.png` |
-| نموذج فاتورة جديدة | `docs/screenshots/new-invoice.png` |
-| العملاء + الدليل + حدود الائتمان | `docs/screenshots/customers.png` |
-| التقارير + أعمار الذمم | `docs/screenshots/reports.png` |
-| المساعد الذكي (بث SSE) | `docs/screenshots/smart-chat.png` |
-| إعدادات DeepSeek | `docs/screenshots/deepseek-settings.png` |
-| النسخ الاحتياطي والاستعادة | `docs/screenshots/system-backup.png` |
-| التذكيرات الجماعية | `docs/screenshots/bulk-wa-reminders.png` |
-| قوالب الطباعة الثلاثة | `docs/screenshots/print-templates.png` |
+### 🌐 الموقع العام (قبل تسجيل الدخول)
 
-<!-- TODO: عند إضافة الصور، أزل التعليق:
-![لوحة التحكم](docs/screenshots/dashboard.png)
-![قائمة الفواتير](docs/screenshots/invoices-list.png)
-![المساعد الذكي](docs/screenshots/smart-chat.png)
-![إعدادات DeepSeek](docs/screenshots/deepseek-settings.png)
--->
+**🏠 الرئيسية (`#/`)** — هيرو ببطاقة فاتورة عائمة، إحصاءات حيّة، 6 بطاقات مزايا، وشريط الشركات:
+
+<p align="center">
+  <img src="docs/screenshots/site-home.png" width="800" alt="الموقع العام — الصفحة الرئيسية"/>
+</p>
+
+**👥 الفريق (`#/team`)** — بطاقة المؤسس المميّزة وشبكة الأعضاء:
+
+<p align="center">
+  <img src="docs/screenshots/site-team.png" width="800" alt="الموقع العام — صفحة الفريق"/>
+</p>
+
+**✉️ رسالة المؤسس (`#/founder`)** — تصميم خطاب بعلامة اقتباس وتوقيع:
+
+<p align="center">
+  <img src="docs/screenshots/site-founder.png" width="800" alt="الموقع العام — رسالة المؤسس"/>
+</p>
+
+**📱 الموقع على الجوال** — نفس التجربة على 390px بلا تمرير أفقي:
+
+<p align="center">
+  <img src="docs/screenshots/site-mobile.png" width="390" alt="الموقع العام — الجوال 390px"/>
+</p>
+
+### 🔐 الدخول وإدارة المحتوى
+
+**شاشة الدخول (`#/login`)** — بنفس الهوية الكحلية/الذهبية مع رابط عودة للموقع:
+
+<p align="center">
+  <img src="docs/screenshots/login.png" width="800" alt="شاشة تسجيل الدخول"/>
+</p>
+
+**تبويب «🌐 الموقع» (مدير فقط)** — تحرير محتوى الموقع وإدارة أعضاء الفريق مع معاينة فورية:
+
+<p align="center">
+  <img src="docs/screenshots/site-manager.png" width="800" alt="تبويب إدارة الموقع"/>
+</p>
+
+### 🖥️ التطبيق (بعد تسجيل الدخول)
+
+**📊 لوحة التحكم** — مؤشرات الشركة والرسوم البيانية:
+
+<p align="center">
+  <img src="docs/screenshots/app-dashboard.png" width="800" alt="لوحة التحكم — الوضع النهاري"/>
+</p>
+
+**🌙 الوضع الليلي** — نفس اللوحة بالثيم الداكن:
+
+<p align="center">
+  <img src="docs/screenshots/app-dark.png" width="800" alt="لوحة التحكم — الوضع الليلي"/>
+</p>
 
 ---
 
@@ -178,7 +243,7 @@ real payment tracking, WhatsApp collections, analytics, and a data-aware AI assi
 ┌───────────────────────────────────────────────────────────────┐
 │              Next.js 16 — http://localhost:3000               │
 │      App Router · React 19 · Tailwind CSS 4 · shadcn/ui       │
-│           27 مسار API (Route Handlers · TypeScript)           │
+│           37 مسار API (Route Handlers · TypeScript)           │
 └──────────────┬───────────────────────────────┬───────────────┘
                │ Prisma ORM                    │ ioredis
                ▼                               ▼
@@ -210,24 +275,29 @@ real payment tracking, WhatsApp collections, analytics, and a data-aware AI assi
 
 | المجال | المسارات |
 |---|---|
+| المصادقة والجلسات | `POST /api/auth/login` · `POST /api/auth/logout` · `GET /api/auth/me` |
+| الشركات | `GET/POST /api/companies` · `PUT /api/companies/[slug]` |
 | الفواتير | `GET/POST /api/invoices` · `GET/PUT/DELETE /api/invoices/[id]` · `PATCH /api/invoices/[id]/status` · `GET /api/invoices/export` (CSV) |
 | المدفوعات | `GET/POST /api/invoices/[id]/payments` · `DELETE /api/payments/[id]` |
 | العملاء | `GET/POST /api/clients` · `GET/PUT/DELETE /api/clients/[id]` · `POST /api/clients/merge` |
 | لوحة التحكم | `GET /api/dashboard/stats` · `GET /api/dashboard/recent-invoices` · `GET /api/dashboard/revenue-by-month` |
+| الموقع العام | `GET /api/site/stats` · `GET/PUT /api/site/content` · `GET/POST /api/site/team` · `PUT/DELETE /api/site/team/[id]` |
 | المشتريات والكتالوج | `GET/POST /api/purchase-invoices` · `DELETE /api/purchase-invoices/[id]` · `GET/POST /api/catalog` · `PUT/DELETE /api/catalog/[id]` |
 | التذكيرات والإعدادات | `GET/POST /api/reminders` · `GET/PUT /api/settings` |
-| الذكاء الاصطناعي | `POST /api/ai/chat` (SSE) · `GET/PUT /api/ai/config` · `GET/DELETE /api/ai/conversations` · `GET /api/ai/conversations/[id]` · `POST /api/ai/process-items` |
+| الذكاء الاصطناعي | `POST /api/ai/chat` (SSE) · `GET/PUT /api/ai/config` · `POST /api/ai/test` · `GET/DELETE /api/ai/conversations` · `GET /api/ai/conversations/[id]` · `POST /api/ai/process-items` |
 | النظام | `GET /api/healthz` · `GET /api/backup` · `POST /api/recovery` · `POST /api/pdf` (proxy → :3040) |
+
+> **37 ملف مسار** في `src/app/api` (تحقّق مباشر). العمليات الإدارية الحساسة (الشركات، إعداد/اختبار الذكاء، النسخ الاحتياطي/الاستعادة، دمج العملاء، محتوى الموقع) تتطلب **جلسة مدير** على الخادم — القائمة الكاملة في [قسم الأمان](#-الأمان-security).
 
 ---
 
 ## 🗄️ نموذج البيانات (Data Model)
 
-قاعدة PostgreSQL عبر **Prisma ORM** — 11 نموذجاً (الأعمدة المركّبة مثل بنود الفاتورة تُخزن كسلاسل JSON وتُحوَّل في طبقة الـ API):
+قاعدة PostgreSQL عبر **Prisma ORM** — 13 نموذجاً (الأعمدة المركّبة مثل بنود الفاتورة تُخزن كسلاسل JSON وتُحوَّل في طبقة الـ API):
 
 | النموذج | الجدول | الوصف | أهم الحقول |
 |---|---|---|---|
-| `Company` | `companies` | الشركات | `name` · `slug` (فريد) |
+| `Company` | `companies` | الشركات — بروفايل كامل قابل للتعديل من الواجهة | `name` · `slug` (فريد) · `code` (فريد) · `currency` (افتراضي `KWD`) · `nameAr` · بيانات اتصال وهوية (هاتف/بريد/عنوان/مدير/ألوان/شعار) |
 | `Client` | `clients` | دليل العملاء المحفوظ | `name` · `phone` · `email` · `address` · `company` |
 | `Invoice` | `invoices` | فواتير البيع | `invoiceNumber` · `companySlug` · بيانات العميل · `lineItems` (JSON) · `subtotal/taxRate/taxAmount/shipping/total/paid` · `status` · `issueDate/dueDate` · `source` |
 | `Payment` | `payments` | دفعات الفواتير | `invoiceId` (FK · Cascade) · `amount` · `method` (cash/knet/online/card) · `date` · `note` |
@@ -238,6 +308,54 @@ real payment tracking, WhatsApp collections, analytics, and a data-aware AI assi
 | `AiSetting` | `ai_settings` | إعداد مزوّد DeepSeek | `apiKey` · `baseUrl` · `model` · `enabled` · نتيجة آخر اختبار |
 | `AiConversation` | `ai_conversations` | محادثات المساعد الذكي | `title` · `companySlug` |
 | `AiMessage` | `ai_messages` | رسائل المحادثات | `conversationId` (Cascade) · `role` · `content` · `latencyMs` |
+| `TeamMember` | `team_members` | أعضاء الفريق (صفحة `#/team` بالموقع العام) | `name` · `role` · `bio` · `emoji` / `photoUrl` · `email` / `linkedin` / `twitter` · `sortOrder` · `published` (نشر/مسودة) |
+| `SiteContent` | `site_content` | محتوى صفحات الموقع العام (14 مفتاحاً مزروعة) | `key` (فريد) · `value` |
+
+> يُبذر محتوى الموقع بـ `bun run scripts/seed-site.ts` — upsert آمن لا يستبدل تعديلات المدير اللاحقة.
+
+---
+
+## 🔒 الأمان (Security)
+
+طبقة دفاع خادمية فعلية (r13) فوق التوثيقي المحلي — دون كسر أي تدفق قائم:
+
+### جلسات الخادم الموقّعة — `src/lib/auth-server.ts`
+
+- كوكي **`garfix_sess`** — **httpOnly** موقّع بـ **HMAC-SHA256**، صلاحية **30 يوماً**، ومقارنة التوقيع بـ `timingSafeEqual` (مقاومة هجمات التوقيت)
+- سر التوقيع: **48 بايت عشوائية** تُولَّد مرة واحدة وتُخزَّن في `db/session-secret` (خارج المستودع عبر `.gitignore`)
+- كلمات مرور الخادم مخزنة كبصمات **SHA-256** — لا نص صريح في الملف
+- المسارات: `POST /api/auth/login` (يُستدعى **تلقائياً** من تدفق الدخول المحلي fire-and-forget — فشله لا يمنع الدخول) · `POST /api/auth/logout` (من زر الخروج) · `GET /api/auth/me`
+
+### تحديد معدل الدخول ومنع تعداد المستخدمين
+
+- **10 محاولات / 5 دقائق / IP** — بعدها يُحجب الطلب (in-memory: يُصفّر عند إعادة التشغيل)
+- رسائل خطأ **موحّدة** لا تكشف إن كان البريد مسجلاً من الأساس (no user enumeration)
+
+### المسارات المحمية بجلسة مدير — `requireAdmin`
+
+| المسار | العمليات المحمية |
+|---|---|
+| `/api/companies` | `POST` + `PUT /api/companies/[slug]` |
+| `/api/ai/config` · `/api/ai/test` | `PUT` · `POST` |
+| `/api/backup` · `/api/recovery` | `GET` · `POST` |
+| `/api/clients/merge` | `POST` |
+| `/api/site/content` | `PUT` |
+| `/api/site/team` (+ `[id]`) | `POST` · `PUT` · `DELETE` (+ `GET ?all=1`) |
+
+**متحقَّق فعلياً:** بلا جلسة ← **401** · جلسة موظف ← **403** · جلسة مدير ← **200**.
+
+### ترويسات الأمان — `next.config.ts`
+
+- `X-Content-Type-Options: nosniff` · `Referrer-Policy: strict-origin-when-cross-origin` · `Permissions-Policy` (تعطيل camera / microphone / geolocation / payment)
+- `Cache-Control: no-store` على `/api/backup` و`/api/recovery` و`/api/auth/*`
+- **بلا `X-Frame-Options` عمداً** — حتى تبقى لوحة معاينة الطباعة داخل إطار تعمل
+
+### الحدود المتبقية (بصدق)
+
+- عمليات الكتابة **غير الإدارية** (فواتير / مدفوعات / عملاء / كتالوج / مشتريات) ما زالت توثيقاً عميلاً فقط
+- المستخدمون المنشأون من لوحة «زر المستخدمين» (CreateUserModal) لا يحصلون على جلسة خادم — الجلسات للحسابات الستة المعروفة فقط
+- تحديد المعدل في الذاكرة — يُصفّر عند كل إعادة تشغيل (Valkey متاح للترقية لاحقاً)
+- **NextAuth** يبقى الحل الجذري الشامل — أولوية [خارطة الطريق](#-خارطة-الطريق-roadmap)
 
 ---
 
@@ -280,6 +398,7 @@ EOF
 bun run db:generate      # توليد عميل Prisma
 bun run db:push          # إنشاء الجداول في قاعدة البيانات
 bun run prisma/seed.ts   # (اختياري) بيانات تجريبية: 4 شركات، 6 منتجات، 14 فاتورة
+bun run scripts/seed-site.ts   # (اختياري) محتوى الموقع العام: 14 مفتاحاً + 4 أعضاء فريق (upsert آمن)
 ```
 
 > للإنتاج يُفضَّل `bun run db:migrate` (ترحيلات مُتحكَّم بها) بدلاً من `db:push`.
@@ -319,7 +438,7 @@ cd mini-services/pdf-service && bun run dev   # خدمة PDF → :3040
 
 ### 7) افتح التطبيق
 
-<http://localhost:3000> — سجّل الدخول بأحد [الحسابات الافتراضية](#-الحسابات-الافتراضية-default-accounts).
+<http://localhost:3000> — يفتح على **الموقع العام** (`#/`)؛ سجّل الدخول من `#/login` بأحد [الحسابات الافتراضية](#-الحسابات-الافتراضية-default-accounts).
 
 ### أوامر أخرى مفيدة
 
@@ -341,6 +460,8 @@ cd mini-services/pdf-service && bun run dev   # خدمة PDF → :3040
 
 > 🧠 مفتاح **DeepSeek API** لا يُضبط عبر متغيرات البيئة — يُدخل من واجهة التطبيق (تبويب «🧠 DeepSeek») ويُخزَّن في جدول `ai_settings` بقاعدة البيانات. راجع [قسم DeepSeek](#-إعداد-deepseek-api).
 
+> 🔐 سر توقيع جلسات الخادم لا يحتاج متغير بيئة — يُولَّد تلقائياً (48 بايت) ويُخزَّن في `db/session-secret` خارج المستودع. راجع [قسم الأمان](#-الأمان-security).
+
 > ⚠️ انتبه: متغير `DATABASE_URL` المصدَّر في جلسة الشل **يتفوق** على ملف `.env` — إذا واجهت خطأ اتصال بقاعدة قديمة استخدم `unset DATABASE_URL` أو مرر القيمة صراحةً.
 
 ---
@@ -357,14 +478,14 @@ cd mini-services/pdf-service && bun run dev   # خدمة PDF → :3040
 | `info@laqta.com` | `laqta123` | 👔 موظف | لقطة |
 
 > ⚠️ **تحذير أمني:** غيّر جميع كلمات المرور فوراً قبل أي استخدام حقيقي.
-> التوثيق الحالي يعمل عبر **localStorage** (طبقة توثيق تجريبية بديلة عن Firebase) — وهو مناسب للتطوير والعرض فقط.
-> الترقية إلى **NextAuth** للتوثيق الفعلي على الخادم هي الأولوية القصوى في [خارطة الطريق](#-خارطة-الطريق-roadmap).
+> التوثيق الأساسي يعمل عبر **localStorage** (طبقة تجريبية بديلة عن Firebase)، لكن منذ r13 توجد طبقة **جلسات خادمية موقّعة** تحمي المسارات الإدارية (النسخ/الاستعادة/إعداد الذكاء/الشركات/دمج العملاء/محتوى الموقع) — راجع [قسم الأمان](#-الأمان-security).
+> الترقية إلى **NextAuth** للتوثيق الفعلي الكامل ما زالت الأولوية القصوى في [خارطة الطريق](#-خارطة-الطريق-roadmap).
 
 ---
 
 ## 🖥️ الاستخدام (Usage)
 
-بعد تسجيل الدخول واختيار شركة، تظهر هذه التبويبات (بعضها يخفى حسب الصلاحيات):
+الزائر غير المسجل يرى [الموقع العام](#-الموقع-العام-public-website) (`#/` · `#/team` · `#/founder`). بعد تسجيل الدخول واختيار شركة، تظهر هذه التبويبات (13 تبويباً — بعضها يخفى حسب الصلاحيات):
 
 | التبويب | ماذا تفعل فيه |
 |---|---|
@@ -379,6 +500,7 @@ cd mini-services/pdf-service && bun run dev   # خدمة PDF → :3040
 | 🖨️ **طباعة** | طباعة فاتورة / نطاق / مجموعة محددة + اختيار القالب (كلاسيكي/عصري/بسيط) |
 | 🛒 **المشتريات** | فواتير المشتريات ودمجها وتصديرها PDF |
 | 🧠 **DeepSeek** | إعدادات مزوّد الذكاء (مدير فقط) — انظر القسم التالي |
+| 🌐 **الموقع** | إدارة محتوى الموقع العام: تحرير كل النصوص الظاهرة للزوار + أعضاء الفريق (إضافة/تعديل/حذف/ترتيب/نشر) + معاينة فورية (مدير فقط) |
 | 💾 **النظام** | النسخ الاحتياطي والاستعادة ومراقبة PostgreSQL/Valkey (مدير فقط) |
 | ⚙️ **المستخدمين** | زر في الشريط العلوي (للمدير): إنشاء مستخدمين وتعيين الأدوار والشركات والصلاحيات |
 
@@ -448,6 +570,8 @@ cd mini-services/keepalive && ( setsid nohup bun run dev > service.log 2>&1 < /d
 
 > 🧪 التدفق مُختبَر E2E: حذف فاتورتين ← رفع النسخة ← عادت الـ 14 فاتورة والترقيم سليم.
 
+> 🔒 كلا المسارين محمي بجلسة مدير على الخادم (`requireAdmin`): بلا جلسة **401** وبجلسة موظف **403** — التفاصيل في [قسم الأمان](#-الأمان-security).
+
 ---
 
 ## 🩺 استكشاف الأخطاء (Troubleshooting)
@@ -465,8 +589,11 @@ cd mini-services/keepalive && ( setsid nohup bun run dev > service.log 2>&1 < /d
 | اختبار DeepSeek يرجع `401 Authentication Fails` | مفتاح غير صالح أو منتهٍ | أنشئ مفتاحاً جديداً من platform.deepseek.com وأعد الحفظ |
 | أسماء ملفات عربية تسبب خطأ في التنزيل | ترميز `Content-Disposition` | معالج في الكود (ASCII احتياطي + RFC 5987) — استخدم إصداراً محدَّثاً |
 | الشاشة بيضاء/تتأخر بعد إعادة تشغيل الحارس | إعادة بناء كاش Turbopack من الصفر | انتظر ثوانٍ (استرجاع مُتحقَّق في ~2.5 ثانية) ثم حدِّث الصفحة |
+| مسار موجود محلياً لكنه «مفقود من المستودع» (مثل `/api/ai/test` في r12) | نمط `test` الحرفي في `.gitignore` كان يبتلع **أي** ملف أو مجلد اسمه `test` في أي عمق | غيّر النمط إلى `/test` (الجذر فقط) ثم `git add` المسار وأعد الالتزام |
+| عنوان الصفحة صحيح عند التنقل لكنه خاطئ عند التحميل المباشر | React يعيد تطبيق عنوان `metadata` بعد اكتمال hydration فيكتب فوق عنوان ضبطه العميل | أعد ضبط العنوان بتأخير قصير بعد hydration (~700ms) — الحل المطبق في `PublicSite` و`App` |
+| تمرير أفقي على الجوال رغم وجود media queries سليمة | تنسيق inline (مثل `display:flex`) يتغلّب على أصناف CSS داخل الـ media query | انقل الاستثناء إلى صنف CSS يُفعّله الـ media query (كان سبب overflow 390px في صفحات الموقع) |
 
-> ملاحظة: زر «اختبار الاتصال» في تبويب DeepSeek يستدعي `/api/ai/test` — إن ظهر 404 في نسختك (المسار غير مضمّن في الـ commits الحالية)، يمكن حفظ المفتاح والتفعيل مباشرة عبر `/api/ai/config` وسيستخدم المساعد المزوّد فوراً.
+> ملاحظة: زر «اختبار الاتصال» يستدعي `POST /api/ai/test` — المسار موجود الآن ومحمي بجلسة مدير (بدونها 401). في النسخ القديمة كان «يختفي» من المستودع بسبب نمط `test` في `.gitignore` (انظر صفّه في الجدول أعلاه).
 
 ---
 
@@ -476,15 +603,27 @@ cd mini-services/keepalive && ( setsid nohup bun run dev > service.log 2>&1 < /d
 
 | الأولوية | البند | ملاحظات |
 |---|---|---|
-| 🔴 عالية | **NextAuth** للتوثيق الفعلي على الخادم | الفجوة الإنتاجية الأولى — التوثيق الحالي localStorage |
+| 🔴 عالية | **NextAuth** للتوثيق الفعلي الكامل | البناء فوق طبقة جلسات r13 (`garfix_sess`) — التوثيق الأساسي ما زال localStorage |
+| 🔴 عالية | **فرض الأدوار على كل عمليات الكتابة** | الفواتير/المدفوعات/العملاء ما زالت توثيقاً عميلاً فقط — انظر «الحدود المتبقية» في [قسم الأمان](#-الأمان-security) |
 | 🔴 عالية | **أدوات المساعد الذكي** (function calling) | إنشاء فاتورة / إرسال تذكير مباشرة من الشات |
 | 🟠 متوسطة | تصدير CSV/Excel من تبويب «💾 النظام» | نسخ كاملة للجداول من واجهة النظام |
+| 🟠 متوسطة | رفع صور أعضاء الفريق (ملفات) | المدعوم حالياً روابط فقط (`photoUrl`) |
+| 🟠 متوسطة | SEO / meta منفصل لكل صفحة من صفحات الموقع | التوجيه hash داخل SPA بمسار واحد |
 | 🟠 متوسطة | إطار زمني للتقارير داخل الشات | «ما مبيعات الشهر الماضي؟» بإجابة من الخادم |
 | 🟠 متوسطة | صفحة إعدادات لكل شركة داخل النظام | قوالب الطباعة، الروابط، الهوية — مركزية |
 | 🟡 لاحقاً | أتمتة التذكيرات المجدولة (cron + سجل التذكيرات) | جدولة التحصيل الدوري |
 | 🟡 لاحقاً | WhatsApp Business API | تأكيد تسليم فعلي بدل افتراض الإرسال عند النقر |
 | 🟡 لاحقاً | تجميع التقارير على الخادم | بدل الحساب العميلي — لقوائم ضخمة |
-| 🟡 لاحقاً | تعدد العملات | دعم عملات غير الدينار الكويتي |
+
+### ✅ منجز حديثاً
+
+| البند | الجولة |
+|---|---|
+| طبقة جلسات الخادم الموقّعة + حماية المسارات الإدارية + ترويسات الأمان | r13 |
+| الموقع العام متعدد الصفحات + إدارة محتواه من تبويب «🌐 الموقع» | r13 |
+| لقطات شاشة حقيقية في `docs/screenshots/` (بدل placeholders) | r13 |
+| إصلاح جذر «اختفاء» `/api/ai/test` (نمط `test` في `.gitignore`) | r13 |
+| العملة إعداد لكل شركة (12 عملة، `KWD` افتراضياً) + إدارة الشركات من الواجهة | r12 |
 
 ---
 

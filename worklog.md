@@ -485,3 +485,69 @@ Unresolved issues / risks / next-phase priorities:
 - إسناد صلاحيات الموظفين للشركات الجديدة يعمل من لوحة الإدارة، لكن SEED_PROFILES للموظفين الافتراضيين ما زال بقائمة ثابتة (المستخدمون الجدد فقط ديناميكيون).
 - نسخة الاستعادة لا تتضمن شركات مضافة بعد أخذ النسخة (سلوك طبيعي للنسخ الاحتياطية).
 - next-phase: زر حذف شركة محمي، رفع لقطات README إلى docs/screenshots، أدوات المساعد الذكي (إنشاء فاتورة من الشات)، NextAuth.
+---
+Task ID: 1-infra
+Agent: general-purpose (infra revival)
+Task: إعادة بناء PostgreSQL 17 + Valkey 8.1.1 + تشغيل كل الخدمات بعد إعادة تشغيل الـ sandbox
+
+Work Log:
+- قرأت وصفات الإنعاش الموثقة في worklog (r10 / r10-fix1 / r12) والتزمت بها حرفياً: مسارات infra/pg وvalkey-8.1.1 وdb/postgres-data وdb/valkey-data وأمر keepalive الواحد.
+- PostgreSQL 17.11 (Debian trixie): `apt-get download postgresql-17 postgresql-client-17 libpq5` في /tmp/pgdebs → `dpkg-deb -x` إلى infra/pg — ldd نظيف من أول مرة (كل مكتبات النظام موجودة، لم تلزم libllvm/icu إضافية). initdb -U garfix --auth=trust كمستخدم z.
+- postgresql.conf: `unix_socket_directories = '/tmp'` (تفادي مشكلة /var/run/postgresql) + `listen_addresses = '127.0.0.1'` + port 5432. تشغيل عبر pg_ctl مع LD_LIBRARY_PATH=infra/pg/usr/lib/x86_64-linux-gnu. ALTER ROLE garfix PASSWORD 'garfix2024' + CREATE DATABASE garfix OWNER garfix.
+- إصلاح .env: كانت DATABASE_URL=file:...custom.db (بلا تنصيص لكن خاطئة) → أصبحت postgresql://garfix:garfix2024@127.0.0.1:5432/garfix?schema=public بلا علامات تنصيص.
+- `DATABASE_URL=... bun run db:push` نجح (Prisma 6.19.2، توليد Client تلقائي).
+- مشكلة حقيقية أثناء الترحيل: جدول Company في SQLite القديم لا يحوي عمود updatedAt الجديد (مطلوب NOT NULL بلا default في PG) → فشل الإدراج. الحل المؤقت: `ALTER TABLE "Company" ALTER COLUMN "updatedAt" SET DEFAULT now()` قبل الترحيل ثم DROP DEFAULT بعده — قاعدة البيانات الآن مطابقة للمخطط تماماً (لا default خفي يظهر كـ diff في db:push قادم).
+- `bun scripts/migrate-sqlite-to-pg.ts` نجح كاملاً: 4 شركات، 1 عميل، 14 فاتورة، 6 كتالوج، 1 مشتريات، 0 مدفوعات/تذكيرات/إعدادات + إعادة ضبط كل sequences (Company←5، invoices←18) — تطابق sqlite=pg في كل الجداول الثمانية.
+- Valkey 8.1.1 من المصدر (تاربال GitHub → infra/valkey/valkey-8.1.1): `make -C deps hiredis linenoise hdr_histogram fpconv lua fast_float_c_interface` ثم `make -C src valkey-server MALLOC=libc` (لم يُبنَ valkey-cli عمداً كما في الوصفة) — الثنائية 12.7MB جاهزة (malloc=libc).
+- infra/valkey/valkey.conf: bind 127.0.0.1، port 6379، daemonize no، dir db/valkey-data، maxmemory 256mb، allkeys-lru، appendonly yes. اختبار يدوي: تشغيل detached → ioredis من node_modules: PING=PONG وSET/GET يعملان وversion=8.1.1 → إيقاف نظيف (kill بالـ PID — ملاحظة: pkill -f بالنمط الكامل لا يطابق لأن valkey يغيّر عنوان العملية إلى "valkey-server 127.0.0.1:6379").
+- تشغيل الحارس: `cd mini-services/keepalive && ( setsid nohup bun run dev > service.log 2>&1 < /dev/null & )` — اكتشف Valkey/pdf/next متوقفة فأعادها كلها تلقائياً (مسح .next ثم next dev) خلال ثوانٍ.
+
+Stage Summary:
+- كل الخدمات الأربع حية: PostgreSQL 127.0.0.1:5432 (pg_isready: accepting connections) • Valkey 127.0.0.1:6379 (AOF في db/valkey-data) • pdf-service :3040 (chromium جاهز) • next dev :3000 (Ready in 970ms).
+- التحقق: GET /api/healthz → 200 {"status":"ok","database":{"engine":"postgresql","ok":true,"latencyMs":2},"cache":{"engine":"valkey","connected":true,...,"hits":1,"misses":1,"writes":1}} (الكاش يعمل فعلياً على Valkey وليس fallback الذاكرة) • GET / → 200 • GET /api/companies → 4 شركات (Tawfeer/Mahhal/Boss Neolife/Laqta) • psql: Company=4 وinvoices=14 • next-dev.log وdev.log بلا أي أخطاء (فقط 200) • keepalive service.log نظيف.
+- انحراف وحيد عن الوصفة: default مؤقت لعمود Company.updatedAt أثناء الترحيل (شرح أعلاه) أُزيل بعده — بسبب أعمدة r12 غير الموجودة في SQLite القديم.
+
+---
+Task ID: r13
+Agent: main (Z.ai Code)
+Task: تحديث README + تدقيق الأمان العام + واجهة موقع عام متعدد الصفحات (الفريق + رسالة المؤسس) — طلب المستخدم: «حدث ال readme وتحقق من الامان العام واعمل واجهه بصفحات متعدده للموقع خاصة بالفريق ورسالة المؤسس»
+
+Work Log:
+- **إنعاش البنية التحتية** (subagent 1-infra): إعادة بناء PostgreSQL 17.11 + Valkey 8.1.1 من الصفر بعد فقدان infra/ (وصفة r10/r12 الموثقة)، ترحيل البيانات من db/custom.db (4 شركات/14 فاتورة)، keepalive يعمل — healthz: postgresql+valkey متصلان. مشكلة وحيدة: عمود updatedAt الناقص في SQLite القديم عند الترحيل (حُل بـ DEFAULT مؤقت ثم حذفه).
+- **اكتشاف جوهري — سر «المسار المفقود» في r12**: سطر `test` الحرفي في .gitignore كان يبتلع أي مسار اسمه test — بما فيه src/app/api/ai/test/route.ts! لهذا «اختفى» المسار من المستودع رغم إنشائه في r12. أُصلح النمط إلى `/test` (الجذر فقط) وأُعيد إنشاء المسار كاملاً + حماية مدير.
+- **الأمان (طبقة جلسات الخادم)**: src/lib/auth-server.ts — كوكي garfix_sess httpOnly موقّع HMAC-SHA256 (سر عشوائي في db/session-secret، صلاحية 30 يوماً، timingSafeEqual) + كلمات مرور الخادم كبصمات SHA-256 (لا نص صريح في الملف الجديد) + تحديد معدل الدخول 10 محاولات/5 دقائق/IP + رسائل خطأ موحّدة (لا تكشف وجود البريد).
+- **مسارات الجلسة**: POST /api/auth/login (يعمل تلقائياً من loginUser في firebase/auth.js fire-and-forget — التجربة المحلية كما هي) + POST /api/auth/logout (يستدعى من logoutUser) + GET /api/auth/me.
+- **حماية المسارات الإدارية (requireAdmin)**: companies POST+PUT، ai/config PUT، ai/test POST، backup GET، recovery POST، clients/merge POST، site/content PUT، site/team POST+PUT+DELETE. موظف بجلسة = 403 (تم التحقق)، بلا جلسة = 401 (تم التحقق بـ curl)، نسخ احتياطي عبر الواجهة بجلسة المدير = 200 (تم التحقق E2E).
+- **ترويسات أمان** في next.config.ts: X-Content-Type-Options nosniff + Referrer-Policy + Permissions-Policy + no-store على backup/recovery/auth (بلا X-Frame-Options حتى لا تتعطل لوحة المعاينة).
+- **تدقيق الأسرار**: لا remote في git (التوكن لم يُخزّن — جيد)، لا PAT في HEAD (git grep)، مفتاح DeepSeek مقنّع في GET config ومستبعد من النسخة الاحتياطية (محقّق)، .env في .gitignore.
+- **نماذج جديدة**: TeamMember (اسم/دور/نبذة/إيموجي/صورة/تواصل/ترتيب/نشر) + SiteContent (مفتاح/قيمة — 14 مفتاحاً مزروعة: رسالة المؤسس، عناوين البطل، التواصل…) + scripts/seed-site.ts (upsert آمن لا يستبدل تعديلات المدير).
+- **مسارات الموقع**: GET /api/site/stats (عام: أعداد فقط) + GET/PUT /api/site/content + GET /api/site/team (?all=1 للمدير) + PUT/DELETE /api/site/team/[id] — بكاش Valkey وإبطال site:*.
+- **الموقع العام متعدد الصفحات** (src/components/site/): توجيه hash داخل مسار / الواحد (#/ الرئيسية، #/team الفريق، #/founder رسالة المؤسس، #/login الدخول) — الزائر غير المسجل يرى الموقع تلقائياً بدل شاشة الدخول، والمدير يعاين الصفحات فوق النظام بزر «↩️ العودة للنظام». تصميم كحلي+ذهبي بهوية شاشة الدخول: نافبار عصبي (برغر موبايل)، هيترو ببطاقة فاتورة عائمة وإحصاءات حية، 6 بطاقات مزايا، شريط الشركات (من API)، تيعير المؤسس، صفحة فريق (بطاقة مؤسس مميزة + شبكة أعضاء بأفاتارات وسوشيال)، صفحة رسالة المؤسس (تصميم خطاب بعلامة اقتباس وتوقيع)، فوتر ملتصق بأسفل (mt-auto + safe-area).
+- **تبويب 🌐 الموقع (مدير فقط)**: SiteManager.jsx — تحرير كل محتوى الموقع (14 حقلاً) + إدارة أعضاء الفريق (إضافة/تعديل/حذف/ترتيب بالأسهم/نشر-مسودة) + أزرار معاينة فورية للصفحات الثلاث.
+- **إصلاحات أثناء QA**: ① عنوان الصفحة: React يعيد تطبيق عنوان metadata بعد اكتمال hydration فيكتب فوق عنوان العميل — الحل: إعادة ضبط متأخرة (700ms) في PublicSite وApp + توحيد عنوان الرئيسية مع metadata؛ ② خطأ TDZ: useState(sitePage) كان معلناً بعد تأثير يستخدمه في deps — أُعيد ترتيب الـ hooks؛ ③ BUG فعلي في API الفريق: القيمة الفارغة "" لحقول الروابط كانت تُرفض كرابط غير صالح (400) — أُعيدت دالة url() للتمييز بين «غير مُرسل» و«امسح القيمة»؛ ④ overflow موبايل 390px (كان 724px): تنقل nav بـ display:inline يتغلب على media query (أُصبح CSS class)، صف النافبار ضاق (برغر خارج الشاشة) — أزرار CTA بنص قصير للموبايل + اسم البراند بـ ellipsis + شبكة الفوتر لموبايل عمودية + كرات الخلفية داخل الحدود — النتيجة 390=390 بالضبط على كل الصفحات؛ ⑤ عنوان layout metadata أصبح اسم الموقع.
+- **QA E2E كامل**: زائر → الرئيسية (إحصاءات حية 4/14/1) → الفريق → المؤسس → دخول المدير (كوكي جلسة) → تعديل عنوان البطل وحفظه → ظهوره فوراً في الصفحة العامة → إضافة عضو «سالم الاختبار» (POST 201 بعد إصلاح ③) → ظهوره بصفحة الفريق → حذفه (DELETE 204) → تنزيل نسخة احتياطية من الواجهة (200 بجلسة المدير) → خروج → عودة للموقع + مسح الجلسة → دخول موظف: لا تبويبات إدارية، لوحة توفير تعمل → ليلي/نهاري سليم → موبايل 390px نظيف → جلسة متصفح جديدة كاملة: صفر أخطاء كونسول وصفحة. VLM على 3 لقطات: 9/10 للثلاث (تصميم احترافي، RTL سليم، بلا عيوب).
+- **لقطات حقيقية للريبو**: docs/screenshots/ (8 لقطات: site-home, site-team, site-founder, site-manager, app-dashboard, app-dark, login, site-mobile) — بدل الـ placeholders التي كانت في README.
+- lint: 0 أخطاء (تحذير واحد قديم من r11). dev.log نظيف (200/201/204/400/401/403 المقصودة فقط).
+
+Stage Summary:
+- r13 مكتملة: للمشروع الآن واجهة موقع عام حقيقية متعددة الصفحات (رئيسية/فريق/رسالة مؤسس/دخول) يراها الزائر قبل تسجيل الدخول، ويتحرر محتواها كاملاً من داخل النظام (تبويب 🌐 الموقع) — الرسالة والأعضاء من قاعدة البيانات مع قيم افتراضية عاملة. طبقة أمان خادمية فعلية (جلسات موقعة httpOnly + حماية 8 مسارات إدارية + تحديد معدل + ترويسات) دون كسر أي تدفق قائم. جذرا «اختفاء مسار ai/test» (نمط test في .gitignore) اكتُشف وأُصلح. README يُحدَّث بمعيار الجولة (شعبة r13-readme).
+
+Unresolved issues / risks / next-phase priorities:
+- التوثيق للعمليات غير الإدارية (فواتير/مدفوعات/عملاء) ما زال محلياً — الموظف الحقيقي غير المعروف للخادم (مستخدم CreateUserModal) لا يحصل على جلسة (عملياته غير الإدارية تعمل كالمعتاد). NextAuth يبقى الحل الجذري.
+- تحديد المعدل في الذاكرة يُصفَّر عند إعادة التشغيل (مقبول demo-grade؛ Valkey متاح للترقية).
+- صور الأعضاء روابط فقط (لا رفع ملفات) — رفع الصور فكرة قادمة.
+- صفحات الموقع لا تملك meta/OG منفصلة لكل صفحة (SPA بمسار واحد) — SEO محدود بطبيعته.
+- next-phase: NextAuth، فرض الأدوار على كل عمليات الكتابة، رفع صور الفريق، أدوات المساعد الذكي (إنشاء فاتورة من الشات)، تصدير CSV/Excel من تبويب النظام.
+---
+Task ID: r13-readme
+Agent: general-purpose (README updater)
+Task: تحديث README بجولة r13 (الموقع العام + الأمان + المسارات الجديدة + لقطات حقيقية)
+
+Work Log:
+- قرأت آخر أقسام worklog (r13 كاملاً + 1-infra + r12 + r10) ثم README.md كاملاً (526 سطراً) لالتقاط البنية والأسلوب والحقائق القائمة.
+- تحققت من الملفات الفعلية قبل الكتابة: prisma/schema.prisma (13 نموذجاً — TeamMember/SiteContent جديدتان) • 37 ملف route.ts فعلي في src/app/api (وليس ~34 ولا 27 القديمة) مع تعداد methods كل مسار بـ rg • next.config.ts (ترويسات الأمان + no-store على backup/recovery/auth) • .gitignore (`/test` الجذرية بعد الإصلاح) • src/lib/auth-server.ts (garfix_sess · HMAC-SHA256 · 30 يوماً · timingSafeEqual · SHA-256 digests · 10 محاولات/5 دقائق in-memory) • requireAdmin في 10 ملفات مسار (companies POST+PUT · ai/config+test · backup · recovery · clients/merge · site/content+team+[id]) • scripts/seed-site.ts (14 مفتاح محتوى + 4 أعضاء، upsert) • TABS في App.jsx (13 تبويباً مع 🌐 الموقع بين DeepSeek والنظام) • SiteManager.jsx وsrc/components/site/ (PublicSite/HomePage/TeamPage/FounderPage) • firebase/auth.js (fire-and-forget على /api/auth/login و/logout) • docs/screenshots (8 لقطات PNG موجودة فعلاً).
+- عدّلت README جراحياً (MultiEdit + تحرير سطري مُتحقَّق منه بـ Python بعد فشل مطابقة نصوص عربية مشكولة حرفياً): البانر/الشارات كما هي (لا اعتماديات جديدة) + سطرين في المقدمة؛ جدول محتويات من 17 إلى 19 قسماً؛ صفان جديدان في جدول النظرة العامة (الموقع العام + طبقة الأمان)؛ قسم ميزات «🌐 الموقع العام» جديد + تحديث ميزات النظام (إدارة الشركات/العملة + بند الأمان)؛ قسم كامل جديد «🌐 الموقع العام (Public Website)» (جدول الصفحات الأربع بالهاشات + معاينة المدير + المصدر DB + SiteManager)؛ استبدال 12 لقطة placeholder بـ 8 لقطات حقيقية مضمّنة <img> بعرض 800 (و390 للجوال) مقسمة 3 مجموعات؛ 27→37 مساراً في المخطط المعماري (نفس عرض الصند تماماً)؛ جدول API موسّع (المصادقة والجلسات + الشركات + الموقع العام + ai/test) مع ملاحظة الـ 37 والحماية؛ نموذج البيانات 11→13 مع صف Company كامل البروفايل + صفّا TeamMember/SiteContent + ملاحظة seed-site؛ قسم كامل جديد «🔒 الأمان (Security)» بأربعة أقسام فرعية (الجلسات الموقّعة / تحديد المعدل ومنع التعداد / جدول requireAdmin مع نتائج 401/403/200 / ترويسات الأمان) + «الحدود المتبقية» بصدق؛ أمر seed-site في خطوة 3 من التثبيت؛ خطوة 7 تشير للموقع العام و #/login؛ ملاحظة db/session-secret في متغيرات البيئة؛ تحديث تحذير الحسابات (طبقة الجلسات منذ r13)؛ تبويب 🌐 الموقع في جدول الاستخدام (13 تبويباً)؛ ملاحظة حماية backup/recovery؛ 3 مشاكل جديدة في استكشاف الأخطاء (نمط test في .gitignore / عنوان metadata بعد hydration / inline display:flex ضد media queries) + إعادة كتابة ملاحظة ai/test القديمة؛ خارطة طريق محدّثة (NextAuth مبنيّة فوق جلسات r13 + فرض الأدوار على كل الكتابات + رفع صور الفريق + SEO لكل صفحة) وجدول «✅ منجز حديثاً» (جلسات r13، الموقع العام، اللقطات الحقيقية، جذر ai/test، عملة/شركات r12) وحذف بند «تعدد العملات» المنجز.
+- تدقيق آلي نهائي: 666 سطراً • 49 عنواناً بلا slugs مكررة • 34 رابطاً داخلياً كلها تحل (بخوارزمية GitHub) • 8 مسارات صور محلية كلها موجودة • صفر أوامر npm/yarn/pnpm • لا بقايا «27 مسار/11 نموذجاً/TODO placeholders» • جداول سليمة الأعمدة • تصحيح mode الملف إلى 644.
+
+Stage Summary:
+- README محدَّث إلى معيار نهاية r13 (526→666 سطراً، +190/−51): أقسام جديدة للموقع العام والأمان، لقطات حقيقية بدل placeholders، 37 مسار API و13 نموذجاً و13 تبويباً مطابقة للكود الفعلي، وخارطة طريق صادقة (منجز r13/r12 مقابل المتبقي). خيّرتُ الحقيقة المُتحقَّقة على التقديرات: عدد المسارات الفعلي 37 (وليس ~34 المتوقع) لأن مسارات الشركات (r12، بعد كتابة README الأصلي) كانت غائبة من الجدول القديم أصلاً — أُضيفت. تفاوتات سابقة أُصلحت: صف Company كان مختصراً بلا code/currency/البروفايل، وملاحظة «ai/test غير مضمّن» أصبحت غير صحيحة بعد r13 فأُعيدت صياغتها بالسبب الجذري (.gitignore). لم يُلمس أي ملف غير README.md.

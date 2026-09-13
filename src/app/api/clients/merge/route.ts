@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { invalidateInvoices, invalidateClients } from "@/lib/cache";
+import { requireAdmin } from "@/lib/auth-server";
 
 /**
  * POST /api/clients/merge — دمج عميلين مكررين (r11)
@@ -17,6 +18,9 @@ function phKey(p: unknown): string {
 }
 
 export async function POST(req: NextRequest) {
+  // r13: دمج العملاء = عملية إدارية — تتطلب جلسة مدير
+  const denied = requireAdmin(req);
+  if (denied) return denied;
   try {
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
     const companySlug = typeof body.companySlug === "string" ? body.companySlug : "";

@@ -246,4 +246,38 @@ export const api = {
     const out = await request("PUT", `/companies/${encodeURIComponent(slug)}`, data);
     return out && out.company;
   },
+
+  // ── Site (r13: الموقع العام — رسالة المؤسس وفريق العمل) ──
+  async getSiteStats() {
+    return request("GET", "/site/stats");
+  },
+
+  async getSiteContent() {
+    const data = await request("GET", "/site/content");
+    return (data && data.content) || {};
+  },
+
+  async saveSiteContent(content) {
+    return request("PUT", "/site/content", { content });
+  },
+
+  async listTeam(all) {
+    const qs = all ? "?all=1" : "";
+    const data = await request("GET", `/site/team${qs}`);
+    return (data && data.team) || [];
+  },
+
+  async createTeamMember(data) {
+    const out = await request("POST", "/site/team", data);
+    return out && out.member;
+  },
+
+  async updateTeamMember(id, data) {
+    const out = await request("PUT", `/site/team/${id}`, data);
+    return out && out.member;
+  },
+
+  async deleteTeamMember(id) {
+    await request("DELETE", `/site/team/${id}`);
+  },
 };

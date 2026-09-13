@@ -1,9 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireAdmin } from "@/lib/auth-server";
 
 // GET /api/backup — تنزيل نسخة احتياطية كاملة (JSON) من قاعدة PostgreSQL
 // ملاحظة أمان: مفتاح DeepSeek API لا يُضم أبداً إلى النسخة الاحتياطية.
-export async function GET() {
+// r13: التنزيل = عملية إدارية — تتطلب جلسة مدير.
+export async function GET(req: NextRequest) {
+  const denied = requireAdmin(req);
+  if (denied) return denied;
   try {
     const [companies, clients, invoices, payments, catalog, purchases, reminders, settings, conversations, messages] =
       await Promise.all([

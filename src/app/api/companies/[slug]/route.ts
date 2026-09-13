@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { cacheDelPattern } from "@/lib/cache";
+import { requireAdmin } from "@/lib/auth-server";
 
 /**
  * r12: تعديل بيانات شركة موجودة (slug = مفتاح التخزين tw_inv_…_v1).
@@ -26,6 +27,9 @@ interface Params {
 }
 
 export async function PUT(req: NextRequest, { params }: Params) {
+  // r13: تعديل شركة = عملية إدارية — تتطلب جلسة مدير
+  const denied = requireAdmin(req);
+  if (denied) return denied;
   try {
     const { slug: slugParam } = await params;
     const slug = decodeURIComponent(slugParam ?? "").trim();

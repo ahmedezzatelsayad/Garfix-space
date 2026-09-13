@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { cacheDelPattern } from "@/lib/cache";
 import type { Prisma } from "@prisma/client";
+import { requireAdmin } from "@/lib/auth-server";
 
 type Tx = Prisma.TransactionClient;
 
@@ -59,6 +60,9 @@ function chunk<T>(arr: T[], size: number): T[][] {
 }
 
 export async function POST(req: NextRequest) {
+  // r13: الاستعادة = أخطر عملية في النظام — تتطلب جلسة مدير
+  const denied = requireAdmin(req);
+  if (denied) return denied;
   try {
     const body: unknown = await req.json().catch(() => null);
     if (!body || typeof body !== "object") {

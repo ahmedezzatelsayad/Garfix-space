@@ -5,7 +5,6 @@ import { api } from "./api";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { useAuth } from "./context/AuthContext";
 import { logoutUser } from "./firebase/auth";
-import FirebaseLogin from "./pages/FirebaseLogin";
 import AdminDashboard from "./pages/AdminDashboard";
 import PurchasesTab from "./components/PurchasesTab";
 import AIBulkProcessor from "./components/AIBulkProcessor";
@@ -13,6 +12,8 @@ import SmartChat from "./components/SmartChat";
 import DeepSeekSettings from "./components/DeepSeekSettings";
 import BackupRecovery from "./components/BackupRecovery";
 import CompanyForm from "./components/CompanyForm";
+import SiteManager from "./components/SiteManager";
+import PublicSite from "../site/PublicSite";
 import { fmtMoney, setCurrency, currencySymbol, CURRENCIES } from "./currency";
 import ReportsTab from "./components/ReportsTab";
 import PaymentsPanel from "./components/PaymentsPanel";
@@ -2727,26 +2728,63 @@ const TABS=[
 {id:"print",l:"🖨️ طباعة"},
 {id:"purchase",l:"🛒 المشتريات"},
 {id:"deepseek",l:"🧠 DeepSeek"},
+{id:"site",l:"🌐 الموقع"},
 {id:"system",l:"💾 النظام"},
 ];
 
+// r13: توجيه hash داخل مسار / الواحد — #/ أو #/team أو #/founder أو #/login (v2)
+// تفتح صفحات الموقع العام (للزائر قبل الدخول، وللمدير كمعاينة بعد الدخول)
+const [sitePage,setSitePage]=useState(null);
+useEffect(()=>{
+  const apply=()=>{
+    const m=location.hash.match(/^#\/(team|founder|login)?$/);
+    setSitePage(m?(m[1]||"home"):null);
+  };
+  apply();
+  window.addEventListener("hashchange",apply);
+  return ()=>window.removeEventListener("hashchange",apply);
+},[]);
+
 // dynamic browser-tab title: "القسم | الشركة — نظام إدارة الحسابات"
 useEffect(()=>{
+  // r13: الموقع العام يضبط عنوانه بنفسه (قبل الدخول أو عند المعاينة عبر hash)
+  if(sitePage||!user)return;
   const extra={edit:"تعديل فاتورة",bulk:"الإدخال المجمع"};
   const t=TABS.find(x=>x.id===view);
   const tabLabel=t?t.l.replace(/^\S+\s/,""):(extra[view]||"");
-  document.title=company
+  const apply=()=>{document.title=company
     ?`${tabLabel?tabLabel+" | ":""}${company.nameAr} — نظام إدارة الحسابات`
-    :"نظام إدارة الحسابات — الشركة القابضة المتحدة";
-},[company,view]);
+    :"نظام إدارة الحسابات — الشركة القابضة المتحدة";};
+  apply();
+  // React قد يعيد تطبيق عنوان metadata عند اكتمال الإنعاش — إعادة ضبط متأخرة تفوز بالسباق
+  const id=setTimeout(apply,700);
+  return ()=>clearTimeout(id);
+},[company,view,sitePage,user]);
+// بعد دخول المستخدم من #/login: ننظّف الهاش بلا قفزة ونعود للتطبيق
+useEffect(()=>{
+  if(user&&sitePage==="login"){
+    history.replaceState(null,"",location.pathname+location.search);
+    setSitePage(null);
+  }
+},[user,sitePage]);
 
-if(authLoading)return(
+if(authLoading&&!sitePage)return(
 <div style={{minHeight:"100vh",background:"#0f1f3d",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontFamily:"Cairo,sans-serif",fontSize:"16px",flexDirection:"column",gap:"16px"}}>
 <div style={{fontSize:"40px"}}>🛒</div><div>جارٍ التحميل...</div>
 </div>
 );
 
-if(!user)return <FirebaseLogin/>;
+// r13: صفحات الموقع العام (hash) — تعمل قبل الدخول وكمعاينة بعده
+const enterApp=()=>{
+  history.replaceState(null,"",location.pathname+location.search);
+  setSitePage(null);
+};
+if(sitePage&&!(sitePage==="login"&&user)){
+  return <PublicSite page={sitePage} authed={!!user} onEnterApp={enterApp}/>;
+}
+
+// الزائر غير المسجّل: يرى الموقع العام (الرئيسية) — الدخول من زر «تسجيل الدخول»
+if(!user)return <PublicSite page="home" authed={false} onEnterApp={()=>{}}/>;
 if(!company)return <>
   <CompanySelector companies={availableCompanies} onSelect={co=>{setCompany(co);setView("dash");}} onAdd={()=>setCompanyModal({mode:"create"})} onEdit={co=>setCompanyModal({mode:"edit",company:co})}/>
   {companyModal&&(
@@ -2809,7 +2847,7 @@ return(
       <button onClick={logout} style={{background:"rgba(0,0,0,.2)",border:"1px solid rgba(255,255,255,.2)",borderRadius:"6px",color:"rgba(255,255,255,.8)",padding:"5px 10px",fontFamily:"inherit",fontSize:"12px",fontWeight:700,cursor:"pointer",flexShrink:0}}>خروج</button>
     </div>
     <div className="navbar-tabs">
-      {TABS.filter(t=>{if(t.id==="new")return!!perms.create_invoice;if(t.id==="bulk")return!!perms.bulk_input;if(t.id==="customers")return!!perms.view_customers;if(t.id==="print")return!!perms.print_invoice;if(t.id==="deepseek"||t.id==="system")return isAdmin;return true;}).map(t=>(
+      {TABS.filter(t=>{if(t.id==="new")return!!perms.create_invoice;if(t.id==="bulk")return!!perms.bulk_input;if(t.id==="customers")return!!perms.view_customers;if(t.id==="print")return!!perms.print_invoice;if(t.id==="deepseek"||t.id==="system"||t.id==="site")return isAdmin;return true;}).map(t=>(
         <button key={t.id} className={`nav-tab${view===t.id?" active":""}`}
           onClick={()=>{setView(t.id);setSelInv(null);setBulkStep(0);}}>
           {t.l}
@@ -3407,6 +3445,12 @@ return(
     {view==="deepseek"&&(
       <div style={{animation:"fadeUp .25s"}}>
         <DeepSeekSettings company={company} />
+      </div>
+    )}
+
+    {view==="site"&&(
+      <div style={{animation:"fadeUp .25s"}}>
+        <SiteManager toast={toast_} />
       </div>
     )}
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { cacheWrap, cacheDelPattern } from "@/lib/cache";
+import { requireAdmin } from "@/lib/auth-server";
 
 /**
  * r12: إدارة الشركات — سجل كامل قابل للتعديل من الواجهة (كانت hard-coded في الواجهة فقط).
@@ -111,6 +112,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  // r13: إضافة شركة = عملية إدارية — تتطلب جلسة مدير
+  const denied = requireAdmin(req);
+  if (denied) return denied;
   try {
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
 

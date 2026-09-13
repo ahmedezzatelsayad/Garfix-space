@@ -197,3 +197,34 @@ model AiMessage {
   @@index([conversationId])
   @@map("ai_messages")
 }
+
+// r13: فريق العمل — يُعرض في صفحة الفريق بالموقع العام ويُدار من تبويب 🌐 الموقع
+model TeamMember {
+  id        Int      @id @default(autoincrement())
+  name      String
+  role      String   @default("عضو الفريق")
+  bio       String? // نبذة قصيرة (أسطر مفصولة بـ \n)
+  emoji     String? // أفاتار بديل عند غياب صورة (مثل 🧑‍💼)
+  photoUrl  String? // رابط صورة اختياري (https://…)
+  email     String?
+  linkedin  String?
+  twitter   String?
+  sortOrder Int      @default(0) // الأصغر أولاً
+  published Boolean  @default(true) // false = مسودة لا تظهر بالموقع العام
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("team_members")
+}
+
+// r13: محتوى صفحات الموقع العام (رسالة المؤسس، عناوين البطل…)
+// key مثل: founder_name | founder_title | founder_message | hero_title | hero_sub
+model SiteContent {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  value     String   @default("")
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@map("site_content")
+}

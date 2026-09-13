@@ -35,10 +35,19 @@ export async function loginUser(email, password) {
   const user = { uid: btoa(e), email: e, displayName: e.split("@")[0] };
   setStored(user);
   notify(user);
+  // r13: جلسة خادم موقّعة (httpOnly cookie) — تفتح المسارات الإدارية المحمية.
+  // fire-and-forget: التجربة المحلية كما هي؛ فشل الخادم لا يمنع الدخول.
+  fetch("/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: e, password }),
+  }).catch(() => {});
   return user;
 }
 
 export async function logoutUser() {
+  // r13: مسح جلسة الخادم أيضاً
+  fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
   setStored(null);
   notify(null);
 }
