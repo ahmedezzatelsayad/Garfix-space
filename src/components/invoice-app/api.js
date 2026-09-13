@@ -162,6 +162,11 @@ export const api = {
     return request("GET", `/clients${qs}`);
   },
 
+  // r11: دمج عميلين مكررين — توحيد الفواتير والدليل على العميل الهدف
+  async mergeClients({ companySlug, from, to }) {
+    return request("POST", "/clients/merge", { companySlug, from, to });
+  },
+
   async createClient(data) {
     return request("POST", "/clients", data);
   },

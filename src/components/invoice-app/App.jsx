@@ -1530,7 +1530,7 @@ return(
 }
 
 // ─── Customers ────────────────────────────────────────────────────
-function Customers({invoices, company, onImportDone, onOpenInvoice, clients, refreshClients, toast_, printStyle}){
+function Customers({invoices, company, onImportDone, onOpenInvoice, clients, refreshClients, toast_, printStyle, onMerged}){
 const { perms, isAdmin } = useAuth();
 const { dark } = useTheme();
 const col = company.color;
@@ -1541,6 +1541,12 @@ const [sort,setSort]=useState("spent");
 const [showImport,setShowImport]=useState(false);
 const [selCustomer,setSelCustomer]=useState(null);
 const [stmtBusy,setStmtBusy]=useState(false);
+// r11: دمج العملاء المكررين
+const [mergeOpen,setMergeOpen]=useState(false);
+const [mergeTarget,setMergeTarget]=useState(null);
+const [mergeSearch,setMergeSearch]=useState("");
+const [mergeBusy,setMergeBusy]=useState(false);
+const [mergeArmed,setMergeArmed]=useState(false);
 // r9: credit hard-block enforcement flag (admin-controlled, synced server-side)
 const [creditBlock,setCreditBlockState]=useState(()=>getCreditBlock(company?.id));
 const toggleCreditBlock=()=>{
@@ -1726,6 +1732,19 @@ onClose={()=>setShowImport(false)}
         <a href={`tel:+965${selCustomer.phone.replace(/^\+?965/,"")}`} className="btn" style={{background:"#2563eb",color:"#fff",textDecoration:"none",padding:"9px 16px"}}>📞 اتصال</a>
         </>
       )}
+      {isAdmin&&selCustomer&&(
+        <button onClick={()=>{setMergeOpen(true);setMergeTarget(null);setMergeSearch("");setMergeArmed(false);}}
+          title="دمج هذا العميل مع عميل آخر مكرر — تُنقل كل فواتيره وتُوحّد الاسم والرقم (مفيد لمن أُدخل برقمين مختلفين)"
+          style={{
+            background:softAdapt("#fef3c7",dark),color:txAdapt("#92400e",dark),
+            border:`1.5px dashed ${txAdapt("#f59e0b",dark)}`,borderRadius:"8px",
+            padding:"9px 14px",fontFamily:"inherit",fontSize:"12.5px",fontWeight:800,cursor:"pointer",
+            transition:"all .18s",
+          }}
+          onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-1px)";e.currentTarget.style.boxShadow="0 3px 10px rgba(245,158,11,.25)";}}
+          onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="none";}}
+        >🔀 دمج مكرر</button>
+      )}
       {selCustomer.address&&(
         <div style={{display:"inline-flex",alignItems:"center",gap:"6px",background:"var(--ia-soft)",border:"1px solid var(--ia-border)",borderRadius:"8px",padding:"9px 14px",fontSize:"12px",color:"var(--ia-text2)",fontWeight:600,flex:1,minWidth:"140px"}}>
           📍 {selCustomer.address}
@@ -1847,6 +1866,130 @@ onClose={()=>setShowImport(false)}
 </div>
 </div>
 )}
+
+{/* ── r11: Merge Customers Modal ── */}
+{mergeOpen&&selCustomer&&(()=>{
+  const srcCount=customerInvoices.length;
+  const srcPh=phKey(selCustomer.phone);
+  const others=customers.filter(c=>phKey(c.phone)!==srcPh);
+  const filteredOthers=mergeSearch?others.filter(c=>c.phone.includes(mergeSearch)||c.name.toLowerCase().includes(mergeSearch.toLowerCase())):others;
+  const tgtCount=mergeTarget?mergeTarget.count:0;
+  const runMerge=async()=>{
+    if(!mergeTarget||mergeBusy)return;
+    if(!mergeArmed){setMergeArmed(true);return;}
+    setMergeBusy(true);
+    try{
+      const res=await api.mergeClients({
+        companySlug:company?.sk,
+        from:{phone:selCustomer.phone,name:selCustomer.name},
+        to:{phone:mergeTarget.phone,name:mergeTarget.name,address:mergeTarget.address||""},
+      });
+      toast_(res?.message||`✅ تم دمج ${res?.merged??srcCount} فاتورة بنجاح`);
+      setMergeOpen(false);
+      setSelCustomer(null);
+      if(onMerged){try{await onMerged();}catch{}}
+      try{refreshClients&&refreshClients();}catch{} // r11: حدّث دليل العملاء (حذف صف المصدر)
+    }catch(e){
+      toast_("فشل الدمج: "+(e.message||"خطأ غير معروف"),"warn");
+    }finally{
+      setMergeBusy(false);
+      setMergeArmed(false);
+    }
+  };
+  return(
+  <div style={{position:"fixed",inset:0,background:"var(--ia-overlay)",zIndex:2100,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",direction:"rtl"}} onClick={()=>!mergeBusy&&setMergeOpen(false)}>
+    <div className="card" style={{width:"100%",maxWidth:"560px",maxHeight:"92vh",overflowY:"auto",animation:"fadeUp .25s"}} onClick={e=>e.stopPropagation()}>
+      {/* Header */}
+      <div style={{background:"linear-gradient(135deg,#b45309,#15803d)",padding:"14px 18px",display:"flex",alignItems:"center",gap:10,margin:"-1px -1px 0"}}>
+        <span style={{fontSize:20}}>🔀</span>
+        <div style={{flex:1,color:"#fff"}}>
+          <div style={{fontWeight:900,fontSize:15}}>دمج العملاء المكررين</div>
+          <div style={{fontSize:11.5,opacity:.85}}>نقل فواتير المصدر إلى العميل الهدف وتوحيد الاسم والرقم</div>
+        </div>
+        <button onClick={()=>!mergeBusy&&setMergeOpen(false)} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"8px",padding:"6px 12px",color:"#fff",fontFamily:"inherit",fontSize:12.5,fontWeight:700,cursor:"pointer"}}>✕ إغلاق</button>
+      </div>
+
+      <div style={{padding:"16px 18px"}}>
+        {/* بطاقة المصدر */}
+        <div style={{background:softAdapt("#fef3c7",dark),border:`1.5px solid ${txAdapt("#fbbf24",dark)}55`,borderRadius:12,padding:"12px 14px",marginBottom:10}}>
+          <div style={{fontSize:10.5,fontWeight:800,color:txAdapt("#92400e",dark),marginBottom:6}}>المصدر — سيُدمج في الهدف (لا فواتير تبقى باسمه)</div>
+          <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+            <div style={{width:38,height:38,borderRadius:10,background:txAdapt("#d97706",dark),color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,fontSize:16,flexShrink:0}}>{(selCustomer.name||"؟").trim().charAt(0)}</div>
+            <div style={{flex:1,minWidth:120}}>
+              <div style={{fontWeight:900,fontSize:13.5,color:"var(--ia-text)"}}>{selCustomer.name}</div>
+              <div style={{fontSize:12,color:"var(--ia-sub)",direction:"ltr",textAlign:"right"}}>{selCustomer.phone}</div>
+            </div>
+            <div style={{textAlign:"center"}}>
+              <div style={{fontSize:15,fontWeight:900,color:txAdapt("#b45309",dark)}}>{srcCount}</div>
+              <div style={{fontSize:10,color:"var(--ia-sub)",fontWeight:700}}>فاتورة</div>
+            </div>
+          </div>
+        </div>
+
+        {/* السهم */}
+        <div style={{textAlign:"center",fontSize:18,color:"var(--ia-sub)",margin:"2px 0 10px"}}>{mergeTarget?"⬇️":"اختر العميل الهدف ⬇️"}</div>
+
+        {/* بطاقة الهدف/المنتقي */}
+        {mergeTarget?(
+          <div style={{background:softAdapt("#f0fdf4",dark),border:`1.5px solid ${txAdapt("#86efac",dark)}55`,borderRadius:12,padding:"12px 14px",marginBottom:10}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+              <div style={{width:38,height:38,borderRadius:10,background:"#16a34a",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,fontSize:16,flexShrink:0}}>{(mergeTarget.name||"؟").trim().charAt(0)}</div>
+              <div style={{flex:1,minWidth:120}}>
+                <div style={{fontWeight:900,fontSize:13.5,color:"var(--ia-text)"}}>{mergeTarget.name} <span style={{fontSize:10.5,fontWeight:800,color:txAdapt("#15803d",dark)}}>الهدف ✓</span></div>
+                <div style={{fontSize:12,color:"var(--ia-sub)",direction:"ltr",textAlign:"right"}}>{mergeTarget.phone}</div>
+              </div>
+              <div style={{textAlign:"center"}}>
+                <div style={{fontSize:15,fontWeight:900,color:txAdapt("#15803d",dark)}}>{tgtCount}+{srcCount}</div>
+                <div style={{fontSize:10,color:"var(--ia-sub)",fontWeight:700}}>فاتورة بعد الدمج</div>
+              </div>
+              <button onClick={()=>{setMergeTarget(null);setMergeArmed(false);}} disabled={mergeBusy} className="btn btn-outline" style={{padding:"5px 10px",fontSize:11.5}}>تغيير</button>
+            </div>
+          </div>
+        ):(
+          <div style={{border:`1.5px solid var(--ia-border2)`,borderRadius:12,padding:10,marginBottom:10}}>
+            <input className="inp" style={{marginBottom:8,padding:"8px 12px"}} placeholder="🔍 ابحث باسم أو رقم العميل الهدف..." value={mergeSearch} onChange={e=>setMergeSearch(e.target.value)}/>
+            <div style={{maxHeight:180,overflowY:"auto",display:"flex",flexDirection:"column",gap:4}}>
+              {filteredOthers.length===0?(
+                <div style={{padding:14,textAlign:"center",fontSize:12.5,color:"var(--ia-sub)"}}>لا يوجد عملاء آخرون مطابقون</div>
+              ):filteredOthers.slice(0,30).map(c=>(
+                <button key={c.phone} onClick={()=>{setMergeTarget(c);setMergeArmed(false);}} disabled={mergeBusy}
+                  style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",borderRadius:8,border:"1px solid var(--ia-border)",background:"var(--ia-card)",cursor:"pointer",fontFamily:"inherit",textAlign:"right",transition:"all .15s"}}
+                  onMouseEnter={e=>{e.currentTarget.style.borderColor=txAdapt("#16a34a",dark);e.currentTarget.style.background=softAdapt("#f0fdf4",dark);}}
+                  onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--ia-border)";e.currentTarget.style.background="var(--ia-card)";}}>
+                  <div style={{width:30,height:30,borderRadius:8,background:softAdapt("#f1f5f9",dark),display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,fontSize:13,flexShrink:0}}>{(c.name||"؟").charAt(0)}</div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:12.5,fontWeight:800,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</div>
+                    <div style={{fontSize:11,color:"var(--ia-sub)",direction:"ltr",textAlign:"right"}}>{c.phone}</div>
+                  </div>
+                  <span style={{fontSize:10.5,fontWeight:800,color:"var(--ia-sub)",background:softAdapt("#f1f5f9",dark),padding:"2px 8px",borderRadius:12,whiteSpace:"nowrap"}}>{c.count} فاتورة • {fKWD(c.totalSpent)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ملخص وتحذير */}
+        {mergeTarget&&(
+          <div style={{background:softAdapt("#fef2f2",dark),border:`1px solid ${txAdapt("#fca5a5",dark)}55`,borderRadius:10,padding:"10px 12px",marginBottom:12,fontSize:12,lineHeight:1.9,color:"var(--ia-text2)"}}>
+            سيُنقل <b style={{color:txAdapt("#b45309",dark)}}>{srcCount} فاتورة</b> من «{selCustomer.name}» إلى «{mergeTarget.name}» ويتوحّد الاسم والرقم على العميل الهدف.
+            <br/>⚠️ لا يمكن التراجع مباشرة — احتفظ بنسخة احتياطية من تبويب 💾 النظام قبل الدمج عند الشك.</div>
+        )}
+
+        {/* الأزرار */}
+        <div style={{display:"flex",gap:8}}>
+          <button className="btn btn-outline" onClick={()=>setMergeOpen(false)} disabled={mergeBusy} style={{flex:1,justifyContent:"center"}}>إلغاء</button>
+          <button onClick={runMerge} disabled={!mergeTarget||mergeBusy}
+            style={{flex:1.4,justifyContent:"center",border:"none",borderRadius:8,padding:"10px 16px",fontFamily:"inherit",fontSize:13,fontWeight:800,cursor:!mergeTarget||mergeBusy?"not-allowed":"pointer",color:"#fff",
+              background:mergeArmed?"#dc2626":"#15803d",opacity:!mergeTarget||mergeBusy?.55:1,transition:"all .18s"}}>
+            {mergeBusy?"⏳ جارٍ الدمج…":mergeArmed?"⚠️ متأكد؟ اضغط مجدداً للتنفيذ":"🔀 تنفيذ الدمج"}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  );
+})()}
+
 <div style={{display:"flex",gap:"10px",marginBottom:"14px",alignItems:"center",flexWrap:"wrap"}}>
 <input className="inp" style={{flex:1,minWidth:"200px",padding:"9px 14px"}} placeholder="🔍 ابحث باسم العميل أو التلفون..." value={search} onChange={e=>setSearch(e.target.value)}/>
 <select className="inp" style={{width:"auto",padding:"9px 12px"}} value={sort} onChange={e=>setSort(e.target.value)}>
@@ -2621,6 +2764,7 @@ return(
           refreshClients={refreshClients}
           toast_={toast_}
           printStyle={printStyle}
+          onMerged={refreshInvoices}
           onOpenInvoice={inv=>{setSelInv(inv);setView("list");}}
           onImportDone={async newInvs=>{
             setInvoices(p=>[...p,...newInvs]);
