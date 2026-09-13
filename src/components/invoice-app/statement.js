@@ -2,9 +2,10 @@
 // Standalone HTML builder for per-client account statements, exported as PDF
 // via /api/pdf. Self-contained tiny numeric helpers (no import cycle with App).
 
+import { fmtMoney } from "./currency";
 const toW = s => String(s || "").replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d));
 const pN = s => parseFloat(toW(String(s || 0)).replace(/[^\d.]/g, "")) || 0;
-const fKWD = n => pN(n).toFixed(3) + " KD";
+const fKWD = n => fmtMoney(n); // r12: عملة الشركة النشطة
 const fDate = d => { if (!d) return "—"; const x = new Date(d); return isNaN(x) ? String(d) : x.toLocaleDateString("ar-KW"); };
 const iT = inv => (inv.items || []).reduce((s, it) => s + pN(it.qty) * pN(it.price), 0) + pN(inv.shipping || 0);
 

@@ -9,9 +9,10 @@ import { useTheme, txAdapt, softAdapt } from "../theme";
 // new partial payments (cash / KNET / online / card). The backend keeps
 // the invoice.paid field in sync with the sum of its payments.
 
+import { fmtMoney } from "../currency";
 const toW = s => String(s || "").replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d));
 const pN = s => parseFloat(toW(String(s || 0)).replace(/[^\d.]/g, "")) || 0;
-const fKWD = n => pN(n).toFixed(3) + " KD";
+const fKWD = n => fmtMoney(n); // r12: عملة الشركة النشطة
 const iT = inv => (inv.items || []).reduce((s, it) => s + pN(it.qty) * pN(it.price), 0) + pN(inv.shipping || 0);
 
 const METHODS = [

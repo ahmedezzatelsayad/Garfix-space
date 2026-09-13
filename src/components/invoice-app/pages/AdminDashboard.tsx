@@ -54,10 +54,17 @@ function getStoredLogo(id: string): string | null {
 
 interface AdminDashboardProps {
   onClose: () => void;
+  companies?: Array<{ id: string; nameAr: string; emoji?: string; color?: string }>;
 }
 
-export default function AdminDashboard({ onClose }: AdminDashboardProps) {
+export default function AdminDashboard({ onClose, companies }: AdminDashboardProps) {
   const { user } = useAuth();
+
+// r12: قائمة شركات ديناميكية — تأتي من الخادم (تدعم الشركات المضافة حديثاً) مع الرجوع للافتراضيات
+const COMPANY_IDS: string[] = (companies && companies.length ? companies.map(c => c.id) : ALL_COMPANIES);
+const DYN_LABELS: Record<string, string> = {};
+(companies && companies.length ? companies : []).forEach(c => { DYN_LABELS[c.id] = `${c.nameAr} ${c.emoji || "🏢"}`; });
+const labelOf = (id: string): string => DYN_LABELS[id] || COMPANY_LABELS[id] || id;
   const [users,        setUsers]        = useState<UserRecord[]>([]);
   const [loading,      setLoading]      = useState(true);
   const [showCreate,   setShowCreate]   = useState(false);
@@ -324,7 +331,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                         <div style={{marginBottom:"12px"}}>
                           <label style={lbl}>الشركات</label>
                           <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
-                            {ALL_COMPANIES.map((id: string)=>{
+                            {COMPANY_IDS.map((id: string)=>{
                               const active=editingUser.companies.includes(id);
                               return(
                                 <div key={id} onClick={()=>toggleEditCompany(id)} style={{
@@ -332,7 +339,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                                   borderRadius:"8px",padding:"5px 12px",cursor:"pointer",
                                   background:active?"var(--ia-blue-bg)":"var(--ia-row-alt)",fontSize:"12px",
                                   fontWeight:active?700:400,color:active?"var(--ia-blue-tx)":"var(--ia-sub)",
-                                }}>{COMPANY_LABELS[id]}</div>
+                                }}>{labelOf(id)}</div>
                               );
                             })}
                           </div>
@@ -389,7 +396,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                               return <span style={{background:r.bg,color:r.color,borderRadius:"20px",padding:"2px 10px",fontSize:"11px",fontWeight:700}}>{r.label}</span>;
                             })()}
                             {u.companies?.map(c=>(
-                              <span key={c} style={{background:"var(--ia-sky-bg)",color:"var(--ia-sky-tx)",borderRadius:"20px",padding:"2px 10px",fontSize:"11px",fontWeight:600}}>{COMPANY_LABELS[c]||c}</span>
+                              <span key={c} style={{background:"var(--ia-sky-bg)",color:"var(--ia-sky-tx)",borderRadius:"20px",padding:"2px 10px",fontSize:"11px",fontWeight:600}}>{labelOf(c)}</span>
                             ))}
                             {u.role==="employee"&&(()=>{
                               const perms=u.permissions||EMPLOYEE_DEFAULTS;
@@ -454,6 +461,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
         <CreateUserModal
           onClose={()=>setShowCreate(false)}
           onCreated={()=>{ toast_("✅ تم إنشاء المستخدم"); loadUsers(); }}
+          companies={companies}
         />
       )}
 

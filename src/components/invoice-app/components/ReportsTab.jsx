@@ -12,9 +12,10 @@ import { api } from "../api";
 // Comprehensive analytics computed client-side from the company invoices
 // (same data source as the Dashboard — works offline via localStorage cache).
 
+import { fmtMoney } from "../currency";
 const toW = s => String(s || "").replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d));
 const pN = s => parseFloat(toW(String(s || 0)).replace(/[^\d.]/g, "")) || 0;
-const fKWD = n => pN(n).toFixed(3) + " KD";
+const fKWD = n => fmtMoney(n); // r12: عملة الشركة النشطة
 const iT = inv => (inv.items || []).reduce((s, it) => s + pN(it.qty) * pN(it.price), 0) + pN(inv.shipping || 0);
 const getStatus = inv => {
   if (inv.status === "cancelled") return "cancel";

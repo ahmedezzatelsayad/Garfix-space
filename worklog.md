@@ -440,3 +440,48 @@ Unresolved issues / risks / next-phase priorities:
 - DeepSeek الحقيقي ما زال غير مضبوط (إدخال المستخدم مطلوب).
 - دليل clients يظهر أحياناً صفوف «جديد» فارغة عند إضافة عميل من نموذج جديد دون حفظ — مراجعة سلوك نموذج العميل الجديد جولة قادمة.
 - أفكار تالية: أدوات المساعد الذكي (إنشاء فاتورة/تذكير من الشات)، تصدير CSV/Excel من تبويب النظام، إطار زمني للتقارير في الشات، NextAuth.
+
+---
+Task ID: r12-readme
+Agent: general-purpose (README writer)
+Task: كتابة README احترافي لمستودع Garfix-space
+
+Work Log:
+- قرأت worklog.md كاملاً (443 سطراً — الجولات r1→r11) لاستخراج الحقائق: الميزات، البنية التحتية (PostgreSQL 17 بدون root في infra/pg، Valkey 8.1.1 مبني من المصدر MALLOC=libc، حارس keepalive كل 8 ثوانٍ)، مزوّد DeepSeek الموحّد، النسخ الاحتياطي/Recovery الذرّي، والأخطاء الحقيقية وحلولها (كاش Turbopack، DATABASE_URL الطافي من الشل، عميل Prisma القديم).
+- قرأت package.json (scripts: db:push/generate/migrate، bun runtime)، prisma/schema.prisma (11 نموذجاً: Company/Client/Invoice/Payment/ProductCatalog/PurchaseInvoice/ReminderLog/Setting/AiSetting/AiConversation/AiMessage)، .env (DATABASE_URL فقط) — لا يوجد .env.example على القرص رغم ذكره في r10.
+- استخرجت شجرة الـ API الفعلية بـ ls/find: 27 ملف route.ts، وتحققت من methods كل مسار بـ rg (عدّلت جدول الـ API ليطابق الواقع بدقة: GET/DELETE على /api/ai/conversations?id= وليس على [id]؛ PUT/DELETE على catalog/[id]؛ DELETE فقط على purchase-invoices/[id]).
+- قرأت mini-services (keepalive/index.ts كاملاً: المنافذ 3000/5432/6379/3040، مسح .next قبل إعادة تشغيل Next، تمرير DATABASE_URL الصريحة، double-fork setsid/nohup؛ postgres و valkey supervisors) و firebase/users.js (الحسابات الستة وأدوارها) و TABS في App.jsx (12 تبويباً + زر المستخدمين) و src/lib/cache.ts (VALKEY_URL) و src/lib/ai-provider.ts (المفتاح من DB وليس env).
+- اكتشفت تفاوتاً موثّقاً: DeepSeekSettings.jsx يستدعي POST /api/ai/test بينما المسار غير موجود في المستودع ولا في git — أدرجته كملاحظة صريحة في قسم استكشاف الأخطاء (الحل: التفعيل عبر /api/ai/config).
+- كتبت README.md (~526 سطراً): بانر ASCII متوسّط برمجياً + 8 شارات shields.io بلوحة ألوان متناسقة بلا indigo/blue أساسي (black/slate/teal/emerald/amber/rose)؛ جدول محتويات بـ 17 قسماً بروابط عربية؛ نظرة عامة؛ الميزات في 6 أقسام (فواتير/مدفوعات/عملاء/تقارير/AI/نظام)؛ 12 لقطة شاشة placeholder بمسارات docs/screenshots/*.png مع TODO؛ مخطط معماري ASCII مولّد بـ Python بمحاذاة مضبوطة (متصفح→Next.js:3000→PG:5432/Valkey:6379، pdf-service:3040، DeepSeek خارجي، keepalive)؛ جدول الـ 27 مساراً؛ جدول نماذج البيانات الـ 11؛ متطلبات التشغيل؛ تثبيت من 7 خطوات بأوامر bun قابلة للنسخ (بما فيها أمر الحارس الواحد بعد إعادة تشغيل الجهاز) مع خياري البنية التحتية (خادم خاص أو إعادة إعداد infra بدون root — مع التنبيه أن infra/ و db/ في .gitignore)؛ جدول متغيرات البيئة؛ جدول الحسابات الستة مع تحذير تغيير كلمات المرور وأمان localStorage/NextAuth؛ جدول استخدام الـ 13 تبويباً؛ خطوات DeepSeek API الست مع جدول الموديلات V3/R1؛ البنية التحتية و keepalive؛ النسخ الاحتياطي/الاستعادة؛ 9 مشاكل حقيقية وحلولها من worklog؛ خارطة طريق بجدول أولويات من أفكار r10/r11؛ المساهمة؛ الرخصة مع اقتراح MIT.
+- تدقيق نهائي: تصحيح خطأ إملائي (ESLint)، إعادة توليد المخطط المعماري بمحاذاة أعمدة مضبوطة برمجياً (14 تصحيح إحداثيات صناديق/موصلات)، والتحقق الآلي أن كل الروابط الداخلية الـ 23 تحل إلى العناوين الـ 36.
+
+Stage Summary:
+- README.md إنتاجي مكتمل (526 سطراً) في جذر المستودع: عربي أولاً بعناوين إنجليزية تقنية مزدوجة، Markdown نظيف متوافق GitHub (جداول/ code blocks بأسماء لغات صحيحة/روابط داخلية محقّقة)، أوامر bun فقط وصحيحة للمشروع تحديداً، وكل الحقائق من worklog والملفات بلا مبالغة — بما فيها توثيق الصادق حول التوثيق localStorage والتقني (مسار /api/ai/test غير المضمّن). الأقسام الـ 17 تغطي جميع متطلبات المهمة (البانر+الشارات، المحتويات، الميزات، لقطات placeholder، المعمارية ASCII، نماذج البيانات، المتطلبات، التثبيت، البيئة، الحسابات، الاستخدام، DeepSeek، البنية التحتية، النسخ/الاستعادة، استكشاف الأخطاء، خارطة الطريق، المساهمة+MIT). لم يُكتب أي ملف آخر.
+
+---
+Task ID: r12
+Agent: main (Z.ai Code)
+Task: README احترافي للريبو + مراجعة أخطاء أخيرة + إضافة شركة وتعديل بيانات الشركات + العملة من الإعدادات
+
+Work Log:
+- **إنعاش البنية التحتية بعد إعادة تشغيل الـ sandbox** (فُقد infra/ وdb/postgres-data لأنها في .gitignore): إعادة تنزيل PostgreSQL 17.11 debs → infra/pg (initdb مع unix_socket_directories عبر postgresql.conf) → إنشاء role garfix/db garfix → `db push` → تشغيل scripts/migrate-sqlite-to-pg.ts (استعادة كاملة: 4 شركات، 14 فاتورة، 1 عميل، 6 كتالوج، 1 مشتريات — تطابق حالة r10). إصلاح .env (كانت بعلامات تنصيص تكسر URL parsing في سكريبت الترحيل).
+- **إعادة بناء Valkey 8.1.1 من المصدر**: اكتشاف أن التاربال يضم deps كاملة المصدر — المسار الصحيح: استخراج نظيف ثم `make -C deps hiredis linenoise hdr_histogram fpconv lua fast_float_c_interface` + `make -C src valkey-server MALLOC=libc` (لا تبنِ valkey-cli — فشل تجميعه غير ضروري). conf في infra/valkey/valkey.conf (LRU 256mb, AOF, بيانات db/valkey-data). Valkey يعمل والمزوّد متصل (healthz: engine=valkey).
+- **إصلاح keepalive**: spawnDetached يفحص وجود الثنائية قبل spawn (كان ينهار بENOENT عند غياب valkey-server) + كل ensure* بcatch مستقل.
+- **خطآن حقيقيان مكتشفان في المراجعة النهائية وإصلاحهما**: ① مسار /api/ai/test كان مفقوداً من المستودع رغم استدعاء DeepSeekSettings.jsx له (زر اختبار الاتصال كان سيرجع 404) — أُنشئ المسار كاملاً (يقرأ المفتاح من الطلب أو المخزّن + يخزّن نتيجة آخر اختبار)؛ ② .env.example كان مبتلعاً بنمط .env* في .gitignore — أُنشئ الملف + استثناء !.env.example.
+- **مخطط Prisma**: Company أصبح بروفايل كامل قابل للتعديل: code (فريد، للتوجيه) + currency (افتراضي KWD) + nameAr/phone/email/address/city/sellerRef/manager/managerPhone/color/accent/cardBg/emoji/logo + updatedAt. أعمدة أُضيفت يدوياً بSQL مع backfill للـ code والاسم العربي للشركات الأربع.
+- **API جديد**: GET/POST /api/companies (قائمة مُخزَّنة بكاش 60ث + إنشاء بتحقق كامل: تفرد code/slug، hex للألوان، عملة 3 أحرف، توليد code/slug من الاسم) + PUT /api/companies/[slug] (تحديث جزئي؛ slug/code غير قابلين للتغيير) + إبطال كاش companies:* وai:ctx:*.
+- **نظام العملات (currency.js)**: جدول 12 عملة (KWD/BHD/OMR بـ3 منازل، الباقي بـ2) بأعلام ورموز عربية + مخزن مستوى وحدة مع مستمعي رندر (setCurrency/fmtMoney/currencySymbol/useCurrency). fKWD في App.jsx وstatement.js وPaymentsPanel وReportsTab وfKD في SmartChat أصبحت كلها fmtMoney (الاسم نفسه للدوال = صفر تغيير في ~100 استدعاء). placeholder «السعر KD» أصبح ديناميكياً برمز العملة.
+- **واجهة الشركات**: CompanyForm.jsx (مودال إضافة/تعديل: هيدر متدرّج بلون الشركة، معاينة حيّة لبطاقة الشركة، 4 أقسام: أساسيات/منتقي عملة بشارات وأعلام/اتصال/هوية بصرية بمنتقي ألوان) — CompanySelector: بطاقة «＋ إضافة شركة جديدة» (مدير فقط) + زر «✏️ تعديل» على كل بطاقة (يظهر hover) + شارة العلم والكود على كل بطاقة — زر «🏢✏️» في النافبار لتعديل الشركة النشطة فوراً — دمج DB فوق COMPANIES الثابتة (حقول غير الفارغة تتفوق) — المدير يرى كل الشركات بما فيها الجديدة — AdminDashboard وCreateUserMedia أصبحا يستقبلان قائمة الشركات الفعلية (تعيين الموظفين لأي شركة).
+- **إصلاحان أثناء QA**: ① `as const` TS في ملف jsx فكّ الـ parsing — أُزيلت؛ ② مودال الشركة كان يُرندر فقط في الشجرة الرئيسية وليس في مسار early return لشاشة الاختيار — نُقل ليشمل المسارين؛ ③ ReferenceError في SectionTitle (color بدل c)؛ ④ overflow أفقي 390px بسبب زر النافبار الجديد — أُصلح بإخفاء نصوص الأزرار وتقليص الفراغات ≤420px (scrollWidth=390 بالضبط).
+- **README.md احترافي** (وكيل متخصص، 526 سطراً): بانر + 8 شارات shields.io + 17 قسماً (ميزات، معمارية ASCII، 27 مسار API، نموذج بيانات، تثبيت bun، DeepSeek، استكشاف أخطاء بـ9 مشاكل حقيقية من worklog، خارطة طريق).
+- **QA E2E كامل**: إضافة «جرفكس للتجارة المحدودة» بعملة SAR من الواجهة (ظهرت فوراً في البطاقات والـAPI) → تعديلها لـUSD + مدير (تحقق في DB) → دخولها: KPIs «250.00 $» بعد فاتورة اختبار → العودة لتوفير: «190.800 د.ك» فوراً → لوحة المستخدمين تعرض الشركات الديناميكية → كل التبويبات بلا أخطاء كونسول → ليلي + موبايل 390px نظيف → بيانات الاختبار نُظفت (4 شركات KWD كما كانت) → lint نظيف → dev.log نظيف → healthz: postgresql+valkey متصلان.
+- لقطات: download/r12-*.png (المودال، الملء، البطاقات مع جرفكس، لوحة USD، الليلي، الموبايل، لوحة الإدارة).
+
+Stage Summary:
+- r12 مكتملة: الشركات صارت تُدار من الواجهة (إضافة/تعديل كامل البروفايل) والعملة إعداد لكل شركة يسري على كل تنسيقات المبالغ في التطبيق والطباعة والشات والتقارير. خطأ /api/ai/test المفقود (404 مخفي) أُصلح. البنية التحتية ذاتية الإنعاش بعد إعادة تشغيل الـ sandbox (الوثيقة: أمر keepalive الواحد يعيد كل شيء). README إنتاجي في الجذر.
+
+Unresolved issues / risks / next-phase priorities:
+- حذف شركة غير منفذ (عمداً — أخطر من الإضافة؛ يتطلب حماية من فقدان فواتيرها) — إن لزم: DELETE /api/companies/[slug] مع منع الحذف عند وجود فواتير.
+- إسناد صلاحيات الموظفين للشركات الجديدة يعمل من لوحة الإدارة، لكن SEED_PROFILES للموظفين الافتراضيين ما زال بقائمة ثابتة (المستخدمون الجدد فقط ديناميكيون).
+- نسخة الاستعادة لا تتضمن شركات مضافة بعد أخذ النسخة (سلوك طبيعي للنسخ الاحتياطية).
+- next-phase: زر حذف شركة محمي، رفع لقطات README إلى docs/screenshots، أدوات المساعد الذكي (إنشاء فاتورة من الشات)، NextAuth.

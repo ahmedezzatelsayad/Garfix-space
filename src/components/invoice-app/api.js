@@ -230,4 +230,20 @@ export const api = {
     if (!companySlug) return null;
     return request("PUT", "/settings", { companySlug, key, value });
   },
+
+  // ── Companies directory (r12: add/edit company profiles — server is the source of truth) ──
+  async listCompanies() {
+    const data = await request("GET", "/companies");
+    return (data && data.companies) || [];
+  },
+
+  async createCompany(data) {
+    const out = await request("POST", "/companies", data);
+    return out && out.company;
+  },
+
+  async updateCompany(slug, data) {
+    const out = await request("PUT", `/companies/${encodeURIComponent(slug)}`, data);
+    return out && out.company;
+  },
 };

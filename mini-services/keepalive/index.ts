@@ -28,6 +28,10 @@ function portOpen(port: number, host = "127.0.0.1"): Promise<boolean> {
 }
 
 function spawnDetached(cmd: string, args: string[], opts: { cwd?: string; env?: NodeJS.ProcessEnv; log: string }) {
+  if (cmd.includes("/") && !fs.existsSync(cmd)) {
+    console.warn(`[keepalive] ⚠️ الثنائية غير موجودة بعد: ${cmd} — تخطي`);
+    return null;
+  }
   const out = fs.openSync(opts.log, "a");
   const child = spawn(cmd, args, {
     cwd: opts.cwd,
@@ -77,10 +81,10 @@ async function main(): Promise<void> {
   const loop = async () => {
     ticks++;
     try {
-      await ensurePostgres();
-      await ensureValkey();
-      await ensurePdfService();
-      await ensureNextDev();
+      await ensurePostgres().catch((e) => console.error("[keepalive] pg:", e?.message ?? e));
+      await ensureValkey().catch((e) => console.error("[keepalive] valkey:", e?.message ?? e));
+      await ensurePdfService().catch((e) => console.error("[keepalive] pdf:", e?.message ?? e));
+      await ensureNextDev().catch((e) => console.error("[keepalive] next:", e?.message ?? e));
     } catch (e) {
       console.error("[keepalive] خطأ:", e instanceof Error ? e.message : e);
     }

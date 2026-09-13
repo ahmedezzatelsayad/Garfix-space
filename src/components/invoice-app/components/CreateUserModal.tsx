@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { createUser, ALL_COMPANIES } from "../firebase/users";
 
+// r12: قائمة شركات ديناميكية من الخادم (fallback للافتراضيات الثابتة)
+
+
 const COMPANY_LABELS: Record<string, string> = {
   tawfeer: "توفير أونلاين شوب 🛒",
   mahhal:  "محلكم أونلاين ستور 🏪",
@@ -43,9 +46,15 @@ const ROLES = [
 interface CreateUserModalProps {
   onClose: () => void;
   onCreated?: () => void;
+  companies?: Array<{ id: string; nameAr: string; emoji?: string }>;
 }
 
-export default function CreateUserModal({ onClose, onCreated }: CreateUserModalProps) {
+export default function CreateUserModal({ onClose, onCreated, companies }: CreateUserModalProps) {
+  // r12: شركات الخادم إن وُجدت، وإلا الافتراضية
+  const COMPANY_IDS: string[] = companies && companies.length ? companies.map(c => c.id) : ALL_COMPANIES;
+  const DYN_LABELS: Record<string, string> = {};
+  (companies || []).forEach(c => { DYN_LABELS[c.id] = `${c.nameAr} ${c.emoji || "🏢"}`; });
+  const labelOf = (id: string): string => DYN_LABELS[id] || COMPANY_LABELS[id] || id;
   const [form, setForm] = useState({
     displayName:"", email:"", password:"",
     companies:[] as string[], role:"employee",
@@ -137,20 +146,20 @@ export default function CreateUserModal({ onClose, onCreated }: CreateUserModalP
             <div>
               <label style={lbl}>الشركات المسموح بها *</label>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px"}}>
-                {ALL_COMPANIES.map((id: string)=>{
+                {COMPANY_IDS.map((id: string)=>{
                   const active=form.companies.includes(id);
                   return(
                     <div key={id} onClick={()=>toggleCompany(id)} style={{border:`2px solid `,borderRadius:"10px",padding:"9px 12px",cursor:"pointer",background:active?"var(--ia-blue-bg)":"var(--ia-row-alt)",transition:"all .15s",display:"flex",alignItems:"center",gap:"8px"}}>
                       <div style={{width:"16px",height:"16px",borderRadius:"4px",border:`2px solid `,background:active?"#1e3a5f":"var(--ia-card)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
                         {active&&<span style={{color:"#fff",fontSize:"10px",fontWeight:900}}>✓</span>}
                       </div>
-                      <span style={{fontSize:"12px",fontWeight:active?700:400,color:active?"var(--ia-blue-tx)":"var(--ia-text2)"}}>{COMPANY_LABELS[id]}</span>
+                      <span style={{fontSize:"12px",fontWeight:active?700:400,color:active?"var(--ia-blue-tx)":"var(--ia-text2)"}}>{labelOf(id)}</span>
                     </div>
                   );
                 })}
               </div>
               <div style={{marginTop:"6px",display:"flex",gap:"8px"}}>
-                <button onClick={()=>setForm(f=>({...f,companies:ALL_COMPANIES}))} style={{fontSize:"11px",color:"var(--ia-link)",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:0}}>تحديد الكل</button>
+                <button onClick={()=>setForm(f=>({...f,companies:COMPANY_IDS}))} style={{fontSize:"11px",color:"var(--ia-link)",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:0}}>تحديد الكل</button>
                 <span style={{color:"var(--ia-muted)"}}>|</span>
                 <button onClick={()=>setForm(f=>({...f,companies:[]}))} style={{fontSize:"11px",color:"var(--ia-red-tx)",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:0}}>إلغاء الكل</button>
               </div>

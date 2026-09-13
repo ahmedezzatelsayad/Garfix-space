@@ -12,6 +12,8 @@ import AIBulkProcessor from "./components/AIBulkProcessor";
 import SmartChat from "./components/SmartChat";
 import DeepSeekSettings from "./components/DeepSeekSettings";
 import BackupRecovery from "./components/BackupRecovery";
+import CompanyForm from "./components/CompanyForm";
+import { fmtMoney, setCurrency, currencySymbol, CURRENCIES } from "./currency";
 import ReportsTab from "./components/ReportsTab";
 import PaymentsPanel from "./components/PaymentsPanel";
 import RemindersPanel from "./components/RemindersPanel";
@@ -57,7 +59,7 @@ emoji: "♾️", sk: "tw_inv_laqta_v1",
 // ─── Utils ────────────────────────────────────────────────────────
 const toW  = s => String(s||"").replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d));
 const pN   = s => parseFloat(toW(String(s||0)).replace(/[^\d.]/g,""))||0;
-const fKWD = n => pN(n).toFixed(3)+" KD";
+const fKWD = n => fmtMoney(n); // r12: تتبع عملة الشركة النشطة (KWD افتراضياً) — كانت " KD" ثابتة
 const fDate= s => { if(!s)return""; const[y,m,d]=s.split("-"); return`${d}/${m}/${y}`; };
 const today= ()=> new Date().toISOString().split("T")[0];
 const addD = (s,n)=>{ const d=new Date(s); d.setDate(d.getDate()+n); return d.toISOString().split("T")[0]; };
@@ -916,14 +918,14 @@ setTimeout(()=>downloadCSV(toCSV(fullHeaders, fullRows), `Customers_${today()}.c
 }
 
 // ─── Company Selector ─────────────────────────────────────────────
-function CompanySelector({ onSelect, companies }) {
+function CompanySelector({ onSelect, companies, onAdd, onEdit }) {
 const { profile, isAdmin } = useAuth();
 const { dark, toggle } = useTheme();
 const cols = companies && companies.length > 0 ? companies : Object.values(COMPANIES);
 const gridCols = cols.length === 1 ? "repeat(1,1fr)" : cols.length === 2 ? "repeat(2,1fr)" : "repeat(2,1fr)";
 return (
 <div style={{minHeight:"100vh",background:"#0a0a0f",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Cairo','Tajawal',sans-serif",direction:"rtl",padding:"20px",position:"relative",overflow:"hidden"}}>
-<style>{`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap'); *{box-sizing:border-box} @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}} @keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}} .co-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:28px 20px;cursor:pointer;transition:all .3s cubic-bezier(.4,0,.2,1);text-align:center;animation:fadeUp .5s ease both;position:relative;overflow:hidden;} .co-card::before{content:"";position:absolute;inset:0;opacity:0;transition:opacity .3s;background:radial-gradient(circle at 50% 0%,var(--co-color) 0%,transparent 70%);} .co-card:hover,.co-card:active{transform:translateY(-4px) scale(1.02);border-color:var(--co-color);box-shadow:0 20px 60px rgba(0,0,0,.5),0 0 0 1px var(--co-color)} .co-card:hover::before,.co-card:active::before{opacity:.15} .co-icon{font-size:40px;margin-bottom:12px;display:block;animation:float 3s ease-in-out infinite} .co-grid{display:grid;gap:14px} @media(min-width:600px){.co-grid{grid-template-columns:repeat(4,1fr)}}`}</style>
+<style>{`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap'); *{box-sizing:border-box} @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}} @keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}} .co-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:28px 20px;cursor:pointer;transition:all .3s cubic-bezier(.4,0,.2,1);text-align:center;animation:fadeUp .5s ease both;position:relative;overflow:hidden;} .co-card::before{content:"";position:absolute;inset:0;opacity:0;transition:opacity .3s;background:radial-gradient(circle at 50% 0%,var(--co-color) 0%,transparent 70%);} .co-card:hover,.co-card:active{transform:translateY(-4px) scale(1.02);border-color:var(--co-color);box-shadow:0 20px 60px rgba(0,0,0,.5),0 0 0 1px var(--co-color)} .co-card:hover::before,.co-card:active::before{opacity:.15} .co-icon{font-size:40px;margin-bottom:12px;display:block;animation:float 3s ease-in-out infinite} .co-grid{display:grid;gap:14px} .co-edit{position:absolute;top:10px;insetInlineEnd:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:rgba(255,255,255,.75);padding:4px 9px;font-size:12px;cursor:pointer;font-family:inherit;opacity:0;transition:all .2s;z-index:2} .co-card:hover .co-edit{opacity:1} .co-edit:hover{background:rgba(255,255,255,.18);color:#fff} .co-add{border:2px dashed rgba(255,255,255,.15);background:rgba(255,255,255,.02);border-radius:20px;padding:28px 20px;cursor:pointer;text-align:center;animation:fadeUp .5s ease both;transition:all .25s;color:rgba(255,255,255,.4)} .co-add:hover{border-color:#10b981;color:#10b981;background:rgba(16,185,129,.06);transform:translateY(-4px)} @media(min-width:600px){.co-grid{grid-template-columns:repeat(4,1fr)}}`}</style>
 <div style={{position:"fixed",inset:0,backgroundImage:"linear-gradient(rgba(255,255,255,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px)",backgroundSize:"60px 60px",pointerEvents:"none"}}/>
 <button onClick={toggle} title={dark?"التبديل إلى الوضع النهاري":"التبديل إلى الوضع الليلي"} aria-label="تبديل السمة" style={{position:"fixed",top:"16px",insetInlineEnd:"16px",background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.15)",borderRadius:"8px",padding:"7px 12px",fontSize:"14px",cursor:"pointer",zIndex:10,transition:"all .2s"}}>{dark?"☀️":"🌙"}</button>
 <div style={{width:"100%",maxWidth:"900px",animation:"fadeUp .4s"}}>
@@ -945,6 +947,7 @@ return (
   <div className="co-grid" style={{gridTemplateColumns:gridCols}}>
   {cols.map((co, i) => (
   <div key={co.id} className="co-card" style={{"--co-color":co.color,animationDelay:`${i*0.1}s`}} onClick={() => onSelect(co)}>
+  {isAdmin&&onEdit&&<button className="co-edit" title="تعديل بيانات الشركة" onClick={e=>{e.stopPropagation();onEdit(co);}}>✏️ تعديل</button>}
   <span className="co-icon" style={{animationDelay:`${i*0.5}s`}}>{co.logo}</span>
   <div style={{fontSize:"16px",fontWeight:900,color:"#fff",marginBottom:"6px"}}>{co.nameAr}</div>
   <div style={{fontSize:"11px",color:"rgba(255,255,255,.4)",marginBottom:"12px",direction:"ltr"}}>{co.name}</div>
@@ -952,9 +955,19 @@ return (
   <div style={{width:"6px",height:"6px",borderRadius:"50%",background:co.color,flexShrink:0}}/>
   <span style={{fontSize:"11px",color:co.color,fontWeight:700,direction:"ltr"}}>{co.phone}</span>
   </div>
-  <div style={{marginTop:"16px",padding:"8px",borderRadius:"8px",background:"rgba(255,255,255,.04)",fontSize:"11px",color:"rgba(255,255,255,.3)"}}>{co.email}</div>
+  <div style={{marginTop:"10px",display:"flex",gap:"6px",justifyContent:"center"}}>
+  <span style={{fontSize:"10.5px",fontWeight:800,color:"rgba(255,255,255,.55)",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.12)",borderRadius:"20px",padding:"3px 10px",direction:"ltr"}}>{(CURRENCIES[co.currency]||CURRENCIES.KWD).flag} {(CURRENCIES[co.currency]||CURRENCIES.KWD).code}</span>
+  </div>
+  <div style={{marginTop:"10px",padding:"8px",borderRadius:"8px",background:"rgba(255,255,255,.04)",fontSize:"11px",color:"rgba(255,255,255,.3)"}}>{co.email}</div>
   </div>
   ))}
+  {isAdmin&&onAdd&&(
+  <div className="co-add" style={{animationDelay:`${cols.length*0.1}s`}} onClick={()=>onAdd()} role="button" aria-label="إضافة شركة جديدة">
+  <div style={{fontSize:34,marginBottom:10,lineHeight:1}}>＋</div>
+  <div style={{fontSize:14,fontWeight:900,marginBottom:4,color:"inherit"}}>إضافة شركة جديدة</div>
+  <div style={{fontSize:11,lineHeight:1.6}}>بيانات كاملة + العملة<br/>من شاشة واحدة</div>
+  </div>
+  )}
   </div>
 )}
 <div style={{textAlign:"center",marginTop:"32px",display:"flex",alignItems:"center",justifyContent:"center",gap:"12px"}}>
@@ -2364,14 +2377,58 @@ const [clients,setClients]=useState([]);
 const [invLoading,setInvLoading]=useState(false);
 const [showBulkWa,setShowBulkWa]=useState(false); // bulk WhatsApp reminders modal
 const [payLinkInv,setPayLinkInv]=useState(null); // KNET payment-link modal invoice
+const [dbCompanies,setDbCompanies]=useState(null); // r12: سجل الشركات من الخادم (null = لم يُحمّل)
+const [companyModal,setCompanyModal]=useState(null); // r12: {mode:'create'} | {mode:'edit',company}
 const { dark, toggle } = useTheme();   // light/dark theme (hooks must run before early returns)
 
 const emptyForm=()=>({clientName:"",clientPhone:"",clientAddress:"",items:[{name:"",desc:"",qty:1,price:""}],shipping:0,date:today(),dueDate:addD(today(),30),paid:0,notes:""});
 const [form,setForm]=useState(emptyForm());
 
 // Filter available companies based on user permissions
-const availableCompanies = Object.values(COMPANIES).filter(co =>
-  allowedCompanies.includes(co.id)
+// r12: يُدمج سجل الخادم فوق الإعدادات المحلية — المدير يرى كل الشركات (بما فيها المضافة حديثاً)،
+// والموظف يرى فقط ما في قائمته. حقول DB غير الفارغة تتفوق على الافتراضيات hard-coded.
+const COMPANIES_MERGED = (() => {
+  const merged = {};
+  for (const [k, co] of Object.entries(COMPANIES)) merged[k] = co;
+  for (const row of dbCompanies || []) {
+    const base = Object.values(COMPANIES).find(c => c.sk === row.slug);
+    if (base) {
+      merged[base.id] = {
+        ...base,
+        ...(row.name && { name: row.name }),
+        ...(row.nameAr && { nameAr: row.nameAr }),
+        ...(row.phone && { phone: row.phone }),
+        ...(row.email && { email: row.email }),
+        ...(row.address && { address: row.address }),
+        ...(row.city && { city: row.city }),
+        ...(row.sellerRef && { sellerRef: row.sellerRef }),
+        ...(row.manager && { manager: row.manager }),
+        ...(row.managerPhone && { managerPhone: row.managerPhone }),
+        ...(row.color && { color: row.color }),
+        ...(row.accent && { accent: row.accent }),
+        ...(row.cardBg && { cardBg: row.cardBg }),
+        ...(row.emoji && { emoji: row.emoji, logo: row.emoji }),
+        currency: row.currency || "KWD",
+        dbRow: row,
+      };
+    } else {
+      // شركة مضافة كلياً من الواجهة — بلا افتراضيات محلية
+      merged[row.code || row.slug] = {
+        id: row.code || row.slug, sk: row.slug, name: row.name, nameAr: row.nameAr || row.name,
+        logo: row.emoji || "🏢", phone: row.phone || "", email: row.email || "", address: row.address || "",
+        city: row.city || "", sellerRef: row.sellerRef || "", manager: row.manager || "", managerPhone: row.managerPhone || "",
+        color: row.color || "#334155", accent: row.accent || "#64748b",
+        bg: `linear-gradient(135deg, ${(row.color || "#334155")} 0%, #0f172a 100%)`,
+        cardBg: row.cardBg || "#f1f5f9", emoji: row.emoji || "🏢",
+        currency: row.currency || "KWD", dbRow: row,
+      };
+    }
+  }
+  return merged;
+})();
+
+const availableCompanies = Object.values(COMPANIES_MERGED).filter(co =>
+  isAdmin ? true : allowedCompanies.includes(co.id)
 );
 
 // Auto-direct single-company users straight to their dashboard (skip selector).
@@ -2380,6 +2437,20 @@ const availableCompanies = Object.values(COMPANIES).filter(co =>
 const company = (!authLoading && selectedCompany===null && availableCompanies.length===1)
   ? availableCompanies[0]
   : selectedCompany;
+
+// r12: سجل الشركات من الخادم — يُحمّل مرة بعد الدخول (الإعدادات hard-coded تبقى fallback)
+useEffect(()=>{
+  if(!user)return;
+  let live=true;
+  api.listCompanies().then(rows=>{ if(live)setDbCompanies(rows); }).catch(()=>{ if(live)setDbCompanies([]); });
+  return()=>{live=false;};
+},[user?.uid]);
+
+// r12: عملة الجلسة تتبع الشركة النشطة — كل تنسيقات المبالغ (fKWD→fmtMoney) تقرأها
+useEffect(()=>{
+  if(!company)return;
+  setCurrency(company.currency||"KWD");
+},[company?.id,company?.currency]);
 
 // per-company persisted print style (falls back to the legacy global key once).
 // Must run AFTER the `company` derivation above (TDZ) and before early returns.
@@ -2456,6 +2527,29 @@ if(company)dbSet(company.sk,list);
 },[company]);
 
 const toast_=(msg,type="ok")=>{setToast({msg,type});setTimeout(()=>setToast(null),2600);};
+
+// r12: بعد حفظ شركة (إضافة/تعديل) — أعد تحميل السجل وحدّث الشركة النشطة فوراً إن كانت هي
+const onCompanySaved=async()=>{
+  setCompanyModal(null);
+  try{
+    const rows=await api.listCompanies();
+    setDbCompanies(rows);
+    setCompany(c=>{
+      if(!c)return c;
+      const row=rows.find(r=>r.slug===c.sk);
+      if(!row)return c;
+      return {...c,
+        ...(row.name&&{name:row.name}), ...(row.nameAr&&{nameAr:row.nameAr}),
+        ...(row.phone&&{phone:row.phone}), ...(row.email&&{email:row.email}),
+        ...(row.address&&{address:row.address}), ...(row.city&&{city:row.city}),
+        ...(row.sellerRef&&{sellerRef:row.sellerRef}), ...(row.manager&&{manager:row.manager}),
+        ...(row.managerPhone&&{managerPhone:row.managerPhone}),
+        ...(row.color&&{color:row.color}), ...(row.accent&&{accent:row.accent}),
+        ...(row.cardBg&&{cardBg:row.cardBg}), ...(row.emoji&&{emoji:row.emoji,logo:row.emoji}),
+        currency:row.currency||c.currency||"KWD", dbRow:row};
+    });
+  }catch{}
+};
 const setField=(k,v)=>setForm(f=>({...f,[k]:v}));
 const setItem=(i,k,v)=>setForm(f=>{const items=[...f.items];items[i]={...items[i],[k]:v};return{...f,items};});
 const setEditField=(k,v)=>setEditForm(f=>({...f,[k]:v}));
@@ -2653,7 +2747,18 @@ if(authLoading)return(
 );
 
 if(!user)return <FirebaseLogin/>;
-if(!company)return <CompanySelector companies={availableCompanies} onSelect={co=>{setCompany(co);setView("dash");}}/>;
+if(!company)return <>
+  <CompanySelector companies={availableCompanies} onSelect={co=>{setCompany(co);setView("dash");}} onAdd={()=>setCompanyModal({mode:"create"})} onEdit={co=>setCompanyModal({mode:"edit",company:co})}/>
+  {companyModal&&(
+    <CompanyForm
+      mode={companyModal.mode}
+      company={companyModal.company}
+      onClose={()=>setCompanyModal(null)}
+      onSaved={onCompanySaved}
+      toast={toast_}
+    />
+  )}
+</>;
 
 const col = company.color;
 const colTx = txAdapt(col, dark);          // readable company color for TEXT on cards
@@ -2661,10 +2766,19 @@ const cardBg = softAdapt(company.cardBg, dark); // soft tinted surface (KPI/summ
 
 return(
 <div dir="rtl" style={{minHeight:"100vh",background:"var(--ia-bg)",fontFamily:"'Cairo','Tajawal',sans-serif",color:"var(--ia-text)",display:"flex",flexDirection:"column"}}>
-<style>{`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap'); *{box-sizing:border-box} .inp{width:100%;border:1.5px solid var(--ia-border2);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:13px;background:var(--ia-inp-bg);color:var(--ia-text);outline:none;transition:border .15s,box-shadow .15s} .inp:focus{border-color:${col};box-shadow:0 0 0 3px ${col}1a} .inp:hover{border-color:var(--ia-muted)} .inp::placeholder{color:var(--ia-muted)} .btn{border:none;border-radius:8px;padding:9px 16px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap} .btn:hover{filter:brightness(1.06);box-shadow:0 2px 10px rgba(0,0,0,.12)} .btn:active{opacity:.85;transform:scale(.97)} .btn-ghost{background:var(--ia-ghost-bg);color:var(--ia-ghost-tx)} .btn-outline{background:transparent;border:1.5px solid var(--ia-border2);color:var(--ia-text2)} .btn-outline:hover{border-color:${col};color:${colTx}} .btn-red{background:#dc2626;color:#fff} .card{background:var(--ia-card);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);border:1px solid var(--ia-border)} [data-theme="dark"] .card{box-shadow:0 1px 3px rgba(0,0,0,.35)} .trow{transition:background .12s} .trow:hover,.trow:active{background:var(--ia-hover);cursor:pointer} .inv-table tbody tr:last-child td{border-bottom:none} .b-paid{background:var(--ia-ok-bg);color:var(--ia-ok-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-paid::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-ok-tx);margin-left:5px;vertical-align:middle} .b-part{background:var(--ia-warn-bg);color:var(--ia-warn-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-part::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-warn-tx);margin-left:5px;vertical-align:middle} .b-unp{background:var(--ia-red-bg);color:var(--ia-red-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-unp::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-red-tx);margin-left:5px;vertical-align:middle} .b-cancel{background:var(--ia-chip);color:var(--ia-sub);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;text-decoration:line-through} .b-inv{background:var(--ia-blue-bg);color:var(--ia-blue-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;letter-spacing:.3px} @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}} @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}} .navbar{background:${col};position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,.25)} .navbar-top{display:flex;align-items:center;padding:0 12px;height:48px;gap:6px} .navbar-tabs{display:flex;overflow-x:auto;padding:4px 12px 6px;gap:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none} .navbar-tabs::-webkit-scrollbar{display:none} .aliphia-btn{background:#0f766e;} .nav-tab{background:transparent;color:rgba(255,255,255,.7);border:1px solid transparent;border-radius:6px;padding:5px 11px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s} .nav-tab:hover{color:#fff;background:rgba(255,255,255,.08)} .nav-tab.active{background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.25)} .nav-tab:active{background:rgba(255,255,255,.2)} .inv-table{width:100%;border-collapse:collapse} .inv-table th{padding:10px 10px;font-size:11px;font-weight:700;color:var(--ia-sub);text-align:right;text-transform:uppercase;letter-spacing:.3px} .inv-table td{padding:10px 10px;border-bottom:1px solid var(--ia-border3);font-size:13px} .col-addr,.col-date,.col-phone,.col-credit{display:none} @media(min-width:500px){.col-phone{display:table-cell}} @media(min-width:680px){.col-date{display:table-cell}.col-credit{display:table-cell}} .form-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px} .form-3col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px} .item-row{display:grid;grid-template-columns:2fr 65px 110px auto;gap:7px;margin-bottom:7px;align-items:center} @media(max-width:500px){.form-2col{grid-template-columns:1fr}.form-3col{grid-template-columns:1fr 1fr}.item-row{grid-template-columns:1fr 55px 90px auto}} .kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px} .kpi-grid>div{transition:transform .18s,box-shadow .18s} .kpi-grid>div:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.08)} @media(min-width:600px){.kpi-grid{grid-template-columns:repeat(4,1fr)}} .chart-grid{display:grid;grid-template-columns:1fr;gap:12px} @media(min-width:680px){.chart-grid{grid-template-columns:1.7fr 1fr}} .print-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end} @media(max-width:480px){.print-grid{grid-template-columns:1fr 1fr;} .print-grid .print-btn{grid-column:1/-1}} .cust-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px} @media(max-width:480px){.cust-stats{grid-template-columns:1fr}} .aliphia-btn{background:linear-gradient(135deg,#0f766e,#0d9488)!important;border:none;box-shadow:0 2px 8px rgba(15,118,110,.3);transition:all .2s!important} .aliphia-btn:hover{box-shadow:0 4px 14px rgba(15,118,110,.45)!important;transform:translateY(-1px)} ::-webkit-scrollbar{width:9px;height:9px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:var(--ia-border2);border-radius:8px;border:2px solid var(--ia-bg)} ::-webkit-scrollbar-thumb:hover{background:var(--ia-muted)} .sk{position:relative;overflow:hidden;background:var(--ia-skel);border-radius:6px} .sk::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.65),transparent);animation:shimmer 1.4s infinite} [data-theme="dark"] .sk::after{background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent)} @keyframes shimmer{100%{transform:translateX(100%)}} .sk-sm{height:11px} .sk-lg{height:22px} .btn:focus-visible,.inp:focus-visible{outline:2.5px solid ${col};outline-offset:2px} .nav-tab:focus-visible{outline:2.5px solid #fff;outline-offset:1px} .wa-btn{background:#16a34a!important;transition:all .18s!important} .wa-btn:hover{background:#15803d!important;box-shadow:0 4px 14px rgba(22,163,74,.4)!important;transform:translateY(-1px)} select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:left 10px center;padding-left:26px} .print-chip:hover{transform:translateY(-2px);border-color:var(--ia-muted)!important;box-shadow:0 5px 16px rgba(0,0,0,.09)} [data-theme="dark"] .print-chip:hover{box-shadow:0 5px 16px rgba(0,0,0,.45)} .chart-grid>div{transition:box-shadow .18s} .chart-grid>div:hover{box-shadow:0 4px 16px rgba(0,0,0,.06)} [data-theme="dark"] .chart-grid>div:hover{box-shadow:0 4px 16px rgba(0,0,0,.4)} [data-theme="dark"] .kpi-grid>div:hover{box-shadow:0 6px 18px rgba(0,0,0,.45)} [data-theme="dark"] .btn:hover{filter:brightness(1.15)}`}</style>
+<style>{`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap'); *{box-sizing:border-box} .inp{width:100%;border:1.5px solid var(--ia-border2);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:13px;background:var(--ia-inp-bg);color:var(--ia-text);outline:none;transition:border .15s,box-shadow .15s} .inp:focus{border-color:${col};box-shadow:0 0 0 3px ${col}1a} .inp:hover{border-color:var(--ia-muted)} .inp::placeholder{color:var(--ia-muted)} .btn{border:none;border-radius:8px;padding:9px 16px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap} .btn:hover{filter:brightness(1.06);box-shadow:0 2px 10px rgba(0,0,0,.12)} .btn:active{opacity:.85;transform:scale(.97)} .btn-ghost{background:var(--ia-ghost-bg);color:var(--ia-ghost-tx)} .btn-outline{background:transparent;border:1.5px solid var(--ia-border2);color:var(--ia-text2)} .btn-outline:hover{border-color:${col};color:${colTx}} .btn-red{background:#dc2626;color:#fff} .card{background:var(--ia-card);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);border:1px solid var(--ia-border)} [data-theme="dark"] .card{box-shadow:0 1px 3px rgba(0,0,0,.35)} .trow{transition:background .12s} .trow:hover,.trow:active{background:var(--ia-hover);cursor:pointer} .inv-table tbody tr:last-child td{border-bottom:none} .b-paid{background:var(--ia-ok-bg);color:var(--ia-ok-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-paid::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-ok-tx);margin-left:5px;vertical-align:middle} .b-part{background:var(--ia-warn-bg);color:var(--ia-warn-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-part::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-warn-tx);margin-left:5px;vertical-align:middle} .b-unp{background:var(--ia-red-bg);color:var(--ia-red-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-unp::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-red-tx);margin-left:5px;vertical-align:middle} .b-cancel{background:var(--ia-chip);color:var(--ia-sub);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;text-decoration:line-through} .b-inv{background:var(--ia-blue-bg);color:var(--ia-blue-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;letter-spacing:.3px} @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}} @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}} .navbar{background:${col};position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,.25)} .navbar-top{display:flex;align-items:center;padding:0 12px;height:48px;gap:6px} @media(max-width:420px){.navbar-top{gap:3px;padding:0 6px}.nav-top-label{display:none}.co-name{max-width:58px}} .navbar-tabs{display:flex;overflow-x:auto;padding:4px 12px 6px;gap:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none} .navbar-tabs::-webkit-scrollbar{display:none} .aliphia-btn{background:#0f766e;} .nav-tab{background:transparent;color:rgba(255,255,255,.7);border:1px solid transparent;border-radius:6px;padding:5px 11px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s} .nav-tab:hover{color:#fff;background:rgba(255,255,255,.08)} .nav-tab.active{background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.25)} .nav-tab:active{background:rgba(255,255,255,.2)} .inv-table{width:100%;border-collapse:collapse} .inv-table th{padding:10px 10px;font-size:11px;font-weight:700;color:var(--ia-sub);text-align:right;text-transform:uppercase;letter-spacing:.3px} .inv-table td{padding:10px 10px;border-bottom:1px solid var(--ia-border3);font-size:13px} .col-addr,.col-date,.col-phone,.col-credit{display:none} @media(min-width:500px){.col-phone{display:table-cell}} @media(min-width:680px){.col-date{display:table-cell}.col-credit{display:table-cell}} .form-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px} .form-3col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px} .item-row{display:grid;grid-template-columns:2fr 65px 110px auto;gap:7px;margin-bottom:7px;align-items:center} @media(max-width:500px){.form-2col{grid-template-columns:1fr}.form-3col{grid-template-columns:1fr 1fr}.item-row{grid-template-columns:1fr 55px 90px auto}} .kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px} .kpi-grid>div{transition:transform .18s,box-shadow .18s} .kpi-grid>div:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.08)} @media(min-width:600px){.kpi-grid{grid-template-columns:repeat(4,1fr)}} .chart-grid{display:grid;grid-template-columns:1fr;gap:12px} @media(min-width:680px){.chart-grid{grid-template-columns:1.7fr 1fr}} .print-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end} @media(max-width:480px){.print-grid{grid-template-columns:1fr 1fr;} .print-grid .print-btn{grid-column:1/-1}} .cust-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px} @media(max-width:480px){.cust-stats{grid-template-columns:1fr}} .aliphia-btn{background:linear-gradient(135deg,#0f766e,#0d9488)!important;border:none;box-shadow:0 2px 8px rgba(15,118,110,.3);transition:all .2s!important} .aliphia-btn:hover{box-shadow:0 4px 14px rgba(15,118,110,.45)!important;transform:translateY(-1px)} ::-webkit-scrollbar{width:9px;height:9px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:var(--ia-border2);border-radius:8px;border:2px solid var(--ia-bg)} ::-webkit-scrollbar-thumb:hover{background:var(--ia-muted)} .sk{position:relative;overflow:hidden;background:var(--ia-skel);border-radius:6px} .sk::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.65),transparent);animation:shimmer 1.4s infinite} [data-theme="dark"] .sk::after{background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent)} @keyframes shimmer{100%{transform:translateX(100%)}} .sk-sm{height:11px} .sk-lg{height:22px} .btn:focus-visible,.inp:focus-visible{outline:2.5px solid ${col};outline-offset:2px} .nav-tab:focus-visible{outline:2.5px solid #fff;outline-offset:1px} .wa-btn{background:#16a34a!important;transition:all .18s!important} .wa-btn:hover{background:#15803d!important;box-shadow:0 4px 14px rgba(22,163,74,.4)!important;transform:translateY(-1px)} select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:left 10px center;padding-left:26px} .print-chip:hover{transform:translateY(-2px);border-color:var(--ia-muted)!important;box-shadow:0 5px 16px rgba(0,0,0,.09)} [data-theme="dark"] .print-chip:hover{box-shadow:0 5px 16px rgba(0,0,0,.45)} .chart-grid>div{transition:box-shadow .18s} .chart-grid>div:hover{box-shadow:0 4px 16px rgba(0,0,0,.06)} [data-theme="dark"] .chart-grid>div:hover{box-shadow:0 4px 16px rgba(0,0,0,.4)} [data-theme="dark"] .kpi-grid>div:hover{box-shadow:0 6px 18px rgba(0,0,0,.45)} [data-theme="dark"] .btn:hover{filter:brightness(1.15)}`}</style>
 
   {/* Admin Dashboard Modal */}
-  {showAdmin&&<AdminDashboard onClose={()=>setShowAdmin(false)}/>}
+  {showAdmin&&<AdminDashboard onClose={()=>setShowAdmin(false)} companies={availableCompanies}/>}
+  {companyModal&&(
+    <CompanyForm
+      mode={companyModal.mode}
+      company={companyModal.company}
+      onClose={()=>setCompanyModal(null)}
+      onSaved={onCompanySaved}
+      toast={toast_}
+    />
+  )}
 
   {/* Aliphia Import Modal — Invoices tab */}
   {showAliphia&&(
@@ -2686,10 +2800,11 @@ return(
   <div className="navbar">
     <div className="navbar-top">
       <button onClick={switchCompany} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"6px",padding:"5px 10px",fontFamily:"inherit",fontSize:"12px",fontWeight:700,cursor:"pointer",color:"#fff",display:"flex",alignItems:"center",gap:"4px",flexShrink:0}}>
-        {company.logo} <span style={{maxWidth:"80px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{company.nameAr}</span> <span style={{opacity:.6,fontSize:"10px"}}>▼</span>
+        {company.logo} <span className="co-name" style={{maxWidth:"80px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{company.nameAr}</span> <span style={{opacity:.6,fontSize:"10px"}}>▼</span>
       </button>
       <div style={{flex:1}}/>
-      {isAdmin&&<button onClick={()=>setShowAdmin(true)} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"6px",color:"rgba(255,255,255,.9)",padding:"5px 10px",fontFamily:"inherit",fontSize:"12px",fontWeight:700,cursor:"pointer",flexShrink:0}}>⚙️ المستخدمين</button>}
+      {isAdmin&&<button onClick={()=>setShowAdmin(true)} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"6px",color:"rgba(255,255,255,.9)",padding:"5px 10px",fontFamily:"inherit",fontSize:"12px",fontWeight:700,cursor:"pointer",flexShrink:0}}>⚙️ <span className="nav-top-label">المستخدمين</span></button>}
+      {isAdmin&&<button onClick={()=>setCompanyModal({mode:"edit",company})} title="تعديل بيانات الشركة الحالية" style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"6px",color:"rgba(255,255,255,.9)",padding:"5px 10px",fontFamily:"inherit",fontSize:"12px",fontWeight:700,cursor:"pointer",flexShrink:0}}>🏢✏️</button>}
       <button onClick={toggle} title={dark?"التبديل إلى الوضع النهاري":"التبديل إلى الوضع الليلي"} aria-label="تبديل السمة" style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"6px",color:"#fff",padding:"5px 10px",fontFamily:"inherit",fontSize:"13px",cursor:"pointer",flexShrink:0,lineHeight:1}}>{dark?"☀️":"🌙"}</button>
       <button onClick={logout} style={{background:"rgba(0,0,0,.2)",border:"1px solid rgba(255,255,255,.2)",borderRadius:"6px",color:"rgba(255,255,255,.8)",padding:"5px 10px",fontFamily:"inherit",fontSize:"12px",fontWeight:700,cursor:"pointer",flexShrink:0}}>خروج</button>
     </div>
@@ -3037,7 +3152,7 @@ return(
           <div key={i} className="item-row">
             <input className="inp" placeholder="اسم المنتج *" value={it.name} onChange={e=>setItem(i,"name",e.target.value)}/>
             <input className="inp" type="number" min="1" value={it.qty} onChange={e=>setItem(i,"qty",e.target.value)}/>
-            <input className="inp" placeholder="السعر KD" value={it.price} onChange={e=>setItem(i,"price",e.target.value)}/>
+            <input className="inp" placeholder={`السعر ${currencySymbol()}`} value={it.price} onChange={e=>setItem(i,"price",e.target.value)}/>
             {form.items.length>1?<button className="btn btn-red" style={{padding:"8px 10px"}} onClick={()=>setForm(f=>({...f,items:f.items.filter((_,j)=>j!==i)}))}>✕</button>:<div/>}
           </div>
         ))}
@@ -3132,7 +3247,7 @@ return(
           <div key={i} className="item-row">
             <input className="inp" placeholder="اسم المنتج *" value={it.name} onChange={e=>setEditItem(i,"name",e.target.value)}/>
             <input className="inp" type="number" min="1" value={it.qty} onChange={e=>setEditItem(i,"qty",e.target.value)}/>
-            <input className="inp" placeholder="السعر KD" value={it.price} onChange={e=>setEditItem(i,"price",e.target.value)}/>
+            <input className="inp" placeholder={`السعر ${currencySymbol()}`} value={it.price} onChange={e=>setEditItem(i,"price",e.target.value)}/>
             {editForm.items.length>1
               ?<button className="btn btn-red" style={{padding:"8px 10px"}} onClick={()=>setEditForm(f=>({...f,items:f.items.filter((_,j)=>j!==i)}))}>✕</button>
               :<div/>}

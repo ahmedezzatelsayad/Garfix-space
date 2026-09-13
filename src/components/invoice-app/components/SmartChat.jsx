@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import { useTheme, txAdapt, softAdapt } from "../theme";
+import { fmtMoney } from "../currency";
 
 /* r10: المساعد الذكي — شات متصل بكامل المشروع
  * - بثّ حيّ (SSE) من الخادم (DeepSeek عند تفعيله / المزوّد المدمج)
@@ -19,7 +20,7 @@ const SUGGESTIONS = [
   { icon: "📈", text: "قارن أداء الشهور الأخيرة وحدّد الاتجاه" },
 ];
 
-const fKD = n => `${Number(n ?? 0).toFixed(3)} د.ك`;
+const fKD = n => fmtMoney(n); // r12: تتبع عملة الشركة النشطة
 
 export default function SmartChat({ company }) {
   const col = company?.color || "#1e3a5f";

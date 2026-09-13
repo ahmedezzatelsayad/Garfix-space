@@ -7,12 +7,32 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// r12: Company — full editable profile (was minimal id/name/slug).
+// Nullable fields → frontend falls back to hardcoded defaults per field;
+// `code` is the short routing id (e.g. "tawfeer"), `slug` stays the storage key (tw_inv_…_v1),
+// `currency` is ISO-4217 (default KWD — the Kuwaiti market baseline).
 model Company {
-  id              Int      @id @default(autoincrement())
+  id              Int       @id @default(autoincrement())
   name            String
-  slug            String   @unique
+  slug            String    @unique // storage key: tw_inv_x_v1 (used as companySlug everywhere)
+  code            String?   @unique // short routing code: tawfeer | mahhal | boss | laqta | …
+  currency        String    @default("KWD")
+  nameAr          String?
+  phone           String?
+  email           String?
+  address         String?
+  city            String?
+  sellerRef       String?
+  manager         String?
+  managerPhone    String?
+  color           String?
+  accent          String?
+  cardBg          String?
+  emoji           String?
+  logo            String?
   firebaseOwnerId String?
-  createdAt       DateTime @default(now())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
 model Client {
