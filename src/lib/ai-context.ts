@@ -6,6 +6,8 @@
 import { db } from "@/lib/db";
 import { cacheWrap } from "@/lib/cache";
 import { invoicePaymentStatus, invoiceTotal, num } from "@/lib/serialize";
+import { currencyOf } from "@/lib/currency-shared";
+import { actionProtocolPrompt } from "@/lib/ai-actions";
 
 export interface CompanyContextInput {
   companySlug?: string;
@@ -28,6 +30,7 @@ interface ContextSnapshot {
   generatedAt: string;
   companies: { name: string; slug: string; invoiceCount: number }[];
   scope: string;
+  currency: { code: string; short: string; ar: string; decimals: number };
   kpis: {
     totalInvoices: number;
     totalRevenue: number;
@@ -45,14 +48,17 @@ interface ContextSnapshot {
   lastReminders: { client: string; channel: string; at: string }[];
 }
 
-const fKD = (n: number): string => `${n.toFixed(3)} د.ك`;
+const fKD = (n: number, cur: { decimals: number; short: string }): string => `${n.toFixed(cur.decimals)} ${cur.short}`;
 
 export async function buildProjectContext(input: CompanyContextInput): Promise<ContextSnapshot> {
   const slug = input.companySlug || undefined;
   const key = `ai:ctx:${slug || "all"}`;
 
   return cacheWrap<ContextSnapshot>(key, 20, async () => {
-    const companies = await db.company.findMany({ select: { name: true, slug: true } });
+    const companies = await db.company.findMany({ select: { name: true, slug: true, currency: true } });
+    // r15: عملة الشركة الفعّالة (بعد r12 العملة إعداد لكل شركة) — كل تُنسيق المبالغ بها
+    const curInfo = currencyOf(companies.find((c) => c.slug === slug)?.currency);
+    const cur = { code: curInfo.code, short: curInfo.short, ar: curInfo.ar, decimals: curInfo.decimals };
     // عدّ الفواتير لكل شركة (Company بلا علاقات في الـ schema — نحسبها من الفواتير مباشرة)
     const invoiceCountRows = await db.invoice.groupBy({
       by: ["companySlug"],
@@ -136,6 +142,7 @@ export async function buildProjectContext(input: CompanyContextInput): Promise<C
       generatedAt: new Date().toISOString(),
       companies: companyRows.map((c) => ({ name: c.name, slug: c.slug, invoiceCount: c.invoiceCount })),
       scope: slug ? companies.find((c) => c.slug === slug)?.name || slug : "كل الشركات",
+      currency: cur,
       kpis: {
         totalInvoices: invoices.length,
         totalRevenue: +totalRevenue.toFixed(3),
@@ -165,9 +172,12 @@ export async function buildProjectContext(input: CompanyContextInput): Promise<C
 
 /** يحوّل اللقطة إلى system prompt عربي مُوجَّه */
 export function contextToSystemPrompt(snap: ContextSnapshot): string {
+  const cur = snap.currency;
+  const fmt = (n: number) => fKD(n, cur);
   const lines: string[] = [];
   lines.push(`أنت "مساعد جرفِكس الذكي" — مساعد مالي وإداري مدمج في نظام إدارة حسابات وفواتير كويتي متعدد الشركات (واجهة عربية RTL).`);
-  lines.push(`أجب دائماً بالعربية بأسلوب واضح ومهني، واستخدم الأرقام من البيانات الحقيقية أدناه فقط، والعملة الدينار الكويتي (د.ك).`);
+  lines.push(`أجب دائماً بالعربية بأسلوب واضح ومهني، واستخدم الأرقام من البيانات الحقيقية أدناه فقط.`);
+  lines.push(`العملة الرسمية لنطاق العمل الحالي هي ${cur.ar} (${cur.code}) — اختصرها "${cur.short}" بعد الأرقام، وبمنازلها العشرية (${cur.decimals}).`);
   lines.push(`إن سُئلت عن شيء غير موجود في البيانات فاذكر ذلك بصراحة ولا تخترع أرقاماً.`);
   lines.push("");
   lines.push(`— نطاق العمل الحالي: ${snap.scope}`);
@@ -178,26 +188,26 @@ export function contextToSystemPrompt(snap: ContextSnapshot): string {
   lines.push("");
   lines.push("المؤشرات الرئيسية:");
   lines.push(`- إجمالي الفواتير: ${snap.kpis.totalInvoices} (مدفوعة ${snap.kpis.paidCount}، مسودّات/غير مدفوعة ${snap.kpis.draftCount}، متأخرة ${snap.kpis.overdueCount})`);
-  lines.push(`- الإيرادات المحققة: ${fKD(snap.kpis.totalRevenue)}`);
-  lines.push(`- المستحقات غير المحصّلة: ${fKD(snap.kpis.outstanding)}`);
+  lines.push(`- الإيرادات المحققة: ${fmt(snap.kpis.totalRevenue)}`);
+  lines.push(`- المستحقات غير المحصّلة: ${fmt(snap.kpis.outstanding)}`);
   lines.push(`- عدد العملاء: ${snap.kpis.totalClients} | أصناف الكتالوج: ${snap.kpis.catalogItems} | فواتير مشتريات: ${snap.kpis.purchaseInvoices}`);
 
   if (snap.topClientsByDebt.length) {
     lines.push("");
     lines.push("أعلى العملاء مديونية:");
-    for (const c of snap.topClientsByDebt) lines.push(`- ${c.name}${c.phone ? ` (${c.phone})` : ""}: ${fKD(c.outstanding)} عبر ${c.invoices} فاتورة`);
+    for (const c of snap.topClientsByDebt) lines.push(`- ${c.name}${c.phone ? ` (${c.phone})` : ""}: ${fmt(c.outstanding)} عبر ${c.invoices} فاتورة`);
   }
 
   if (snap.recentInvoices.length) {
     lines.push("");
     lines.push("أحدث الفواتير:");
-    for (const i of snap.recentInvoices) lines.push(`- ${i.invoiceNumber} | ${i.clientName} | ${fKD(i.total)} | مدفوع ${fKD(i.paid)} | حالة الدفع: ${i.payStatus} | إصدار ${i.issueDate} | استحقاق ${i.dueDate}`);
+    for (const i of snap.recentInvoices) lines.push(`- ${i.invoiceNumber} | ${i.clientName} | ${fmt(i.total)} | مدفوع ${fmt(i.paid)} | حالة الدفع: ${i.payStatus} | إصدار ${i.issueDate} | استحقاق ${i.dueDate}`);
   }
 
   if (snap.catalogSample.length) {
     lines.push("");
     lines.push("عيّنة الكتالوج (سعر بيع / شراء):");
-    for (const c of snap.catalogSample) lines.push(`- ${c.name}: بيع ${fKD(c.selling)} / شراء ${fKD(c.purchase)}`);
+    for (const c of snap.catalogSample) lines.push(`- ${c.name}: بيع ${fmt(c.selling)} / شراء ${fmt(c.purchase)}`);
   }
 
   if (snap.lastReminders.length) {
@@ -205,6 +215,9 @@ export function contextToSystemPrompt(snap: ContextSnapshot): string {
     lines.push("آخر التذكيرات المرسلة:");
     for (const r of snap.lastReminders) lines.push(`- ${r.client} عبر ${r.channel} في ${r.at}`);
   }
+
+  lines.push("");
+  lines.push(actionProtocolPrompt());
 
   lines.push("");
   lines.push("إرشادات الإجابة: نظّم الإجابة بعناوين ونقاط قصيرة عند الحاجة، واقترح خطوات عملية (تحصيل، متابعة، تقارير) عند المناسبة.");

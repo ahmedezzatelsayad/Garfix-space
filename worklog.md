@@ -613,3 +613,57 @@ Stage Summary:
 - BullMQ يعمل من طرف إلى طرف: نسخ احتياطية تلقائية يومياً 03:00 قابلة للاستعادة بزر Recovery، تسخين كاش ساعي، تنظيف أسبوعي، وصيانة قاعدة يومية — مع لوحة مراقبة حيّة للمدير وAPI محمي.
 - 5 خدمات الآن تحت الحارس: 3000 · 5432 · 6379 · 3040 · 3041.
 - دروس موثقة للجولات القادمة: noeviction إلزامي لـ BullMQ · حارس التفرد يمنع زومبي bun --hot · متغيرات الشل القديمة تتفوق على .env.
+
+---
+Task ID: 15-infra
+Agent: general-purpose (infra revival)
+Task: إعادة بناء PostgreSQL 17 + Valkey 8.1.1 + تشغيل كل الخدمات الخمس بعد إعادة تشغيل الـ sandbox (تنفيذ حرفي لوصفة 1-infra/14-infra)
+
+Work Log:
+- الحالة عند البدء: infra/ محذوفة كلياً، لا عمليات postgres/valkey/next/bun، المنافذ 3000/5432/6379/3040/3041 مغلقة، db/custom.db (SQLite) باقٍ كمصدر للترحيل، .env يشير إلى file:...custom.db — ومتغير DATABASE_URL القديم (file:) مصدَّر في بيئة الجلسة (يُعاد حقنه مع كل أمر شل جديد — unset لا يستمر بين الأوامر؛ لذا شُغّلت السكربتات مع unset/بادئة DATABASE_URL في نفس سطر الأمر).
+- PostgreSQL 17.11 (17.11-0+deb13u1، Debian trixie): apt-get download للثلاث حزم في /tmp/pgdebs → dpkg-deb -x إلى infra/pg (بعد mkdir -p) — ldd نظيف بلا مكتبات ناقصة. initdb -U garfix --auth=trust كمستخدم z إلى db/postgres-data (مسار PG_DATA الثابت في keepalive) مع LD_LIBRARY_PATH=infra/pg/usr/lib/x86_64-linux-gnu.
+- postgresql.conf: unix_socket_directories='/tmp' + listen_addresses='127.0.0.1' + port=5432 → pg_ctl start → pg_isready: accepting connections. ALTER ROLE garfix PASSWORD 'garfix2024' + CREATE DATABASE garfix OWNER garfix (psql عبر LD_LIBRARY_PATH).
+- إصلاح .env: DATABASE_URL=file:...custom.db → postgresql://garfix:garfix2024@127.0.0.1:5432/garfix?schema=public (سطر واحد، بلا تنصيص).
+- `DATABASE_URL=... bun run db:push` نجح (Prisma 6.19.2 + توليد Client، 70ms).
+- مشكلة updatedAt المعروفة تكررت حرفياً (جدول SQLite Company بلا العمود — أعمدة SQLite: id/name/slug/firebaseOwnerId/createdAt فقط) → SET DEFAULT now() قبل الترحيل → DROP DEFAULT بعده (تحقق information_schema: column_default فارغ — المخطط مطابق تماماً).
+- `bun scripts/migrate-sqlite-to-pg.ts`: 26 صفاً — 4 شركات (Tawfeer/Mahhal/Boss Neolife/Laqta)، 1 عميل، 14 فاتورة، 6 كتالوج، 1 مشتريات، 0 مدفوعات/تذكيرات/إعدادات + إعادة ضبط sequences (Company←5، invoices←18) — تطابق sqlite=pg في الجداول الثمانية كلها.
+- `unset DATABASE_URL && bun scripts/seed-site.ts` نجح: site_content=14 مفتاحاً + team_members=4 أعضاء.
+- Valkey 8.1.1 من المصدر: تاربال GitHub (3.7MB) → infra/valkey/valkey-8.1.1 → make -C deps (hiredis linenoise hdr_histogram fpconv lua fast_float_c_interface) → make -C src valkey-server MALLOC=libc (12.66MB، بلا valkey-cli عمداً). valkey.conf: bind 127.0.0.1، port 6379، daemonize no، dir db/valkey-data، maxmemory 256mb، **maxmemory-policy noeviction** (مطلب BullMQ — درس r14، وليس allkeys-lru القديم)، appendonly yes.
+- اختبار يدوي لفkey قبل التسليم للحارس: تشغيل detached → ioredis: PING=PONG، version=8.1.1، policy=noeviction، maxmemory=268435456، SET/GET يعملان → إيقاف بالـ PID (3209) ليملك الحارس دورة الحياة.
+- تشغيل الحارس: `cd mini-services/keepalive && ( setsid nohup bun run dev > service.log 2>&1 < /dev/null & )` — اكتشف Valkey/pdf-service/job-worker/Next متوقفة فأعادها كلها (مسح .next ثم next dev) خلال ~30 ثانية.
+
+Stage Summary:
+- كل الخدمات الخمس حية تحت الحارس (PID 3269): PostgreSQL 127.0.0.1:5432 (pg_isready ok) • Valkey 127.0.0.1:6379 (noeviction مؤكدة حيّة، AOF يكتب في db/valkey-data/appendonlydir) • pdf-service :3040 (chromium جاهز) • job-worker :3041 (عامل BullMQ + 4 Job Schedulers مسجلة: backup 03:00 يومياً · cache-warm كل ساعة · cleanup سبتاً 04:30 · VACUUM 04:15) • next dev :3000 (Ready in 960ms).
+- التحقق النهائي: GET /api/healthz → 200 status=ok مع database engine=postgresql ok=true (latency 1–44ms) و cache engine=valkey connected=true — والكاش يعمل فعلياً على Valkey (hits=2/misses=2/writes=2/memKeys=2 بعد طلبات متكررة، ليس fallback الذاكرة) • GET / → 200 • GET /api/companies → 4 شركات • GET /api/site/team → 4 أعضاء • http://127.0.0.1:3041/healthz → ok=true (bullmq@6، الطابور garfix-tasks) • psql: Company=4/invoices=14/clients=1/product_catalog=6/site_content=14/team_members=4 • dev.log وnext-dev.log صفر أخطاء (200 فقط) • keepalive/pdf/job-worker service.log نظيفة.
+- انحرافان موثقان سلفاً تكررا كمتوقع (كلاهما من دروس 14-infra): ① mkdir -p infra/pg قبل dpkg-deb -x؛ ② متغير DATABASE_URL=file: القديم مصدَّر في بيئة الشل ويتفوق على .env في Bun — والحل هنا أدق: الحقن يتكرر مع كل أمر شل جديد، فلا يكفي unset مرة واحدة بل ضمن نفس سطر التشغيل (أو بادئة DATABASE_URL=postgresql://... صراحة). لا انحرافات أخرى عن الوصفة — لم تلزم أي خطوة 12 (إعادة تشغيل valkey بسياسة صحيحة) لأن الوضع noeviction منذ الإنشاء ومؤكد حيّاً عبر CONFIG GET.
+
+---
+Task ID: r15
+Agent: main (Z.ai Code)
+Task: إكمال الشات الذكي + ثبات التطبيق بلا zoom + تحقق شامل — طلب المستخدم: «خلص الشات الذكي وخلي التطبيق ثابت بدون zoom ف المنصفح وتحقق من كل شي»
+
+Work Log:
+- **إنعاش البنية التحتية** (subagent 15-infra): إعادة بناء PostgreSQL 17.11 + Valkey 8.1.1 (noeviction) + ترحيل البيانات (4 شركات/14 فاتورة) + seed-site + keepalive — كل الخدمات الخمس حية (3000/5432/6379/3040/3041)، healthz سليم، الكاش يعمل فعلياً على Valkey.
+- **ثبات بلا zoom (طلب المستخدم)**: viewport في layout.tsx أصبح maximumScale=1 + userScalable=false + interactiveWidget="resizes-content" (قفل تكبير + منع قفزة iOS عند التركيز + سلوك موحّد مع لوحة المفاتيح). شبكة أمان في globals.css: كل حقول الإدخال (‎.inp/input/textarea/select) بخط 16px على الوسائط اللمسية أو عرض ≤640px — إيقاف تكبير المتصفح التلقائي على الجوال نهائياً (سطح المكتب 13px كما كان). تحقق فعلي: iPhone 16 emulation (393px) → inp=16px + scrollWidth=clientWidth=393 بلا أي overflow.
+- **إكمال الشات الذكي — إجراءات تنفيذية حقيقية (الميزة الكبرى)**:
+  - `src/lib/currency-shared.ts` (جديد): جدول العملات آمن للخادم (مطابق لجدول الواجهة) — fmtMoneyFor/currencyOf.
+  - `src/lib/ai-actions.ts` (جديد): 5 إجراءات بقائمة بيضاء: create_client · create_invoice · register_payment · add_catalog_item · log_reminder — كل إجراء: تحقق صارم (هواتف/بريد/تواريخ ISO/مبالغ موجبة/بنود صالحة) ثم تنفيذ بنفس منطق مسارات API القائمة + إبطال الكاش المناسب + ملخص عربي بالعملة الصحيحة. create_invoice يولّد الترقيم بنفس قاعدة التطبيق (INV + max+1) ويحفظ source="smart-chat". register_payment يرفض تجاوز المتبقي على الفاتورة. actionProtocolPrompt() يوثّق بروتوكول ```garfix-action {json}``` في system prompt بقواعد صارمة (بلا اختراع أسعار، سؤال عند النقص، بلا نص داخل الكتلة).
+  - `src/app/api/ai/action/route.ts` (جديد): POST {action, args, companySlug} → قائمة بيضاء + تحقق + تنفيذ + العملة من الشركة الفعّالة. «إنسان في الحلقة»: لا كتابة إلا بضغط المستخدم «تنفيذ» في الواجهة.
+  - `ai-context.ts`: العملة صارت من Company.currency الفعلية (كانت «د.ك» ثابتة رغم r12!) — كل مبالغ الـ system prompt بمنازل العملة الصحيحة + سطر عملة صريح للموديل + حقن بروتوكول الإجراءات.
+  - `SmartChat.jsx` (إعادة كتابة موسّعة): parseActionBlocks() (متسامح: أي كتلة كود JSON فيها action صالح تُنزع من النص) + بطاقات إجراء أنيقة (أيقونة/عنوان/حقول عربية ببطاقة الإجمالي بعملة الشركة/أزرار «تنفيذ الآن» و«تجاهل»/حالة executing بسبينر/نتيجة خضراء أو حمراء/حالة «إجراء من محادثة سابقة» للتاريخ بلا إعادة تنفيذ) + زر 📋 نسخ أي رد (بتأكيد «تم النسخ») + زر ⬇️ تصدير المحادثة كاملة Markdown + اقتراحات إجرائية جديدة بشارة «⚡ أمثلة إجرائية — سأنفّذها فعلياً» + تحديث placeholder وعداد الرسائل.
+  - `App.jsx`: SmartChat يستقبل onDataChanged → refreshInvoices + refreshClients بعد كل إجراء ناجح (تحقق فعلي في dev.log: POST /api/ai/action 201 يتبعه GET invoices + clients فوراً).
+- **إصلاح صفري**: عند التنقل داخل الشات اكتُشف أن stats الموقع كانت «0» — transient أثناء أول compile بعد إعادة تشغيل الخادم فقط (بعد reload: 4/14/1 صحيحة من الـ API).
+- **QA E2E شامل** (agent-browser): اختبار curl لكل الإجراءات الخمسة (201 + أخطاء تحقق 400 الصحيحة: اسم مفقود/هاتف فاقد صلاحية/مبلغ يتجاوز المتبقي/إجراء خارج القائمة) ثم مسح بيانات الاختبار. E2E في المتصفح: طلب «أنشئ فاتورة لسارة الأحمد ببندين…» → المساعد رد بشرح + كتلة garfix-action **JSON صالحة 100%** + سحب هاتف سارة من السياق الحي → بطاقة الإجراء (العميل/الهاتف/البنود/الإجمالي 36.000 د.ك/الاستحقاق) → «تنفيذ» → «تم إنشاء الفاتورة INV10011 بإجمالي 36.000 د.ك (2 بند)» → الفاتورة ظهرت في تبويب الفواتير (بعد ربط onDataChanged) → إعادة تحميل: المحادثة تُسترجع بالبطاقة بحالة «إجراء من محادثة سابقة» والـ JSON الخام مخفي تماماً (0 ظهور). نسخ ✓ تصدير ✓ إيجابيات: أعدت إنشاء عميل «نادي التجار الكويتي» من الشات للتقاط لقطتي التوثيق ثم مسحته.
+- **تحقق كل شي**: كل التبويبات (Dashboard/الفواتير/العملاء/التقارير/مشتريات/AI/الشات/طباعة/DeepSeek/الموقع/النظام) صفر أخطاء كونسول · صفحات الموقع العام (#/ #/team #/founder) نظيفة · لوحة BullMQ حية (🟢 العامل يعمل + تنفيذ فوري cache-warm: 23 نقطة 227ms) · ليلي/نهاري سليم · موبايل 393px بلا overflow (شاشة الشات + نموذج فاتورة جديدة بخط 16px) · VLM قيّم لقطات الجوال 9/10 و8/10 (RTL سليم، إنتاجية) · lint: 0 أخطاء (تحذير r11 القديم فقط) · dev.log نظيف.
+- **README محدَّث**: ميزة الإجراءات التنفيذية + النسخ/التصدير + عملة الشركة في الشات (قسم الذكاء) · صف /api/ai/action في جدول API (38→39 مساراً) · لقطتا r15-chat-action-card/done في قسم لقطات التطبيق · خارطة الطريق: حذف بند «أدوات المساعد الذكي» المنجز (وتحديث ملاحظة فرض الأدوار لتشمل إجراءات الشات) · صفان جديدان في جدول «منجز حديثاً».
+- لقطات جديدة: docs/screenshots/r15-chat-action-card.png + r15-chat-action-done.png + download/r15-chat-mobile.png + r15-chat-dark.png + r15-newinvoice-mobile.png + r15-dashboard.png.
+- بيانات الاختبار نُظفت بعد كل تحقق (14 فاتورة / 1 عميل / 0 محادثات / 4 شركات كما كانت).
+
+Stage Summary:
+- r15 مكتملة: المساعد الذكي صار **يكمل عمله فعلياً** — يحلل بيانات الشركة الحيّة بعملتها الصحيحة، وعند الطلب يجهّز إجراءً حقيقياً (فاتورة/عميل/دفعة/صنف/تذكير) ببطاقة مراجعة لا تُنفّذ إلا بتأكيد المستخدم، والنتيجة تظهر في الشات وتنعكس فوراً على قوائم النظام. التطبيق الآن «ثابت بلا zoom»: لا تكبير على الإطلاق + لا قفزة تلقائية عند التركيز على الجوال. تحقق شامل لكل الصفحات والميزات والخدمات الخمس بلا أي خطأ.
+
+Unresolved issues / risks / next-phase priorities:
+- إجراءات الشات مثل باقي عمليات الكتابة غير الإدارية: بلا توثيق خادمي (كما وُثّق بأمانة في README) — NextAuth + فرض الأدوار على كل الكتابات يبقى الأولوية القصوى.
+- الموديل المدمج قد يخطئ أحياناً في تفاصيل صغيرة مقترحة من عنده (لوحظ سنة استحقاق 2026 بدل 2025 مرة) — البطاقة تعرض كل التفاصيل قبل التنفيذ ليمتنع المستخدم عند الشك؛ تحسين لاحق: تحقق ذكي من التواريخ المستقبلية البعيدة.
+- تحديد معدل على /api/ai/action غير منفذ (عمليات الكتابة الأخرى مثله) — مرشح للإضافة مع فرض الأدوار.
+- next-phase: NextAuth، فرض الأدوار على كل الكتابة (بما فيها ai/action)، تحديد معدل بالإجراءات، أتمتة التذكيرات عبر BullMQ (معالج reminder جاهز الإطار)، إطار زمني للتقارير في الشات.

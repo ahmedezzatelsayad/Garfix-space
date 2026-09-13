@@ -192,3 +192,18 @@
 [data-theme="dark"] select.inp {
   background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239aa7bd' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
 }
+
+/* ═══ r15: ثبات بلا zoom ═════════════════════════════════════════
+   شبكة أمان لمتصفحات تتجاهل user-scalable=no (بعض أندرويد):
+   على الأجهزة اللمسية، أي حقل إدخال بحجم خط أقل من 16px يجعل
+   Safari/Chrome يكبّر الشاشة تلقائياً عند التركيز — وهذا ما يجعل
+   التطبيق يبدو «غير ثابت». رفع حجم خط حقول الإدخال إلى 16px
+   على اللمسية فقط يوقف هذه القفزة نهائياً (سطح المكتب كما هو 13px). */
+@media (hover: none) and (pointer: coarse), (max-width: 640px) {
+  .inp,
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}

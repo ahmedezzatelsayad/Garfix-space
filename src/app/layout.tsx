@@ -16,7 +16,12 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 5,
+  // r15: ثبات كامل بلا تكبير — طلب المستخدم: التطبيق ثابت بدون zoom في المتصفح.
+  // منع pinch-zoom يمنع أيضاً قفزة iOS التلقائية عند التركيز على حقول بحجم خط < 16px.
+  maximumScale: 1,
+  userScalable: false,
+  // سلوك موحّد عند فتح لوحة المفاتيح على الجوال: المحتوى يتقلص بدل قفز viewport
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({

@@ -6,6 +6,11 @@ import { useTheme, txAdapt, softAdapt } from "../theme";
 import { fmtMoney } from "../currency";
 
 /* r10: المساعد الذكي — شات متصل بكامل المشروع
+ * r15: إكمال المساعد — إجراءات تنفيذية حقيقية (إنسان في الحلقة):
+ *  - المساعد يقترح إجراءً بكتلة ```garfix-action {json}```
+ *  - الواجهة تعرضها بطاقة أنيقة، والمستخدم يؤكد «تنفيذ»
+ *  - POST /api/ai/action ينفّذ بعد تحقق صارم ويعيد ملخصاً عربياً
+ *  + نسخ أي رسالة، تصدير المحادثة Markdown، اقتراحات إجرائية
  * - بثّ حيّ (SSE) من الخادم (DeepSeek عند تفعيله / المزوّد المدمج)
  * - محادثات محفوظة على الخادم لكل شركة مع استرجاعها
  * - سياق حيّ من قاعدة البيانات (فواتير، عملاء، كتالوج، مستحقات)
@@ -20,9 +25,47 @@ const SUGGESTIONS = [
   { icon: "📈", text: "قارن أداء الشهور الأخيرة وحدّد الاتجاه" },
 ];
 
-const fKD = n => fmtMoney(n); // r12: تتبع عملة الشركة النشطة
+const ACTION_SUGGESTIONS = [
+  { icon: "🧾", text: "أنشئ فاتورة جديدة للعميل سارة الأحمد ببندَين: «منتج تجريبي» كمية 2 بسعر 15.500" },
+  { icon: "👤", text: "أضف عميل جديد باسم محمد العتيبي ورقم +96591234567" },
+  { icon: "💰", text: "سجّل دفعة 10 دنانير على فاتورة INV10005" },
+];
 
-export default function SmartChat({ company }) {
+/* ————— بيانات الإجراءات (لعرض البطاقات) ————— */
+
+const ACTION_META = {
+  create_client: { icon: "👤", title: "إضافة عميل جديد", tone: "#16a34a" },
+  create_invoice: { icon: "🧾", title: "إنشاء فاتورة جديدة", tone: "#2563eb" },
+  register_payment: { icon: "💰", title: "تسجيل دفعة", tone: "#d97706" },
+  add_catalog_item: { icon: "📦", title: "إضافة صنف للكتالوج", tone: "#7c3aed" },
+  log_reminder: { icon: "📨", title: "تسجيل تذكير", tone: "#0369a1" },
+};
+
+const PAY_METHOD_LABELS = { knet: "كي نت", cash: "نقدي", online: "أونلاين", card: "بطاقة" };
+const CHANNEL_LABELS = { whatsapp: "واتساب", call: "مكالمة", manual: "يدوي" };
+
+/**
+ * فصل كتل الإجراءات عن نص الرد:
+ * أي كتلة كود مسوّرة (```garfix-action أو ```json) يفسَّر محتواها JSON
+ * ويحتوي حقل action صالحاً → تُعتبر كتلة إجراء وتُنزع من النص المعروض.
+ */
+function parseActionBlocks(content) {
+  const actions = [];
+  if (!content) return { text: content || "", actions };
+  const text = String(content).replace(/```[a-zA-Z-]*\s*\n([\s\S]*?)```/g, (full, inner) => {
+    try {
+      const obj = JSON.parse(inner.trim());
+      if (obj && typeof obj.action === "string" && ACTION_META[obj.action] && obj.args && typeof obj.args === "object") {
+        actions.push({ action: obj.action, args: obj.args });
+        return ""; // انزع الكتلة من النص
+      }
+    } catch { /* كتلة كود عادية — تُعرض كما هي */ }
+    return full;
+  });
+  return { text: text.replace(/\n{3,}/g, "\n\n").trim(), actions: actions.slice(0, 3) };
+}
+
+export default function SmartChat({ company, onDataChanged }) {
   const col = company?.color || "#1e3a5f";
   const sk = company?.sk || "";
   const { dark } = useTheme();
@@ -36,6 +79,7 @@ export default function SmartChat({ company }) {
   const [streamMeta, setStreamMeta] = useState(null); // {model, provider, scope}
   const [error, setError] = useState("");
   const [showSidebar, setShowSidebar] = useState(false);
+  const [copiedIdx, setCopiedIdx] = useState(-1);
   const abortRef = useRef(null);
   const scrollRef = useRef(null);
   const taRef = useRef(null);
@@ -81,7 +125,14 @@ export default function SmartChat({ company }) {
       setMessages(
         (data.messages || [])
           .filter(m => m.role === "user" || m.role === "assistant")
-          .map(m => ({ role: m.role, content: m.content, model: m.model, latencyMs: m.latencyMs }))
+          .map(m => {
+            if (m.role !== "assistant") return { role: m.role, content: m.content };
+            const { text, actions } = parseActionBlocks(m.content);
+            return {
+              role: m.role, content: text, model: m.model, latencyMs: m.latencyMs,
+              actions: actions.map(a => ({ ...a, status: "history" })),
+            };
+          })
       );
     } catch {
       setError("تعذّر تحميل المحادثة");
@@ -129,7 +180,7 @@ export default function SmartChat({ company }) {
     const ctrl = new AbortController();
     abortRef.current = ctrl;
 
-    let assistant = { role: "assistant", content: "", reasoning: "", model: null, latencyMs: null };
+    let assistant = { role: "assistant", content: "", reasoning: "", model: null, latencyMs: null, actions: [] };
     setMessages(prev => [...prev, assistant]);
 
     try {
@@ -178,7 +229,14 @@ export default function SmartChat({ company }) {
           setMessages(prev => {
             const copy = [...prev];
             const last = copy[copy.length - 1];
-            if (last && last.role === "assistant") copy[copy.length - 1] = { ...last, model: data.model, latencyMs: data.latencyMs };
+            if (last && last.role === "assistant") {
+              // r15: فصل كتل الإجراءات عن النص عند اكتمال الرد
+              const { text, actions } = parseActionBlocks(last.content);
+              copy[copy.length - 1] = {
+                ...last, content: text, model: data.model, latencyMs: data.latencyMs,
+                actions: actions.map(a => ({ ...a, status: "pending" })),
+              };
+            }
             return copy;
           });
         }
@@ -196,6 +254,16 @@ export default function SmartChat({ company }) {
           if (evMatch && dataMatch) handleEvent(evMatch[1].trim(), dataMatch[1]);
         }
       }
+      // أمان: إن انتهى البث بلا حدث done (قطع اتصال) — افصل الإجراءات الآن
+      setMessages(prev => {
+        const copy = [...prev];
+        const last = copy[copy.length - 1];
+        if (last && last.role === "assistant" && last.content && (!last.actions || !last.actions.length)) {
+          const { text, actions } = parseActionBlocks(last.content);
+          if (actions.length) copy[copy.length - 1] = { ...last, content: text, actions: actions.map(a => ({ ...a, status: "pending" })) };
+        }
+        return copy;
+      });
       loadConversations(); // تحديث القائمة الجانبية (العنوان/الوقت)
     } catch (e) {
       if (e.name !== "AbortError") setError(e.message || "تعذّر الاتصال بالمساعد");
@@ -212,6 +280,99 @@ export default function SmartChat({ company }) {
   };
 
   const stop = () => abortRef.current?.abort();
+
+  /* ————— r15: تنفيذ إجراء مقترح ————— */
+  const runAction = async (msgIdx, actIdx) => {
+    setMessages(prev => {
+      const copy = [...prev];
+      const msg = copy[msgIdx];
+      if (!msg || !msg.actions) return prev;
+      const actions = [...msg.actions];
+      actions[actIdx] = { ...actions[actIdx], status: "executing", result: null };
+      copy[msgIdx] = { ...msg, actions };
+      return copy;
+    });
+
+    const act = messages[msgIdx]?.actions?.[actIdx];
+    if (!act) return;
+    try {
+      const res = await fetch("/api/ai/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: act.action, args: act.args, companySlug: sk || undefined }),
+      });
+      const data = await res.json().catch(() => ({}));
+      setMessages(prev => {
+        const copy = [...prev];
+        const msg = copy[msgIdx];
+        if (!msg || !msg.actions) return prev;
+        const actions = [...msg.actions];
+        actions[actIdx] = {
+          ...actions[actIdx],
+          status: data.ok ? "done" : "failed",
+          result: data.ok ? (data.summary || "تم التنفيذ") : ((data.errors || []).join(" — ") || "فشل التنفيذ"),
+        };
+        copy[msgIdx] = { ...msg, actions };
+        return copy;
+      });
+      // r15: نجاح الإجراء = بيانات المشروع تغيّرت — أبلغ التطبيق ليُحدّث قوائمه
+      if (data.ok && typeof onDataChanged === "function") {
+        try { onDataChanged(); } catch { /* تجاهل */ }
+      }
+    } catch (e) {
+      setMessages(prev => {
+        const copy = [...prev];
+        const msg = copy[msgIdx];
+        if (!msg || !msg.actions) return prev;
+        const actions = [...msg.actions];
+        actions[actIdx] = { ...actions[actIdx], status: "failed", result: e.message || "تعذّر الاتصال بالخادم" };
+        copy[msgIdx] = { ...msg, actions };
+        return copy;
+      });
+    }
+  };
+
+  const dismissAction = (msgIdx, actIdx) => {
+    setMessages(prev => {
+      const copy = [...prev];
+      const msg = copy[msgIdx];
+      if (!msg || !msg.actions) return prev;
+      const actions = [...msg.actions];
+      actions[actIdx] = { ...actions[actIdx], status: "dismissed" };
+      copy[msgIdx] = { ...msg, actions };
+      return copy;
+    });
+  };
+
+  /* ————— نسخ رسالة ————— */
+  const copyMessage = async (i, content) => {
+    try {
+      await navigator.clipboard.writeText(content || "");
+      setCopiedIdx(i);
+      setTimeout(() => setCopiedIdx(-1), 1600);
+    } catch { /* تجاهل */ }
+  };
+
+  /* ————— تصدير المحادثة (Markdown) ————— */
+  const exportConversation = () => {
+    if (!messages.length) return;
+    const title = conversations.find(c => c.id === activeId)?.title || "محادثة جديدة";
+    const lines = [
+      `# 🤖 محادثة مساعد جرفِكس الذكي — ${company?.nameAr || "الشركة"}`,
+      ``,
+      `> ${title} • ${new Date().toLocaleString("ar")} • ${messages.length} رسالة`,
+      ``,
+      ...messages.map(m => (m.role === "user"
+        ? `## 👤 أنت\n\n${m.content}`
+        : `## 🤖 المساعد${m.model ? ` (${m.model})` : ""}\n\n${m.content}${(m.actions || []).filter(a => a.status === "done").length ? `\n\n*(إجراءات نُفِّذت: ${(m.actions || []).filter(a => a.status === "done").map(a => ACTION_META[a.action]?.title || a.action).join("، ")})*` : ""}`)),
+    ];
+    const blob = new Blob([lines.join("\n\n")], { type: "text/markdown;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `garfix-chat-${activeId || "new"}-${new Date().toISOString().slice(0, 10)}.md`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
 
   /* ————— نموّ تلقائي لمربع الكتابة ————— */
   const taInput = e => {
@@ -244,6 +405,7 @@ export default function SmartChat({ company }) {
   }, [streamMeta, dark]);
 
   const emptyState = messages.length === 0 && !streaming;
+  const totalMsgs = messages.filter(m => m.role === "user").length + messages.filter(m => m.role === "assistant").length;
 
   /* ————— العرض ————— */
   return (
@@ -258,7 +420,8 @@ export default function SmartChat({ company }) {
         <div style={{ flex: 1, minWidth: 140 }}>
           <div style={{ fontWeight: 900, fontSize: 15 }}>مساعد جرفِكس الذكي</div>
           <div style={{ fontSize: 11.5, color: "var(--ia-sub)" }}>
-            متصل ببيانات {company?.nameAr || "الشركة"} — فواتير، عملاء، مستحقات وكتالوج (لقطة حيّة)
+            متصل ببيانات {company?.nameAr || "الشركة"} — تحليل، تقارير، وإجراءات تنفيذية حقيقية
+            {totalMsgs > 0 ? ` • ${totalMsgs} رسالة` : ""}
           </div>
         </div>
         {providerChip}
@@ -266,6 +429,9 @@ export default function SmartChat({ company }) {
           style={{ display: conversations.length ? "inline-flex" : "none" }}>
           🗂️ المحادثات {conversations.length ? `(${conversations.length})` : ""}
         </button>
+        <button className="btn btn-outline" onClick={exportConversation}
+          title="تنزيل هذه المحادثة كملف Markdown"
+          style={{ display: messages.length ? "inline-flex" : "none" }}>⬇️ تصدير</button>
         <button className="btn" style={{ background: col, color: "#fff" }} onClick={newConversation}>➕ محادثة جديدة</button>
       </div>
 
@@ -308,8 +474,11 @@ export default function SmartChat({ company }) {
             <div style={{ textAlign: "center", padding: "28px 10px" }}>
               <div style={{ fontSize: 44, marginBottom: 6 }}>🤖</div>
               <div style={{ fontWeight: 900, fontSize: 16, marginBottom: 4 }}>اسألني أي شيء عن مشروعك</div>
-              <div style={{ fontSize: 12.5, color: "var(--ia-sub)", marginBottom: 18, maxWidth: 420, marginInline: "auto" }}>
+              <div style={{ fontSize: 12.5, color: "var(--ia-sub)", marginBottom: 8, maxWidth: 460, marginInline: "auto" }}>
                 أرى بيانات {company?.nameAr || "الشركة"} الحيّة: الفواتير، المدفوعات، المستحقات، العملاء والكتالوج — ويمكنني تحليلها وكتابة الرسائل والتقارير.
+              </div>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: softAdapt("#fef3c7", dark), color: txAdapt("#b45309", dark), borderRadius: 20, padding: "4px 12px", fontSize: 11.5, fontWeight: 700, marginBottom: 18 }}>
+                ⚡ جرّب أيضاً: اطلب مني إنشاء فاتورة أو إضافة عميل أو تسجيل دفعة — سأجهّزها لك وتؤكدها بضغطة زر
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 8, maxWidth: 640, marginInline: "auto" }}>
                 {SUGGESTIONS.map((s, i) => (
@@ -318,6 +487,17 @@ export default function SmartChat({ company }) {
                     <span style={{ fontSize: 16 }}>{s.icon}</span> {s.text}
                   </button>
                 ))}
+              </div>
+              <div style={{ maxWidth: 640, marginInline: "auto", marginTop: 14 }}>
+                <div style={{ fontSize: 10.5, fontWeight: 800, color: "var(--ia-muted)", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 6 }}>⚡ أمثلة إجرائية — سأنفّذها فعلياً</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 8 }}>
+                  {ACTION_SUGGESTIONS.map((s, i) => (
+                    <button key={i} className="btn btn-outline" onClick={() => send(s.text)}
+                      style={{ justifyContent: "flex-start", textAlign: "right", fontWeight: 600, fontSize: 12, padding: "10px 12px", height: "auto", borderColor: softAdapt("#fde68a", dark), background: softAdapt("#fffbeb", dark) }}>
+                      <span style={{ fontSize: 16 }}>{s.icon}</span> {s.text}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           ) : (
@@ -338,6 +518,13 @@ export default function SmartChat({ company }) {
                     <span style={{ fontSize: 13 }}>🤖</span>
                     <span style={{ fontSize: 10.5, fontWeight: 800, color: "var(--ia-sub)" }}>مساعد جرفِكس</span>
                     {m.latencyMs ? <span style={{ fontSize: 10, color: "var(--ia-sub)", direction: "ltr" }}>{(m.latencyMs / 1000).toFixed(1)}s</span> : null}
+                    {m.content ? (
+                      <button onClick={() => copyMessage(i, m.content)} title="نسخ الرد"
+                        className="chat-copy"
+                        style={{ border: "none", background: "transparent", cursor: "pointer", fontSize: 12, padding: "1px 4px", color: copiedIdx === i ? "#16a34a" : "var(--ia-muted)" }}>
+                        {copiedIdx === i ? "✓ تم النسخ" : "📋"}
+                      </button>
+                    ) : null}
                   </div>
                   {m.reasoning ? (
                     <details style={{ marginBottom: 6 }}>
@@ -375,6 +562,13 @@ export default function SmartChat({ company }) {
                       <span style={{ display: "inline-block", width: 8, height: 16, background: txAdapt(col, dark), marginRight: 2, animation: "blink 1s step-end infinite", verticalAlign: "middle", borderRadius: 2 }} />
                     ) : null}
                   </div>
+
+                  {/* r15: بطاقات الإجراءات المقترحة */}
+                  {(m.actions || []).map((act, ai) => (
+                    <ActionCard key={ai} act={act} col={col} dark={dark}
+                      onRun={() => runAction(i, ai)}
+                      onDismiss={() => dismissAction(i, ai)} />
+                  ))}
                 </div>
               </div>
             ))
@@ -391,7 +585,7 @@ export default function SmartChat({ company }) {
         {/* شريط الإدخال */}
         <div style={{ borderTop: `1px solid ${border}`, padding: 12, display: "flex", gap: 8, alignItems: "flex-end", background: dark ? "var(--ia-ghost-bg)" : "transparent" }}>
           <textarea ref={taRef} className="inp" value={input} onChange={taInput} onKeyDown={onKeyDown}
-            placeholder="اكتب سؤالك… (Enter للإرسال • Shift+Enter لسطر جديد)"
+            placeholder="اكتب سؤالك أو اطلب إجراءً (مثال: أنشئ فاتورة…) — Enter للإرسال • Shift+Enter لسطر جديد"
             rows={1}
             disabled={streaming}
             style={{ resize: "none", maxHeight: 140, lineHeight: 1.6, flex: 1, direction: "rtl" }} />
@@ -407,13 +601,133 @@ export default function SmartChat({ company }) {
       <style>{`
         @keyframes blink { 50% { opacity: 0 } }
         @keyframes pulseDot { 0%,100% { opacity: .3; transform: scale(.85) } 50% { opacity: 1; transform: scale(1.15) } }
+        @keyframes spinS { to { transform: rotate(360deg) } }
         .md-body p { margin: 0 0 6px; } .md-body p:last-child { margin: 0 }
         .md-body ul, .md-body ol { margin: 4px 0; padding-inline-start: 20px }
         .md-body li { margin-bottom: 3px }
         .md-body h1, .md-body h2, .md-body h3 { font-size: 14px; font-weight: 900; margin: 8px 0 4px }
         .md-body code { background: ${softAdapt("#f1f5f9", dark)}; padding: 1px 5px; border-radius: 4px; font-size: 12 }
         .md-body blockquote { border-inline-start: 3px solid ${txAdapt(col, dark)}; margin: 6px 0; padding: 2px 10px; color: var(--ia-sub) }
+        .chat-copy { opacity: .55; transition: opacity .15s, color .15s } .chat-copy:hover { opacity: 1 }
+        .act-card { border-radius: 12px; border: 1.5px solid; overflow: hidden; margin-top: 8px; animation: fadeUp .3s }
+        .act-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,.08) }
+        .act-row { display: flex; gap: 6px; align-items: baseline; font-size: 12.5; padding: 2px 0 }
+        .act-k { color: var(--ia-sub); font-weight: 700; white-space: nowrap; min-width: 86px }
+        .act-v { color: var(--ia-text); font-weight: 600; word-break: break-word }
       `}</style>
+    </div>
+  );
+}
+
+/* ————— r15: بطاقة إجراء مقترح — إنسان في الحلقة ————— */
+function ActionCard({ act, col, dark, onRun, onDismiss }) {
+  const meta = ACTION_META[act.action] || { icon: "⚡", title: act.action, tone: "#6b7280" };
+  const tone = meta.tone;
+  const soft = softAdapt(tone + "14", dark);
+
+  const fields = useMemo(() => {
+    const a = act.args || {};
+    const f = [];
+    const push = (k, v) => { if (v !== undefined && v !== null && String(v).trim() !== "") f.push([k, String(v)]); };
+    if (act.action === "create_client") {
+      push("الاسم", a.name); push("الهاتف", a.phone); push("البريد", a.email); push("العنوان", a.address);
+    } else if (act.action === "create_invoice") {
+      push("العميل", a.clientName); push("الهاتف", a.clientPhone);
+      if (Array.isArray(a.items)) {
+        const itemsTxt = a.items.map(it => `${it.name || "بند"} × ${it.qty ?? 1} @ ${Number(it.price ?? 0).toLocaleString("ar")}`).join(" • ");
+        push("البنود", itemsTxt);
+        const tot = a.items.reduce((s, it) => s + (Number(it.qty) || 1) * (Number(it.price) || 0), 0);
+        push("الإجمالي", fmtMoney(tot));
+      }
+      push("الاستحقاق", a.dueDate); push("ملاحظات", a.notes);
+    } else if (act.action === "register_payment") {
+      push("رقم الفاتورة", a.invoiceNumber);
+      push("المبلغ", a.amount != null ? fmtMoney(Number(a.amount)) : "");
+      push("الطريقة", PAY_METHOD_LABELS[String(a.method || "knet").toLowerCase()] || a.method);
+      push("التاريخ", a.date); push("ملاحظة", a.note);
+    } else if (act.action === "add_catalog_item") {
+      push("الصنف", a.name);
+      push("سعر البيع", a.sellingPrice != null ? fmtMoney(Number(a.sellingPrice)) : "");
+      push("سعر الشراء", a.purchasePrice != null ? fmtMoney(Number(a.purchasePrice)) : "");
+      if (Array.isArray(a.aliases) && a.aliases.length) push("أسماء بديلة", a.aliases.join("، "));
+    } else if (act.action === "log_reminder") {
+      push("العميل", a.clientName); push("الهاتف", a.clientPhone);
+      push("القناة", CHANNEL_LABELS[String(a.channel || "whatsapp").toLowerCase()] || a.channel);
+      push("رقم الفاتورة", a.invoiceNumber);
+      if (a.message) push("الرسالة", String(a.message).length > 80 ? String(a.message).slice(0, 80) + "…" : a.message);
+    }
+    return f;
+  }, [act]);
+
+  const status = act.status || "pending";
+
+  return (
+    <div className="act-card" style={{ borderColor: softAdapt(tone + "55", dark) }}>
+      {/* رأس البطاقة */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: soft }}>
+        <span style={{
+          width: 30, height: 30, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center",
+          background: tone, color: "#fff", fontSize: 15, flexShrink: 0,
+        }}>{meta.icon}</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 900, color: txAdapt(tone, dark) }}>{meta.title}</div>
+          <div style={{ fontSize: 10.5, color: "var(--ia-sub)" }}>
+            {status === "pending" ? "اقتراح من المساعد — راجع التفاصيل ثم نفّذ" :
+             status === "executing" ? "جارٍ التنفيذ…" :
+             status === "done" ? "✅ نُفِّذ بنجاح" :
+             status === "failed" ? "فشل التنفيذ" :
+             status === "dismissed" ? "تم التجاهل" : "إجراء من محادثة سابقة"}
+          </div>
+        </div>
+        {status === "pending" && (
+          <button onClick={onDismiss} title="تجاهل الإجراء"
+            style={{ border: "none", background: "transparent", cursor: "pointer", fontSize: 15, color: "var(--ia-muted)", padding: 4 }}>✖️</button>
+        )}
+      </div>
+
+      {/* التفاصيل */}
+      {status !== "dismissed" && fields.length > 0 && (
+        <div style={{ padding: "8px 12px", background: "var(--ia-card)" }}>
+          {fields.map(([k, v], i) => (
+            <div key={i} className="act-row">
+              <span className="act-k">{k}:</span>
+              <span className="act-v">{v}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* النتيجة */}
+      {(status === "done" || status === "failed") && act.result && (
+        <div style={{
+          padding: "9px 12px", fontSize: 12.5, fontWeight: 700,
+          background: status === "done" ? softAdapt("#dcfce7", dark) : softAdapt("#fee2e2", dark),
+          color: status === "done" ? txAdapt("#15803d", dark) : txAdapt("#b91c1c", dark),
+        }}>
+          {status === "done" ? "✅ " : "⚠️ "}{act.result}
+        </div>
+      )}
+
+      {/* أزرار التأكيد */}
+      {status === "pending" && (
+        <div style={{ display: "flex", gap: 8, padding: "10px 12px", background: soft }}>
+          <button onClick={onRun} style={{
+            flex: 1, border: "none", borderRadius: 8, padding: "9px 14px", cursor: "pointer",
+            background: tone, color: "#fff", fontFamily: "inherit", fontSize: 13, fontWeight: 800,
+          }}>✅ تنفيذ الإجراء الآن</button>
+          <button onClick={onDismiss} style={{
+            border: "1.5px solid var(--ia-border2)", borderRadius: 8, padding: "9px 14px", cursor: "pointer",
+            background: "transparent", color: "var(--ia-sub)", fontFamily: "inherit", fontSize: 13, fontWeight: 700,
+          }}>تجاهل</button>
+        </div>
+      )}
+
+      {status === "executing" && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "10px 12px", background: soft, fontSize: 12.5, fontWeight: 700, color: "var(--ia-sub)" }}>
+          <span style={{ display: "inline-block", width: 14, height: 14, border: `2px solid ${tone}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spinS .8s linear infinite" }} />
+          جارٍ تنفيذ {meta.title}…
+        </div>
+      )}
     </div>
   );
 }

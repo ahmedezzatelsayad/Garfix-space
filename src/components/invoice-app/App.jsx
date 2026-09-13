@@ -3439,7 +3439,7 @@ return(
 
     {view==="chat"&&(
       <div style={{animation:"fadeUp .25s"}}>
-        <SmartChat company={company} />
+        <SmartChat company={company} onDataChanged={()=>{ refreshInvoices(); refreshClients(); }} />
       </div>
     )}
 
