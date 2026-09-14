@@ -229,7 +229,7 @@ export default function ReportsTab({ invoices = [], company, purchases = [] }) {
       <div className="card" style={{ padding: "56px", textAlign: "center", color: "var(--ia-muted)" }}>
         <div style={{ fontSize: "44px", marginBottom: "10px" }}>📊</div>
         <div style={{ fontWeight: 700, color: "var(--ia-sub)" }}>لا توجد بيانات لعرض التقارير</div>
-        <div style={{ fontSize: "12px", marginTop: "6px" }}>أنشئ فواتير أو استوردها من Aliphia لتظهر التحليلات</div>
+        <div style={{ fontSize: "12px", marginTop: "6px" }}>أنشئ فواتير أو استوردها من ملف CSV / Excel لتظهر التحليلات</div>
       </div>
     );
   }

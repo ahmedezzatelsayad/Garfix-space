@@ -830,3 +830,35 @@ Stage Summary:
 Unresolved issues / risks:
 - Valkey يعمل حالياً من العملية الأصلية المطلقة يدوياً (منفذ 6379 محجوز) — valkey-service المشرف يتخبط في EADDRINUSE (بلا أثر وظيفي: keepalive يراقب المنفذ نفسه). عند إعادة تشغيل الجهاز سيستلم الحارس الملكية تلقائياً.
 - sessions الـ sandbox انقطعت 3 مرات عند أوامر معينة (أمر kill لعملية valkey تحديداً) — نمط بيئي، لا علاقة له بسلامة المشروع.
+
+---
+Task ID: r20
+Agent: main (Super Z)
+Task: إزالة استيراد Aliphia واستبداله باستيراد/تصدير عام لملفات Excel و CSV، ثم الدفع إلى GitHub
+
+Work Log:
+- **المطلوب**: أزِل ميزة «استيراد Aliphia» المخصصة، وحوّلها إلى استيراد/تصدير عام لملفات Excel (.xlsx/.xls) و CSV — للفواتير ودليل العملاء — ثم ادفع إلى GitHub.
+- **تثبيت الاعتمادية**: `bun add xlsx` (SheetJS 0.18.5) — تُستخدم في المتصفح لقراءة/كتابة Excel.
+- **App.jsx — الفواتير**:
+  * حُوِّل `parseAliphiaCSV` إلى بنية عامة: `groupInvoiceRows(rawHeaders, rows)` (خريطة أعمدة عربية/إنجليزية مرنة + دمج بنود متعددة الأسطر بنفس رقم الفاتورة + تحويل تواريخ dd/mm/yyyy → ISO) يغذّيه محلّلان: `parseInvoicesCSV(text)` و `parseInvoicesExcel(buffer)` (XLSX.read → sheet_to_json header:1 raw:false).
+  * حُوِّل `AliphiaImportModal` إلى `ImportModal` عام: العنوان «📥 استيراد الفواتير (CSV / Excel)»، تعليمات عامة بدل خطوات aliphia.com، accept `.csv,.txt,.xlsx,.xls` مع توجيه حسب الامتداد (readAsText / readAsArrayBuffer)، source أصبح `import` بدل `aliphia` (شارة 📥 بجانب رقم الفاتورة، مع توافق خلفي مع القديم).
+  * تصدير Excel جديد `exportInvoicesExcel`: ورقة «الفواتير» RTL بنفس أعمدة CSV (14 عموداً عربياً) عبر json_to_sheet + `!cols` + `Workbook.Views:[{RTL:true}]` + writeFile. أزرار شريط الفواتير: 📥 استيراد CSV/Excel · ⬇️ تصدير CSV · 📊 تصدير Excel (فئة CSS أعيدت تسميتها aliphia-btn → io-btn).
+- **App.jsx — دليل العملاء**: فُكِّك `parseClientsCSV` إلى `buildClientsRows(headers, dataRows)` مشترك + `parseClientsCSV` + `parseClientsExcel` جديدة؛ حقل الاستيراد يقبل xlsx/xls؛ زر تصدير Excel جديد `exportClientsExcel` (ورقة «العملاء» RTL) بجانب CSV القائم.
+- **SiteManager.jsx**: إعادة تسمية aliphia-btn → io-btn (3 مواضع). **ReportsTab.jsx**: نص الحالة الفارغة أصبح «من ملف CSV / Excel».
+- **Bug أثناء العمل**: سطر الشارة الجديد فُقد منه قوسا إغلاق `}}` لسمة style → «Unterminated string constant» (500). عُزِل السطر في ملف اختبار مستقل و bising منهجي (t1-t7) حتى ظهر الفرق — أُصلح السطر وعاد التجميع 200.
+- **اختبار E2E (agent-browser)**: دخول admin → توفير → الفواتير:
+  * استيراد Excel حقيقي (4 أسطر → 3 فواتير، AL-5001 متعدد البنود مُدمج: 2×45.5 + 120 + 5 = 216 د.ك ✓، تاريخ 05/09/2026 → 2026-09-05 ✓) → معاينة (جديد/مكرر + تخطى المكررة) → استيراد → 11 فاتورة → تحقق DB: INV10009-11 source=import، paid محفوظة.
+  * استيراد CSV (أرقام AL-600x) → 14 فاتورة ✓.
+  * تصدير Excel → نُزّل Invoices_tawfeer_2026-09-14.xlsx: ورقة RTL، 14 صفاً، الأعمدة العربية كاملة، INV10009 (منتجان/216/96/120/جزئي) ✓.
+  * تصدير CSV من الخادم (/api/invoices/export) بالفواتير المستوردة والمصدر=import ✓.
+  * دليل العملاء: تصدير Excel (العملاء RTL) ✓ · استيراد Excel (2 صالحان + صف بلا هاتف تخطي تلقائي) → سالم/منى في القاعدة ✓.
+  * جوال 390px: الأزرار الثلاثة بلا overflow · صفر أخطاء console · lint: 0 أخطاء (تحذير قديم واحد فقط).
+- **README.md**: تحديث بندّي الاستيراد/التصدير في قسمي «الفواتير» و«العملاء» + إدخال r20 في «منجز حديثاً» + ملاحظة «آخر تحقق (r20)».
+- **تنظيف**: حُذفت ملفات بيانات الاختبار المؤقتة (أبقي scripts/make-test-files.mjs كمولّد E2E قابل لإعادة الاستخدام)؛ لقطتان في download/ (تجاهلها git).
+
+Stage Summary:
+- استيراد Aliphia أُزيل بالكامل وحل محله نظام CSV/Excel عام (فواتير + دليل عملاء، استيراد + تصدير)، محقّق E2E بالكامل مع تحقق مزدوج (UI + PostgreSQL + قراءة الملفات المصدَّرة). lint نظيف، لا أخطاء console. جاهز للـ commit والدفع لـ GitHub.
+
+Unresolved issues / risks:
+- SheetJS على npm (0.18.5) آخر نسخة منشورة على السجل الرسمي (التحديثات تُنشر على CDN خاص بتطويرهم) — كافية تماماً للاستخدام الحالي.
+- استيراد الفواتير يُعيد الترقيم دائماً (INV100xx) بدل الاحتفاظ برقم الملف الأصلي — سلوك موروث من التصميم الأصلي؛ خيار «تخطى المكرر» يقارن رقم الملف الأصلي.

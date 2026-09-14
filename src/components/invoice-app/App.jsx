@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import * as XLSX from "xlsx";
 import { api } from "./api";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { useAuth } from "./context/AuthContext";
@@ -225,22 +226,17 @@ function outstandingOf(invoices, phone){
   },0);
 }
 
-// ─── Aliphia CSV Parser ───────────────────────────────────────────
+// ─── Invoice file parsers (CSV + Excel) ────────────────────────────
 /**
+ * Generic invoice importer for CSV and Excel (.xlsx / .xls) files.
+ * Supported columns (Arabic + English header variants):
+ * Invoice No, Date, Due Date, Customer Name, Phone, Address,
+ * Item Name, Item Description, Qty, Unit Price, Shipping, Paid, Notes
+ * Rows repeating the same invoice number are merged as multiple items.
+ */
+function groupInvoiceRows(rawHeaders, rows) {
 
-- Aliphia exports CSV with these common columns (Arabic + English headers):
-- Invoice No, Date, Customer Name, Customer Phone, Customer Address,
-- Item Name, Item Description, Qty, Unit Price, Total, Shipping, Paid, Notes, Due Date
-- The parser is flexible — tries multiple header variants.
-  */
-  function parseAliphiaCSV(text) {
-  const lines = text.trim().split(/\r?\n/);
-  if (lines.length < 2) return { invoices: [], errors: ["الملف فارغ أو غير صحيح"] };
-
-// Parse header row — normalize
-const rawHeaders = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, "").toLowerCase());
-
-// Header mapping: aliphia field → our field
+// Header mapping: file column → our field
 const colMap = {
 invNum:         ["invoice no","invoice number","رقم الفاتورة","inv no","رقم"],
 date:           ["date","تاريخ","invoice date","تاريخ الفاتورة"],
@@ -267,27 +263,12 @@ if (i !== -1) { idx[field] = i; break; }
 if (idx[field] === undefined) idx[field] = -1;
 }
 
-// Parse data rows
-const rows = lines.slice(1).map(line => {
-// Handle quoted CSV values
-const cols = [];
-let cur = "", inQ = false;
-for (let i = 0; i < line.length; i++) {
-const ch = line[i];
-if (ch === '"') { inQ = !inQ; }
-else if (ch === ',' && !inQ) { cols.push(cur.trim()); cur = ""; }
-else cur += ch;
-}
-cols.push(cur.trim());
-return cols;
-}).filter(r => r.some(c => c.length > 0));
-
 const get = (row, field) => {
 const i = idx[field];
-return i >= 0 && i < row.length ? row[i].replace(/^"|"$/g, "").trim() : "";
+return i >= 0 && i < row.length ? String(row[i] ?? "").replace(/^"|"$/g, "").trim() : "";
 };
 
-// Group rows by invoice number (Aliphia may repeat invoice rows for multiple items)
+// Group rows by invoice number (files may repeat invoice rows for multiple items)
 const invMap = {};
 const errors = [];
 
@@ -338,8 +319,42 @@ const invoices = Object.values(invMap);
 return { invoices, errors, detectedCols: rawHeaders };
 }
 
-// ─── Aliphia Import Modal ─────────────────────────────────────────
-function AliphiaImportModal({ company, existingInvoices, onImport, onClose }) {
+// Parse a CSV text → invoices (quoted fields supported)
+function parseInvoicesCSV(text) {
+const lines = text.trim().split(/\r?\n/);
+if (lines.length < 2) return { invoices: [], errors: ["الملف فارغ أو غير صحيح"] };
+const rawHeaders = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, "").toLowerCase());
+const rows = lines.slice(1).map(line => {
+const cols = [];
+let cur = "", inQ = false;
+for (let i = 0; i < line.length; i++) {
+const ch = line[i];
+if (ch === '"') { inQ = !inQ; }
+else if (ch === ',' && !inQ) { cols.push(cur.trim()); cur = ""; }
+else cur += ch;
+}
+cols.push(cur.trim());
+return cols;
+}).filter(r => r.some(c => c.length > 0));
+return groupInvoiceRows(rawHeaders, rows);
+}
+
+// Parse an Excel (.xlsx / .xls) workbook → invoices (first sheet)
+function parseInvoicesExcel(buffer) {
+let wb;
+try { wb = XLSX.read(buffer, { type: "array" }); }
+catch { return { invoices: [], errors: ["تعذر قراءة ملف Excel — تأكد أنه بصيغة .xlsx أو .xls"] }; }
+const sheetName = wb.SheetNames[0];
+if (!sheetName) return { invoices: [], errors: ["ملف Excel فارغ"] };
+const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, defval: "", raw: false });
+if (aoa.length < 2) return { invoices: [], errors: ["الملف فارغ أو غير صحيح"] };
+const rawHeaders = aoa[0].map(h => String(h ?? "").trim().replace(/^"|"$/g, "").toLowerCase());
+const rows = aoa.slice(1).filter(r => r.some(c => String(c ?? "").trim() !== ""));
+return groupInvoiceRows(rawHeaders, rows);
+}
+
+// ─── Import Modal (CSV / Excel) ───────────────────────────────────
+function ImportModal({ company, existingInvoices, onImport, onClose }) {
 const [step, setStep] = useState(0); // 0=upload, 1=preview, 2=done
 const [parsed, setParsed] = useState([]);
 const [errors, setErrors] = useState([]);
@@ -357,21 +372,29 @@ const existingNums = new Set(existingInvoices.map(i => i.invNum));
 const handleFile = (file) => {
 if (!file) return;
 const ext = file.name.split(".").pop().toLowerCase();
-if (!["csv", "txt"].includes(ext)) {
-setErrors(["يرجى رفع ملف CSV فقط"]);
-return;
-}
+if (["csv", "txt"].includes(ext)) {
 const reader = new FileReader();
 reader.onload = (e) => {
-// Try UTF-8 first, fallback handled by browser
-const text = e.target.result;
-const result = parseAliphiaCSV(text);
+const result = parseInvoicesCSV(String(e.target.result || ""));
 setParsed(result.invoices);
 setErrors(result.errors || []);
 setDetectedCols(result.detectedCols || []);
 setStep(1);
 };
 reader.readAsText(file, "UTF-8");
+} else if (["xlsx", "xls"].includes(ext)) {
+const reader = new FileReader();
+reader.onload = (e) => {
+const result = parseInvoicesExcel(new Uint8Array(e.target.result));
+setParsed(result.invoices);
+setErrors(result.errors || []);
+setDetectedCols(result.detectedCols || []);
+setStep(1);
+};
+reader.readAsArrayBuffer(file);
+} else {
+setErrors(["يرجى رفع ملف CSV أو Excel بصيغة .xlsx أو .xls"]);
+}
 };
 
 const handleDrop = (e) => {
@@ -401,7 +424,7 @@ toImport.forEach(b => {
     paid: b.paid,
     notes: b.notes,
     createdAt: new Date().toISOString(),
-    source: "aliphia",
+    source: "import",
   });
 });
 await new Promise(r => setTimeout(r, 400));
@@ -426,7 +449,7 @@ boxShadow:"0 24px 64px rgba(0,0,0,.35)",animation:"fadeUp .25s"
     {/* Header */}
     <div style={{background:col,padding:"18px 22px",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
       <div>
-        <div style={{color:"#fff",fontWeight:900,fontSize:"16px"}}>📥 استيراد من Aliphia</div>
+        <div style={{color:"#fff",fontWeight:900,fontSize:"16px"}}>📥 استيراد الفواتير (CSV / Excel)</div>
         <div style={{color:"rgba(255,255,255,.7)",fontSize:"12px",marginTop:"2px"}}>{company.nameAr}</div>
       </div>
       <button onClick={onClose} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"8px",padding:"6px 12px",color:"#fff",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>✕ إغلاق</button>
@@ -447,14 +470,13 @@ boxShadow:"0 24px 64px rgba(0,0,0,.35)",animation:"fadeUp .25s"
       {step===0&&(
         <div>
           <div style={{background:"var(--ia-sky-bg)",border:"1.5px solid var(--ia-sky-bd)",borderRadius:"10px",padding:"14px 16px",marginBottom:"18px"}}>
-            <div style={{fontWeight:700,color:"var(--ia-sky-tx)",marginBottom:"6px",fontSize:"13px"}}>📋 كيف تصدّر من Aliphia؟</div>
-            <ol style={{fontSize:"12px",color:"var(--ia-sky-tx2)",paddingRight:"18px",lineHeight:"1.9",margin:0}}>
-              <li>ادخل على حسابك في <b>aliphia.com</b></li>
-              <li>اذهب إلى <b>الفواتير</b> أو <b>العملاء</b></li>
-              <li>اضغط على زر <b>تصدير / Export</b></li>
-              <li>اختر صيغة <b>CSV</b> واحفظ الملف</li>
-              <li>ارفع الملف هنا ⬇️</li>
-            </ol>
+            <div style={{fontWeight:700,color:"var(--ia-sky-tx)",marginBottom:"6px",fontSize:"13px"}}>📋 الصيغ المدعومة: Excel (.xlsx / .xls) و CSV</div>
+            <ul style={{fontSize:"12px",color:"var(--ia-sky-tx2)",paddingRight:"18px",lineHeight:"1.9",margin:0}}>
+              <li>أعدّ ملفك في <b>Excel</b> أو صدّره من أي نظام محاسبة</li>
+              <li>رؤوس الأعمدة تدعم <b>العربية والإنجليزية</b> معاً</li>
+              <li>تكرار رقم الفاتورة في أكثر من سطر يُدمج تلقائياً كبنود متعددة</li>
+              <li>الفواتير المكررة (بنفس الرقم) يمكن تخطيها اختيارياً</li>
+            </ul>
           </div>
 
           <div
@@ -470,11 +492,11 @@ boxShadow:"0 24px 64px rgba(0,0,0,.35)",animation:"fadeUp .25s"
             onMouseLeave={e=>{e.currentTarget.style.background=`${col}07`;e.currentTarget.style.borderColor=`${col}66`;}}
           >
             <div style={{fontSize:"44px",marginBottom:"10px"}}>📂</div>
-            <div style={{fontWeight:700,fontSize:"15px",color:"var(--ia-text)",marginBottom:"5px"}}>اسحب ملف CSV هنا</div>
+            <div style={{fontWeight:700,fontSize:"15px",color:"var(--ia-text)",marginBottom:"5px"}}>اسحب ملف CSV أو Excel هنا</div>
             <div style={{color:"var(--ia-sub)",fontSize:"12px",marginBottom:"14px"}}>أو اضغط للاختيار من جهازك</div>
-            <div style={{display:"inline-block",background:col,color:"#fff",padding:"9px 22px",borderRadius:"8px",fontWeight:700,fontSize:"13px"}}>اختر ملف CSV</div>
+            <div style={{display:"inline-block",background:col,color:"#fff",padding:"9px 22px",borderRadius:"8px",fontWeight:700,fontSize:"13px"}}>اختر ملف CSV / Excel</div>
           </div>
-          <input ref={fileRef} type="file" accept=".csv,.txt" style={{display:"none"}} onChange={e=>handleFile(e.target.files[0])}/>
+          <input ref={fileRef} type="file" accept=".csv,.txt,.xlsx,.xls" style={{display:"none"}} onChange={e=>handleFile(e.target.files[0])}/>
 
           {errors.length>0&&(
             <div style={{background:"var(--ia-red-bg)",border:"1px solid #fca5a5",borderRadius:"8px",padding:"10px 14px",color:"var(--ia-red-tx)",fontSize:"12px"}}>
@@ -565,7 +587,7 @@ boxShadow:"0 24px 64px rgba(0,0,0,.35)",animation:"fadeUp .25s"
           <div style={{fontSize:"64px",marginBottom:"12px"}}>✅</div>
           <div style={{fontSize:"20px",fontWeight:900,color:"var(--ia-text)",marginBottom:"8px"}}>تم الاستيراد بنجاح!</div>
           <div style={{fontSize:"14px",color:"var(--ia-sub)",marginBottom:"24px"}}>
-            تم إضافة <span style={{fontWeight:900,color:colTx,fontSize:"18px"}}>{importedCount}</span> فاتورة من Aliphia
+            تم إضافة <span style={{fontWeight:900,color:colTx,fontSize:"18px"}}>{importedCount}</span> فاتورة من الملف
             {dupCount>0&&skipDup&&<div style={{marginTop:"4px",color:"var(--ia-warn-tx)",fontSize:"12px"}}>تم تخطى {dupCount} فاتورة مكررة</div>}
           </div>
           <button style={{background:col,color:"#fff",border:"none",borderRadius:"9px",padding:"12px 32px",fontFamily:"inherit",fontSize:"14px",fontWeight:700,cursor:"pointer"}} onClick={onClose}>
@@ -871,11 +893,8 @@ function parseCSVLine(line) {
   out.push(cur);
   return out.map(s => s.trim());
 }
-// Parse a clients CSV: flexible Arabic/English headers, returns {rows, errors}
-function parseClientsCSV(text) {
-  const lines = text.trim().split(/\r?\n/);
-  if (lines.length < 2) return { rows: [], errors: ["الملف فارغ أو غير صحيح"] };
-  const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase());
+// Build client rows from a header array + data-row arrays (shared by CSV + Excel import)
+function buildClientsRows(headers, dataRows) {
   const find = (...names) => headers.findIndex(h => names.some(n => h === n || h.includes(n)));
   const iName = find("الاسم", "name");
   const iPhone = find("التلفون", "الهاتف", "الجوال", "phone", "mobile");
@@ -883,21 +902,40 @@ function parseClientsCSV(text) {
   const iAddr = find("العنوان", "address", "المنطقة");
   if (iName < 0 || iPhone < 0) return { rows: [], errors: ["الأعمدة المطلوبة: الاسم + التلفون"] };
   const rows = [], errors = [];
-  for (let i = 1; i < lines.length; i++) {
-    if (!lines[i].trim()) continue;
-    const cells = parseCSVLine(lines[i]);
-    const name = (cells[iName] || "").trim();
-    const phone = norm(cells[iPhone] || "");
-    if (!name && !phone) continue;
-    if (!phone) { errors.push(`سطر ${i + 1}: بدون تلفون — تم تخطيه`); continue; }
+  dataRows.forEach((cells, i) => {
+    const name = String(cells[iName] ?? "").trim();
+    const phone = norm(String(cells[iPhone] ?? ""));
+    if (!name && !phone) return;
+    if (!phone) { errors.push(`سطر ${i + 2}: بدون تلفون — تم تخطيه`); return; }
     rows.push({
       name: name || phone,
       phone,
-      email: iEmail >= 0 ? (cells[iEmail] || "").trim() || null : null,
-      address: iAddr >= 0 ? (cells[iAddr] || "").trim() || null : null,
+      email: iEmail >= 0 ? String(cells[iEmail] ?? "").trim() || null : null,
+      address: iAddr >= 0 ? String(cells[iAddr] ?? "").trim() || null : null,
     });
-  }
+  });
   return { rows, errors };
+}
+// Parse a clients CSV: flexible Arabic/English headers, returns {rows, errors}
+function parseClientsCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) return { rows: [], errors: ["الملف فارغ أو غير صحيح"] };
+  const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase());
+  const dataRows = lines.slice(1).filter(l => l.trim()).map(l => parseCSVLine(l));
+  return buildClientsRows(headers, dataRows);
+}
+// Parse a clients Excel (.xlsx / .xls): first sheet, same flexible headers
+function parseClientsExcel(buffer) {
+  let wb;
+  try { wb = XLSX.read(buffer, { type: "array" }); }
+  catch { return { rows: [], errors: ["تعذر قراءة ملف Excel — تأكد أنه بصيغة .xlsx أو .xls"] }; }
+  const sheetName = wb.SheetNames[0];
+  if (!sheetName) return { rows: [], errors: ["ملف Excel فارغ"] };
+  const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, defval: "", raw: false });
+  if (aoa.length < 2) return { rows: [], errors: ["الملف فارغ أو غير صحيح"] };
+  const headers = aoa[0].map(h => String(h ?? "").toLowerCase());
+  const dataRows = aoa.slice(1).filter(r => r.some(c => String(c ?? "").trim() !== ""));
+  return buildClientsRows(headers, dataRows);
 }
 function exportMetaAudience(invoices){
 const map={};
@@ -1341,6 +1379,22 @@ const exportClientsCSV = () => {
   toast_("⬇️ تم تنزيل دليل العملاء (" + clients.length + " عميل)");
 };
 
+// r20: Excel export of the saved-client directory (.xlsx, RTL)
+const exportClientsExcel = () => {
+  if (!clients.length) { toast_("لا يوجد عملاء محفوظون للتصدير","warn"); return; }
+  const rows = clients.map(c => ({
+    "الاسم": c.name || "", "التلفون": c.phone || "",
+    "البريد": c.email || "", "العنوان": c.address || "",
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws["!cols"] = [{wch:24},{wch:16},{wch:26},{wch:30}];
+  const wb = XLSX.utils.book_new();
+  wb.Workbook = { Views: [{ RTL: true }] };
+  XLSX.utils.book_append_sheet(wb, ws, "العملاء");
+  XLSX.writeFile(wb, `Clients_${company.id}_${today()}.xlsx`);
+  toast_("📊 تم تنزيل دليل العملاء Excel (" + clients.length + " عميل)");
+};
+
 // ── CSV import (dedupes by phone against the current directory) ──
 const doImportClients = async () => {
   if (!imp?.rows?.length) return;
@@ -1411,19 +1465,32 @@ return(
         aria-label="بحث في دليل العملاء"/>
     )}
     <button className="btn" title="تنزيل الدليل كملف CSV (يفتح في Excel)" style={{background:"var(--ia-ghost-bg)",color:"var(--ia-ghost-tx)",padding:"7px 11px",fontSize:"12px"}} onClick={exportClientsCSV}>⬇️ CSV</button>
-    {canEdit&&<button className="btn" title="استيراد عملاء من ملف CSV (الاسم + التلفون مطلوبان)" style={{background:"#0f766e",color:"#fff",padding:"7px 11px",fontSize:"12px"}} onClick={()=>impFileRef.current?.click()}>⬆️ استيراد</button>}
-    <input ref={impFileRef} type="file" accept=".csv,.txt" style={{display:"none"}} onChange={e=>{
+    <button className="btn" title="تنزيل الدليل كملف Excel (.xlsx)" style={{background:"var(--ia-ghost-bg)",color:"var(--ia-ghost-tx)",padding:"7px 11px",fontSize:"12px"}} onClick={exportClientsExcel}>📊 Excel</button>
+    {canEdit&&<button className="btn" title="استيراد عملاء من ملف CSV أو Excel (الاسم + التلفون مطلوبان)" style={{background:"#0f766e",color:"#fff",padding:"7px 11px",fontSize:"12px"}} onClick={()=>impFileRef.current?.click()}>⬆️ استيراد</button>}
+    <input ref={impFileRef} type="file" accept=".csv,.txt,.xlsx,.xls" style={{display:"none"}} onChange={e=>{
       const file=e.target.files[0];
       e.target.value="";
       if(!file)return;
-      const reader=new FileReader();
-      reader.onload=()=>{
-        const res=parseClientsCSV(String(reader.result||""));
-        if(!res.rows.length){toast_("❌ "+(res.errors[0]||"ملف غير صالح"),"warn");return;}
-        setImp(res);
-      };
-      reader.onerror=()=>toast_("❌ تعذّر قراءة الملف","warn");
-      reader.readAsText(file,"utf-8");
+      const ext=file.name.split(".").pop().toLowerCase();
+      if(["xlsx","xls"].includes(ext)){
+        const reader=new FileReader();
+        reader.onload=()=>{
+          const res=parseClientsExcel(new Uint8Array(reader.result));
+          if(!res.rows.length){toast_("❌ "+(res.errors[0]||"ملف غير صالح"),"warn");return;}
+          setImp(res);
+        };
+        reader.onerror=()=>toast_("❌ تعذّر قراءة الملف","warn");
+        reader.readAsArrayBuffer(file);
+      }else{
+        const reader=new FileReader();
+        reader.onload=()=>{
+          const res=parseClientsCSV(String(reader.result||""));
+          if(!res.rows.length){toast_("❌ "+(res.errors[0]||"ملف غير صالح"),"warn");return;}
+          setImp(res);
+        };
+        reader.onerror=()=>toast_("❌ تعذّر قراءة الملف","warn");
+        reader.readAsText(file,"utf-8");
+      }
     }}/>
     {canEdit&&<button className="btn" style={{background:col,color:"#fff",padding:"7px 13px",fontSize:"12px"}} onClick={()=>setModal({mode:"add"})}>➕ عميل جديد</button>}
   </div>
@@ -1721,7 +1788,7 @@ const customerInvoices=selCustomer?invoices.filter(inv=>phKey(inv.clientPhone||"
 return(
 <div>
 {showImport&&(
-<AliphiaImportModal
+<ImportModal
 company={company}
 existingInvoices={invoices}
 onImport={list=>{onImportDone(list);setShowImport(false);}}
@@ -2037,13 +2104,13 @@ onClose={()=>setShowImport(false)}
 <option value="count">ترتيب: أكثر فواتير</option>
 <option value="last">ترتيب: آخر شراء</option>
 </select>
-{/* ── Aliphia Import Button ── */}
+{/* ── Import Button (CSV / Excel) ── */}
 <button
 className="btn"
 style={{background:"#0f766e",color:"#fff",whiteSpace:"nowrap",gap:"6px",border:"none",display:"inline-flex",alignItems:"center"}}
 onClick={()=>setShowImport(true)}
 >
-<span style={{fontSize:"15px"}}>📥</span> استيراد Aliphia
+<span style={{fontSize:"15px"}}>📥</span> استيراد CSV / Excel
 </button>
 {!!perms.export_data&&<button className="btn" style={{background:col,color:"#fff",whiteSpace:"nowrap"}} onClick={()=>exportMetaAudience(invoices)}>⬇️ تصدير Excel للميتا</button>}
 </div>
@@ -2394,7 +2461,7 @@ const [printStyle,setPrintStyle]=useState("classic");
 const [,setSettingsTick]=useState(0); // r9: re-render tick after server settings land (credit banner in the new-invoice form re-reads localStorage)
 const setPStyle=v=>{setPrintStyle(v);try{localStorage.setItem("tw_print_style_"+(company?.id||""),v);}catch{}};
 const [delModal,setDelModal]=useState(null);
-const [showAliphia,setShowAliphia]=useState(false);
+const [showImportModal,setShowImportModal]=useState(false);
 const [showAdmin,setShowAdmin]=useState(false);
 const [editingInv,setEditingInv]=useState(null);
 const [editForm,setEditForm]=useState(null);
@@ -2783,6 +2850,38 @@ const exportInvoicesCSV=()=>{
   toast_("⬇️ تم تنزيل ملف CSV");
 };
 
+// r20: تصدير Excel (.xlsx) — نفس أعمدة تصدير CSV مع تنسيق RTL للعربية
+const exportInvoicesExcel=()=>{
+  if(!company)return;
+  const rows=invoices.map(inv=>{
+    const st=getStatus(inv);
+    const items=inv.items||[];
+    return {
+      "رقم الفاتورة":inv.invNum,
+      "العميل":inv.clientName,
+      "الهاتف":inv.clientPhone||"",
+      "العنوان":inv.clientAddress||"",
+      "التاريخ":inv.date,
+      "تاريخ الاستحقاق":inv.dueDate,
+      "المنتجات":items.map(it=>`${it.name} × ${it.qty||1}`).join(" ، "),
+      "عدد المنتجات":items.length,
+      "التوصيل":Number(pN(inv.shipping||0).toFixed(3)),
+      "الإجمالي":Number(iT(inv).toFixed(3)),
+      "المدفوع":Number(pN(inv.paid||0).toFixed(3)),
+      "المتبقي":Number(Math.max(0,iT(inv)-pN(inv.paid||0)).toFixed(3)),
+      "الحالة":stLabel[st]||st,
+      "ملاحظات":inv.notes||"",
+    };
+  });
+  const ws=XLSX.utils.json_to_sheet(rows);
+  ws["!cols"]=[{wch:13},{wch:22},{wch:16},{wch:22},{wch:12},{wch:14},{wch:42},{wch:11},{wch:10},{wch:12},{wch:12},{wch:12},{wch:12},{wch:28}];
+  const wb=XLSX.utils.book_new();
+  wb.Workbook={Views:[{RTL:true}]};
+  XLSX.utils.book_append_sheet(wb,ws,"الفواتير");
+  XLSX.writeFile(wb,`Invoices_${company.id}_${today()}.xlsx`);
+  toast_("📊 تم تنزيل ملف Excel");
+};
+
 const TABS=[
 {id:"dash",l:"📊 Dashboard"},
 {id:"list",l:"📋 الفواتير"},
@@ -2872,7 +2971,7 @@ const cardBg = softAdapt(company.cardBg, dark); // soft tinted surface (KPI/summ
 
 return(
 <div dir="rtl" style={{minHeight:"100vh",background:"var(--ia-bg)",fontFamily:"'Cairo','Tajawal',sans-serif",color:"var(--ia-text)",display:"flex",flexDirection:"column"}}>
-<style>{`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap'); *{box-sizing:border-box} .inp{width:100%;border:1.5px solid var(--ia-border2);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:13px;background:var(--ia-inp-bg);color:var(--ia-text);outline:none;transition:border .15s,box-shadow .15s} .inp:focus{border-color:${col};box-shadow:0 0 0 3px ${col}1a} .inp:hover{border-color:var(--ia-muted)} .inp::placeholder{color:var(--ia-muted)} .btn{border:none;border-radius:8px;padding:9px 16px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap} .btn:hover{filter:brightness(1.06);box-shadow:0 2px 10px rgba(0,0,0,.12)} .btn:active{opacity:.85;transform:scale(.97)} .btn-ghost{background:var(--ia-ghost-bg);color:var(--ia-ghost-tx)} .btn-outline{background:transparent;border:1.5px solid var(--ia-border2);color:var(--ia-text2)} .btn-outline:hover{border-color:${col};color:${colTx}} .btn-red{background:#dc2626;color:#fff} .card{background:var(--ia-card);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);border:1px solid var(--ia-border)} [data-theme="dark"] .card{box-shadow:0 1px 3px rgba(0,0,0,.35)} .trow{transition:background .12s} .trow:hover,.trow:active{background:var(--ia-hover);cursor:pointer} .inv-table tbody tr:last-child td{border-bottom:none} .b-paid{background:var(--ia-ok-bg);color:var(--ia-ok-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-paid::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-ok-tx);margin-left:5px;vertical-align:middle} .b-part{background:var(--ia-warn-bg);color:var(--ia-warn-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-part::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-warn-tx);margin-left:5px;vertical-align:middle} .b-unp{background:var(--ia-red-bg);color:var(--ia-red-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-unp::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-red-tx);margin-left:5px;vertical-align:middle} .b-cancel{background:var(--ia-chip);color:var(--ia-sub);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;text-decoration:line-through} .b-inv{background:var(--ia-blue-bg);color:var(--ia-blue-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;letter-spacing:.3px} @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}} @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}} .navbar{background:${col};position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,.25)} .navbar-top{display:flex;align-items:center;padding:0 12px;height:48px;gap:6px} @media(max-width:420px){.navbar-top{gap:3px;padding:0 6px}.nav-top-label{display:none}.co-name{max-width:58px}} .navbar-tabs{display:flex;overflow-x:auto;padding:4px 12px 6px;gap:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none} .navbar-tabs::-webkit-scrollbar{display:none} .aliphia-btn{background:#0f766e;} .nav-tab{background:transparent;color:rgba(255,255,255,.7);border:1px solid transparent;border-radius:6px;padding:5px 11px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s} .nav-tab:hover{color:#fff;background:rgba(255,255,255,.08)} .nav-tab.active{background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.25)} .nav-tab:active{background:rgba(255,255,255,.2)} .inv-table{width:100%;border-collapse:collapse} .inv-table th{padding:10px 10px;font-size:11px;font-weight:700;color:var(--ia-sub);text-align:right;text-transform:uppercase;letter-spacing:.3px} .inv-table td{padding:10px 10px;border-bottom:1px solid var(--ia-border3);font-size:13px} .col-addr,.col-date,.col-phone,.col-credit{display:none} @media(min-width:500px){.col-phone{display:table-cell}} @media(min-width:680px){.col-date{display:table-cell}.col-credit{display:table-cell}} .form-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px} .form-3col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px} .item-row{display:grid;grid-template-columns:2fr 65px 110px auto;gap:7px;margin-bottom:7px;align-items:center} @media(max-width:500px){.form-2col{grid-template-columns:1fr}.form-3col{grid-template-columns:1fr 1fr}.item-row{grid-template-columns:1fr 55px 90px auto}} .kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px} .kpi-grid>div{transition:transform .18s,box-shadow .18s} .kpi-grid>div:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.08)} @media(min-width:600px){.kpi-grid{grid-template-columns:repeat(4,1fr)}} .chart-grid{display:grid;grid-template-columns:1fr;gap:12px} @media(min-width:680px){.chart-grid{grid-template-columns:1.7fr 1fr}} .print-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end} @media(max-width:480px){.print-grid{grid-template-columns:1fr 1fr;} .print-grid .print-btn{grid-column:1/-1}} .cust-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px} @media(max-width:480px){.cust-stats{grid-template-columns:1fr}} .aliphia-btn{background:linear-gradient(135deg,#0f766e,#0d9488)!important;border:none;box-shadow:0 2px 8px rgba(15,118,110,.3);transition:all .2s!important} .aliphia-btn:hover{box-shadow:0 4px 14px rgba(15,118,110,.45)!important;transform:translateY(-1px)} ::-webkit-scrollbar{width:9px;height:9px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:var(--ia-border2);border-radius:8px;border:2px solid var(--ia-bg)} ::-webkit-scrollbar-thumb:hover{background:var(--ia-muted)} .sk{position:relative;overflow:hidden;background:var(--ia-skel);border-radius:6px} .sk::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.65),transparent);animation:shimmer 1.4s infinite} [data-theme="dark"] .sk::after{background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent)} @keyframes shimmer{100%{transform:translateX(100%)}} .sk-sm{height:11px} .sk-lg{height:22px} .btn:focus-visible,.inp:focus-visible{outline:2.5px solid ${col};outline-offset:2px} .nav-tab:focus-visible{outline:2.5px solid #fff;outline-offset:1px} .wa-btn{background:#16a34a!important;transition:all .18s!important} .wa-btn:hover{background:#15803d!important;box-shadow:0 4px 14px rgba(22,163,74,.4)!important;transform:translateY(-1px)} select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:left 10px center;padding-left:26px} .print-chip:hover{transform:translateY(-2px);border-color:var(--ia-muted)!important;box-shadow:0 5px 16px rgba(0,0,0,.09)} [data-theme="dark"] .print-chip:hover{box-shadow:0 5px 16px rgba(0,0,0,.45)} .chart-grid>div{transition:box-shadow .18s} .chart-grid>div:hover{box-shadow:0 4px 16px rgba(0,0,0,.06)} [data-theme="dark"] .chart-grid>div:hover{box-shadow:0 4px 16px rgba(0,0,0,.4)} [data-theme="dark"] .kpi-grid>div:hover{box-shadow:0 6px 18px rgba(0,0,0,.45)} [data-theme="dark"] .btn:hover{filter:brightness(1.15)}`}</style>
+<style>{`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap'); *{box-sizing:border-box} .inp{width:100%;border:1.5px solid var(--ia-border2);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:13px;background:var(--ia-inp-bg);color:var(--ia-text);outline:none;transition:border .15s,box-shadow .15s} .inp:focus{border-color:${col};box-shadow:0 0 0 3px ${col}1a} .inp:hover{border-color:var(--ia-muted)} .inp::placeholder{color:var(--ia-muted)} .btn{border:none;border-radius:8px;padding:9px 16px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap} .btn:hover{filter:brightness(1.06);box-shadow:0 2px 10px rgba(0,0,0,.12)} .btn:active{opacity:.85;transform:scale(.97)} .btn-ghost{background:var(--ia-ghost-bg);color:var(--ia-ghost-tx)} .btn-outline{background:transparent;border:1.5px solid var(--ia-border2);color:var(--ia-text2)} .btn-outline:hover{border-color:${col};color:${colTx}} .btn-red{background:#dc2626;color:#fff} .card{background:var(--ia-card);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);border:1px solid var(--ia-border)} [data-theme="dark"] .card{box-shadow:0 1px 3px rgba(0,0,0,.35)} .trow{transition:background .12s} .trow:hover,.trow:active{background:var(--ia-hover);cursor:pointer} .inv-table tbody tr:last-child td{border-bottom:none} .b-paid{background:var(--ia-ok-bg);color:var(--ia-ok-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-paid::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-ok-tx);margin-left:5px;vertical-align:middle} .b-part{background:var(--ia-warn-bg);color:var(--ia-warn-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-part::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-warn-tx);margin-left:5px;vertical-align:middle} .b-unp{background:var(--ia-red-bg);color:var(--ia-red-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-unp::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-red-tx);margin-left:5px;vertical-align:middle} .b-cancel{background:var(--ia-chip);color:var(--ia-sub);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;text-decoration:line-through} .b-inv{background:var(--ia-blue-bg);color:var(--ia-blue-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;letter-spacing:.3px} @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}} @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}} .navbar{background:${col};position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,.25)} .navbar-top{display:flex;align-items:center;padding:0 12px;height:48px;gap:6px} @media(max-width:420px){.navbar-top{gap:3px;padding:0 6px}.nav-top-label{display:none}.co-name{max-width:58px}} .navbar-tabs{display:flex;overflow-x:auto;padding:4px 12px 6px;gap:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none} .navbar-tabs::-webkit-scrollbar{display:none} .io-btn{background:#0f766e;} .nav-tab{background:transparent;color:rgba(255,255,255,.7);border:1px solid transparent;border-radius:6px;padding:5px 11px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s} .nav-tab:hover{color:#fff;background:rgba(255,255,255,.08)} .nav-tab.active{background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.25)} .nav-tab:active{background:rgba(255,255,255,.2)} .inv-table{width:100%;border-collapse:collapse} .inv-table th{padding:10px 10px;font-size:11px;font-weight:700;color:var(--ia-sub);text-align:right;text-transform:uppercase;letter-spacing:.3px} .inv-table td{padding:10px 10px;border-bottom:1px solid var(--ia-border3);font-size:13px} .col-addr,.col-date,.col-phone,.col-credit{display:none} @media(min-width:500px){.col-phone{display:table-cell}} @media(min-width:680px){.col-date{display:table-cell}.col-credit{display:table-cell}} .form-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px} .form-3col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px} .item-row{display:grid;grid-template-columns:2fr 65px 110px auto;gap:7px;margin-bottom:7px;align-items:center} @media(max-width:500px){.form-2col{grid-template-columns:1fr}.form-3col{grid-template-columns:1fr 1fr}.item-row{grid-template-columns:1fr 55px 90px auto}} .kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px} .kpi-grid>div{transition:transform .18s,box-shadow .18s} .kpi-grid>div:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.08)} @media(min-width:600px){.kpi-grid{grid-template-columns:repeat(4,1fr)}} .chart-grid{display:grid;grid-template-columns:1fr;gap:12px} @media(min-width:680px){.chart-grid{grid-template-columns:1.7fr 1fr}} .print-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end} @media(max-width:480px){.print-grid{grid-template-columns:1fr 1fr;} .print-grid .print-btn{grid-column:1/-1}} .cust-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px} @media(max-width:480px){.cust-stats{grid-template-columns:1fr}} .io-btn{background:linear-gradient(135deg,#0f766e,#0d9488)!important;border:none;box-shadow:0 2px 8px rgba(15,118,110,.3);transition:all .2s!important} .io-btn:hover{box-shadow:0 4px 14px rgba(15,118,110,.45)!important;transform:translateY(-1px)} ::-webkit-scrollbar{width:9px;height:9px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:var(--ia-border2);border-radius:8px;border:2px solid var(--ia-bg)} ::-webkit-scrollbar-thumb:hover{background:var(--ia-muted)} .sk{position:relative;overflow:hidden;background:var(--ia-skel);border-radius:6px} .sk::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.65),transparent);animation:shimmer 1.4s infinite} [data-theme="dark"] .sk::after{background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent)} @keyframes shimmer{100%{transform:translateX(100%)}} .sk-sm{height:11px} .sk-lg{height:22px} .btn:focus-visible,.inp:focus-visible{outline:2.5px solid ${col};outline-offset:2px} .nav-tab:focus-visible{outline:2.5px solid #fff;outline-offset:1px} .wa-btn{background:#16a34a!important;transition:all .18s!important} .wa-btn:hover{background:#15803d!important;box-shadow:0 4px 14px rgba(22,163,74,.4)!important;transform:translateY(-1px)} select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:left 10px center;padding-left:26px} .print-chip:hover{transform:translateY(-2px);border-color:var(--ia-muted)!important;box-shadow:0 5px 16px rgba(0,0,0,.09)} [data-theme="dark"] .print-chip:hover{box-shadow:0 5px 16px rgba(0,0,0,.45)} .chart-grid>div{transition:box-shadow .18s} .chart-grid>div:hover{box-shadow:0 4px 16px rgba(0,0,0,.06)} [data-theme="dark"] .chart-grid>div:hover{box-shadow:0 4px 16px rgba(0,0,0,.4)} [data-theme="dark"] .kpi-grid>div:hover{box-shadow:0 6px 18px rgba(0,0,0,.45)} [data-theme="dark"] .btn:hover{filter:brightness(1.15)}`}</style>
 
   {/* Admin Dashboard Modal */}
   {showAdmin&&<AdminDashboard onClose={()=>setShowAdmin(false)} companies={availableCompanies}/>}
@@ -2886,19 +2985,19 @@ return(
     />
   )}
 
-  {/* Aliphia Import Modal — Invoices tab */}
-  {showAliphia&&(
-    <AliphiaImportModal
+  {/* Import Modal (CSV / Excel) — Invoices tab */}
+  {showImportModal&&(
+    <ImportModal
       company={company}
       existingInvoices={invoices}
       onImport={async newInvs=>{
         setInvoices(p=>[...p,...newInvs]);
         api.bulkCreateInvoices(newInvs.map(v=>({...v,taxRate:v.taxRate??companyTax(company)})),company?.sk).then(()=>refreshInvoices()).catch(()=>{});
-        setShowAliphia(false);
-        toast_(`✅ تم استيراد ${newInvs.length} فاتورة من Aliphia`);
+        setShowImportModal(false);
+        toast_(`✅ تم استيراد ${newInvs.length} فاتورة من الملف`);
         setView("list");
       }}
-      onClose={()=>setShowAliphia(false)}
+      onClose={()=>setShowImportModal(false)}
     />
   )}
 
@@ -3003,7 +3102,7 @@ return(
           onImportDone={async newInvs=>{
             setInvoices(p=>[...p,...newInvs]);
             api.bulkCreateInvoices(newInvs.map(v=>({...v,taxRate:v.taxRate??companyTax(company)})),company?.sk).then(()=>refreshInvoices()).catch(()=>{});
-            toast_(`✅ تم استيراد البيانات من Aliphia`);
+            toast_(`✅ تم استيراد البيانات من الملف بنجاح`);
           }}
         />
       </div>
@@ -3014,11 +3113,14 @@ return(
       <div style={{animation:"fadeUp .25s"}}>
         <div style={{display:"flex",gap:"10px",marginBottom:"10px",alignItems:"center",flexWrap:"wrap"}}>
           <input className="inp" style={{flex:1,padding:"10px 14px",minWidth:"180px"}} placeholder="🔍 ابحث بالتلفون أو الاسم أو رقم الفاتورة..." value={search} onChange={e=>{setSearch(e.target.value);setSelectedIds([]);setPage(1);}}/>
-          <button className="btn aliphia-btn" style={{color:"#fff",gap:"6px"}} onClick={()=>setShowAliphia(true)}>
-            <span style={{fontSize:"15px"}}>📥</span> استيراد Aliphia
+          <button className="btn io-btn" style={{color:"#fff",gap:"6px"}} onClick={()=>setShowImportModal(true)}>
+            <span style={{fontSize:"15px"}}>📥</span> استيراد CSV / Excel
           </button>
-          <button className="btn" style={{background:"#0f766e",color:"#fff",gap:"6px"}} onClick={exportInvoicesCSV}>
+          <button className="btn io-btn" style={{color:"#fff",gap:"6px"}} onClick={exportInvoicesCSV}>
             <span style={{fontSize:"15px"}}>⬇️</span> تصدير CSV
+          </button>
+          <button className="btn io-btn" style={{color:"#fff",gap:"6px"}} onClick={exportInvoicesExcel}>
+            <span style={{fontSize:"15px"}}>📊</span> تصدير Excel
           </button>
           <span style={{fontSize:"12px",color:"var(--ia-sub)",whiteSpace:"nowrap"}}>{filtered.length} فاتورة</span>
         </div>
@@ -3088,7 +3190,7 @@ return(
           <div className="card" style={{padding:"56px",textAlign:"center",color:"var(--ia-muted)"}}>
             <div style={{fontSize:"44px",marginBottom:"10px"}}>📄</div>
             <div style={{fontWeight:600,marginBottom:"14px"}}>لا توجد فواتير</div>
-            <button className="btn aliphia-btn" style={{color:"#fff"}} onClick={()=>setShowAliphia(true)}>📥 استورد فواتيرك من Aliphia</button>
+            <button className="btn io-btn" style={{color:"#fff"}} onClick={()=>setShowImportModal(true)}>📥 استورد فواتيرك (CSV / Excel)</button>
           </div>
         ):(
           <div className="card" style={{overflow:"hidden"}}>
@@ -3116,7 +3218,7 @@ return(
                       </td>
                       <td>
                         <span className="b-inv">{inv.invNum}</span>
-                        {inv.source==="aliphia"&&<span style={{marginRight:"4px",fontSize:"10px",background:"#ccfbf1",color:"#0f766e",borderRadius:"4px",padding:"1px 5px",fontWeight:700}}>A</span>}
+                        {(inv.source==="import"||inv.source==="aliphia")&&<span title="فاتورة مستوردة من ملف" style={{marginRight:"4px",fontSize:"10px",background:"#ccfbf1",color:"#0f766e",borderRadius:"4px",padding:"1px 5px",fontWeight:700}}>📥</span>}
                       </td>
                       <td style={{fontWeight:600}}>{inv.clientName}</td>
                       <td className="col-phone" style={{direction:"ltr",textAlign:"right",color:"var(--ia-link)"}}>{inv.clientPhone}</td>

@@ -213,7 +213,7 @@ export default function SiteManager({ toast }) {
           title="رسالة المؤسس ومحتوى الصفحة الرئيسية"
           sub="فاصل الفقرات في الرسالة: سطر فارغ واحد"
           extra={
-            <button className="btn aliphia-btn" onClick={saveContent} disabled={savingContent}>
+            <button className="btn io-btn" onClick={saveContent} disabled={savingContent}>
               {savingContent ? "⏳ جارٍ الحفظ…" : "💾 حفظ المحتوى"}
             </button>
           }
@@ -253,7 +253,7 @@ export default function SiteManager({ toast }) {
           title="أعضاء الفريق"
           sub={`${team.length} عضو — الترتيب بالأسهم، والنشر بعين 👁`}
           extra={
-            <button className="btn aliphia-btn" onClick={openAdd}>＋ إضافة عضو</button>
+            <button className="btn io-btn" onClick={openAdd}>＋ إضافة عضو</button>
           }
         />
 
@@ -355,7 +355,7 @@ export default function SiteManager({ toast }) {
             </div>
             <div style={{ display: "flex", gap: 8, marginTop: 16, justifyContent: "flex-end" }}>
               <button className="btn btn-outline" onClick={() => setEditor(null)}>إلغاء</button>
-              <button className="btn aliphia-btn" onClick={saveMember} disabled={savingMember}>
+              <button className="btn io-btn" onClick={saveMember} disabled={savingMember}>
                 {savingMember ? "⏳ جارٍ الحفظ…" : "💾 حفظ العضو"}
               </button>
             </div>
