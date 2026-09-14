@@ -234,16 +234,18 @@ model SiteContent {
 // companies: JSON string بمصفوفة slugs الشركات المرتبطة بالمشترك
 // (تُربط تلقائياً عند إنشاء شركته الأولى بعد التسجيل).
 model AppUser {
-  id           Int      @id @default(autoincrement())
-  email        String   @unique
-  passwordHash String
-  displayName  String
-  phone        String?
-  role         String   @default("subscriber") // subscriber (لا صلاحيات إدارية خادمياً)
-  plan         String   @default("free_early") // free_early (أول 100) | paid
-  companies    String   @default("[]")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            Int       @id @default(autoincrement())
+  email         String    @unique
+  passwordHash  String
+  displayName   String
+  phone         String?
+  role          String    @default("subscriber") // subscriber (لا صلاحيات إدارية خادمياً)
+  plan          String    @default("free_early") // كود الخطة من subscription_plans (r17)
+  companies     String    @default("[]")
+  countryCode   String? // r17: بلد التسجيل حسب الـ IP (KW/SA/EG/…)
+  planUpdatedAt DateTime? // r17: آخر مرة غيّر المؤسس/المشترك خطته
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@map("app_users")
 }
@@ -260,4 +262,53 @@ model PasswordReset {
 
   @@index([email])
   @@map("password_resets")
+}
+
+// r17: خطط الاشتراك — تحدد سعة (فواتير معالجة بالذكاء الاصطناعي شهرياً / عملاء / شركات)
+// السعر بالدولار الأمريكي (USD) ويُحوَّل لعملة بلد الزائر حسب الـ IP عبر /api/pricing
+model SubscriptionPlan {
+  id                Int      @id @default(autoincrement())
+  code              String   @unique // free_early | starter | pro | business
+  nameAr            String
+  descAr            String?
+  priceUsd          Float    @default(0) // شهرياً بالدولار
+  maxCompanies      Int      @default(1)
+  maxCustomers      Int      @default(20)
+  monthlyAiInvoices Int      @default(50)
+  features          String   @default("[]") // JSON: قائمة ميزات عربية للعرض
+  badgeAr           String? // شارة مثل «الأكثر شيوعاً»
+  sortOrder         Int      @default(0)
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("subscription_plans")
+}
+
+// r17: عدّادات الاستخدام الشهرية لكل مشترك — فواتير الذكاء الاصطناعي المعالجة
+model UsageCounter {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  period     String // "2026-09" (YYYY-MM بالتوقيت المحلي للخادم)
+  aiInvoices Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, period])
+  @@map("usage_counters")
+}
+
+// r17: طلبات ترقية الخطة من المشتركين — يعتمدها المؤسس أو يرفضها من لوحة الإدارة
+model PlanRequest {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  planCode  String
+  note      String?
+  status    String   @default("pending") // pending | approved | rejected
+  handledBy String? // بريد المؤسس الذي عالج الطلب
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@map("plan_requests")
 }
