@@ -31,6 +31,12 @@ export default function CompanyForm({ mode, company, onClose, onSaved, toast }) 
     emoji: company?.emoji || "🏢",
     currency: company?.currency || "KWD",
     code: company?.code && company?.code !== company?.slug ? company?.code : "",
+    // r18: الضرائب الاختيارية — تفعيل ضريبة فواتير الشركة + النسبة الافتراضية (٪)
+    // (company قد يكون كائن الواجهة المدمج — حقول الضريبة داخل dbRow)
+    taxEnabled: (company?.taxEnabled ?? company?.dbRow?.taxEnabled) !== undefined
+      ? !!(company?.taxEnabled ?? company?.dbRow?.taxEnabled)
+      : true,
+    defaultTaxRate: company?.defaultTaxRate ?? company?.dbRow?.defaultTaxRate ?? "",
   }));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -38,6 +44,9 @@ export default function CompanyForm({ mode, company, onClose, onSaved, toast }) 
   const setF = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const cur = CURRENCIES[form.currency] || CURRENCIES.KWD;
+  // r18: اقتراح ضريبة القيمة المضافة حسب عملة الشركة (أشهر بلد للعملة)
+  const CURRENCY_VAT = { KWD:0, SAR:15, AED:5, QAR:0, BHD:10, OMR:5, EGP:14, USD:0, EUR:20, GBP:20, TRY:20, JOD:16 };
+  const vatHint = CURRENCY_VAT[form.currency] ?? 0;
   const preview = useMemo(
     () => ({ ...form, id: company?.id || "preview", logo: form.emoji, sk: company?.sk || "" }),
     [form, company],
@@ -49,10 +58,14 @@ export default function CompanyForm({ mode, company, onClose, onSaved, toast }) 
     if (!form.nameAr.trim()) { setErr("الاسم العربي مطلوب"); return; }
     setBusy(true);
     try {
+      const payload = {
+        ...form,
+        defaultTaxRate: form.defaultTaxRate === "" || form.defaultTaxRate === null ? null : Math.max(0, Math.min(100, Number(form.defaultTaxRate) || 0)),
+      };
       if (isNew) {
-        await api.createCompany(form);
+        await api.createCompany(payload);
       } else {
-        const { code, ...rest } = form; // code غير قابل للتعديل بعد الإنشاء
+        const { code, ...rest } = payload; // code غير قابل للتعديل بعد الإنشاء
         await api.updateCompany(company.sk, rest);
       }
       setDone(true);
@@ -182,8 +195,37 @@ export default function CompanyForm({ mode, company, onClose, onSaved, toast }) 
             💡 كل مبالغ الفواتير والتقارير والطباعة ستنسّق بعملة الشركة النشطة — مثال: <b style={{ color: "var(--ia-text)" }}>{(1234.5).toFixed(cur.decimals)} {cur.short}</b>
           </div>
 
+          {/* ── ②½ الضرائب (اختيارية) ── */}
+          <SectionTitle n="3" t="🧾 الضريبة — اختيارية" c="#b45309" />
+          <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "10px", alignItems: "center", background: "var(--ia-chip)", border: "1px solid var(--ia-bd)", borderRadius: "12px", padding: "12px 14px" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "13px", fontWeight: 800, color: "var(--ia-text)" }}>
+              <input type="checkbox" checked={form.taxEnabled} onChange={(e) => setF("taxEnabled", e.target.checked)}
+                style={{ width: "18px", height: "18px", accentColor: "#b45309", cursor: "pointer" }} />
+              تفعيل الضريبة
+            </label>
+            {form.taxEnabled ? (
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <input className="inp" type="number" min="0" max="100" step="0.5" inputMode="decimal" dir="ltr"
+                  placeholder={String(vatHint)} value={form.defaultTaxRate} onChange={(e) => setF("defaultTaxRate", e.target.value)}
+                  style={{ width: "90px", fontFamily: "inherit", textAlign: "center", fontWeight: 800 }} />
+                <span style={{ fontSize: "12px", color: "var(--ia-sub)", fontWeight: 700 }}>%</span>
+                {vatHint > 0 && String(form.defaultTaxRate) === "" && (
+                  <button type="button" onClick={() => setF("defaultTaxRate", String(vatHint))}
+                    style={{ background: "#b4530918", border: "1px solid #b4530955", color: "#b45309", borderRadius: "8px", padding: "5px 10px", fontSize: "11px", fontWeight: 800, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+                    ⚡ استخدم {vatHint}% (ضريبة بلد العملة)
+                  </button>
+                )}
+              </div>
+            ) : (
+              <span style={{ fontSize: "12px", color: "var(--ia-sub)", fontWeight: 700 }}>🚫 الفواتير بلا ضريبة — يمكن تفعيلها لاحقاً</span>
+            )}
+          </div>
+          <div style={{ fontSize: "11px", color: "var(--ia-sub)", marginTop: "7px", lineHeight: 1.7 }}>
+            💡 النسبة الافتراضية تُقترح تلقائياً عند إنشاء الفواتير وتُعدّل يدوياً لكل فاتورة حسب رغبتك
+          </div>
+
           {/* ── ③ بيانات الاتصال ── */}
-          <SectionTitle n="3" t="بيانات الاتصال" c={form.color} />
+          <SectionTitle n="4" t="بيانات الاتصال" c={form.color} />
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
             <Field label="هاتف الشركة"><input {...inp} dir="ltr" placeholder="+96598737207" value={form.phone} onChange={(e) => setF("phone", e.target.value)} /></Field>
             <Field label="البريد الإلكتروني"><input {...inp} dir="ltr" placeholder="info@company.store" value={form.email} onChange={(e) => setF("email", e.target.value)} /></Field>
@@ -194,8 +236,8 @@ export default function CompanyForm({ mode, company, onClose, onSaved, toast }) 
             <Field label="المرجع/البائع (Seller Ref)"><input {...inp} placeholder="Tawfeer" value={form.sellerRef} onChange={(e) => setF("sellerRef", e.target.value)} /></Field>
           </div>
 
-          {/* ── ④ الهوية البصرية ── */}
-          <SectionTitle n="4" t="الهوية البصرية" c={form.accent} />
+          {/* ── ⑤ الهوية البصرية ── */}
+          <SectionTitle n="5" t="الهوية البصرية" c={form.accent} />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px" }}>
             {([["color", "اللون الأساسي"], ["accent", "لون التمييز"], ["cardBg", "خلفية البطاقات"]]).map(([k, label]) => (
               <Field key={k} label={label}>

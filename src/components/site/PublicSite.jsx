@@ -7,7 +7,9 @@ import HomePage from "./HomePage";
 import TeamPage from "./TeamPage";
 import FounderPage from "./FounderPage";
 import ResetPasswordPage from "./ResetPasswordPage";
+import PricingPage from "./PricingPage";
 import { SITE_CSS, DEFAULT_CONTENT } from "./site-shared";
+import { LangProvider, useI18n, LanguageSwitcher } from "@/lib/i18n-context";
 
 /**
  * r13: الموقع العام متعدد الصفحات — يظهر للزائر قبل الدخول، ويمكن معاينته بعد الدخول
@@ -18,7 +20,17 @@ import { SITE_CSS, DEFAULT_CONTENT } from "./site-shared";
  *   #/founder → رسالة المؤسس #/login → صفحة الدخول
  * r16: #/reset?token=… → إعادة تعيين كلمة المرور (من رسالة Resend)
  */
-export default function PublicSite({ page = "home", authed = false, onEnterApp = () => {} }) {
+export default function PublicSite(props) {
+  // r18: الموقع العام بلغات العالم — مزوّد اللغة يغلّف كل الصفحات (اتجاه + نصوص)
+  return (
+    <LangProvider>
+      <SiteInner {...props} />
+    </LangProvider>
+  );
+}
+
+function SiteInner({ page = "home", authed = false, onEnterApp = () => {} }) {
+  const { t } = useI18n();
   const [stats, setStats] = useState(null);
   const [content, setContent] = useState(DEFAULT_CONTENT);
   const [team, setTeam] = useState(null);
@@ -40,18 +52,19 @@ export default function PublicSite({ page = "home", authed = false, onEnterApp =
     // الرئيسية = اسم الموقع فقط (يطابق metadata الافتراضي حتى لا يبدو عنوان مكرراً)
     const titles = {
       home: "",
-      team: "فريق العمل",
-      founder: "رسالة المؤسس",
-      login: "تسجيل الدخول",
-      reset: "كلمة مرور جديدة",
+      team: t("nav.team"),
+      founder: t("nav.founder"),
+      pricing: t("nav.pricing"),
+      login: t("login.title"),
+      reset: t("login.forgotTitle"),
     };
-    const t = titles[page] || "";
+    const pageTitle = titles[page] || "";
     const apply = () => {
       // r16: الرئيسية تحمل العنوان الكامل (يطابق metadata الخادم — أفضل لـ SEO)
       document.title = page === "home"
         ? `${content.site_name} | نظام إدارة الفواتير والحسابات — الكويت`
-        : t
-          ? `${t} | ${content.site_name}`
+        : pageTitle
+          ? `${pageTitle} | ${content.site_name}`
           : content.site_name;
     };
     apply();
@@ -93,7 +106,7 @@ export default function PublicSite({ page = "home", authed = false, onEnterApp =
             fontSize: 13, fontWeight: 700, fontFamily: "Cairo,sans-serif",
           }}
         >
-          ← الموقع
+          ← {t("nav.home")}
         </a>
         <FirebaseLogin />
       </div>
@@ -101,9 +114,10 @@ export default function PublicSite({ page = "home", authed = false, onEnterApp =
   }
 
   const links = [
-    { hash: "#/", label: "الرئيسية", id: "home" },
-    { hash: "#/team", label: "الفريق", id: "team" },
-    { hash: "#/founder", label: "رسالة المؤسس", id: "founder" },
+    { hash: "#/", label: t("nav.home"), id: "home" },
+    { hash: "#/pricing", label: t("nav.pricing"), id: "pricing" },
+    { hash: "#/team", label: t("nav.team"), id: "team" },
+    { hash: "#/founder", label: t("nav.founder"), id: "founder" },
   ];
 
   return (
@@ -156,21 +170,23 @@ export default function PublicSite({ page = "home", authed = false, onEnterApp =
 
             <div style={{ flex: 1 }} />
 
+            <LanguageSwitcher compact />
+
             {authed ? (
               <button className="s-btn s-btn-ghost" onClick={enter} style={{ padding: "9px 16px", fontSize: 12.5 }}>
-                <span className="s-cta-long">↩️ العودة للنظام</span>
-                <span className="s-cta-short">↩️ النظام</span>
+                <span className="s-cta-long">↩️ {t("nav.enterApp")}</span>
+                <span className="s-cta-short">↩️ {t("nav.app")}</span>
               </button>
             ) : (
               <a href="#/login" onClick={(e) => nav(e, "#/login")} className="s-btn s-btn-gold" style={{ padding: "9px 18px", fontSize: 12.5 }}>
-                <span className="s-cta-long">تسجيل الدخول ←</span>
-                <span className="s-cta-short">دخول ←</span>
+                <span className="s-cta-long">{t("nav.login")} ←</span>
+                <span className="s-cta-short">{t("login.signIn")} ←</span>
               </a>
             )}
 
             <button
               className="s-burger"
-              aria-label="القائمة" aria-expanded={menuOpen}
+              aria-label={t("nav.menu")} aria-expanded={menuOpen}
               onClick={() => setMenuOpen((v) => !v)}
             >
               ☰
@@ -178,14 +194,14 @@ export default function PublicSite({ page = "home", authed = false, onEnterApp =
           </div>
 
           {menuOpen && (
-            <nav style={{ borderTop: "1px solid rgba(201,162,39,.15)", padding: "10px 20px", display: "flex", flexDirection: "column", gap: 6 }} aria-label="قائمة الجوال">
+            <nav style={{ borderTop: "1px solid rgba(201,162,39,.15)", padding: "10px 20px", display: "flex", flexDirection: "column", gap: 6 }} aria-label={t("nav.menu")}>
               {links.map((l) => (
                 <a key={l.hash} href={l.hash} onClick={(e) => nav(e, l.hash)} className={`s-nav-link${page === l.id ? " active" : ""}`}>
                   {l.label}
                 </a>
               ))}
               <a href="#/login" onClick={(e) => nav(e, "#/login")} className="s-nav-link" style={{ color: "#e5c558" }}>
-                {authed ? "↩️ العودة للنظام" : "تسجيل الدخول ←"}
+                {authed ? `↩️ ${t("nav.enterApp")}` : `${t("nav.login")} ←`}
               </a>
             </nav>
           )}
@@ -196,6 +212,7 @@ export default function PublicSite({ page = "home", authed = false, onEnterApp =
           {page === "home" && (
             <HomePage stats={stats} companies={companies} content={content} authed={authed} onEnterApp={enter} />
           )}
+          {page === "pricing" && <PricingPage content={content} />}
           {page === "team" && <TeamPage team={team} content={content} />}
           {page === "founder" && <FounderPage content={content} />}
         </main>

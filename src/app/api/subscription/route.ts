@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSession, getSessionAppUser } from "@/lib/auth-server";
 import { getUsageSnapshot, getPlan, FREE_SUBSCRIBER_LIMIT } from "@/lib/plans";
+import { worldCountryOf } from "@/lib/geo";
+import { LANGUAGES } from "@/lib/i18n";
 
 
 /**
@@ -49,6 +51,7 @@ export async function GET(req: NextRequest) {
         displayName: appUser.displayName,
         phone: appUser.phone,
         country: appUser.countryCode,
+        lang: appUser.lang || "ar",
         role: appUser.role,
         companies,
         createdAt: appUser.createdAt.toISOString(),
@@ -67,6 +70,7 @@ export async function GET(req: NextRequest) {
 }
 
 const PHONE_RE = /^\+?\d{6,15}$/;
+const LANG_CODES = new Set(LANGUAGES.map((l) => l.code));
 
 export async function PUT(req: NextRequest) {
   const sub = await getSessionAppUser(req);
@@ -75,7 +79,7 @@ export async function PUT(req: NextRequest) {
   }
   try {
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-    const data: { displayName?: string; phone?: string | null } = {};
+    const data: { displayName?: string; phone?: string | null; lang?: string; countryCode?: string } = {};
 
     if (typeof body.displayName === "string") {
       const name = body.displayName.trim();
@@ -95,6 +99,25 @@ export async function PUT(req: NextRequest) {
         data.phone = p;
       }
     }
+    // r18: لغة الواجهة المفضلة (من سجل ٢٨ لغة)
+    if (body.lang !== undefined) {
+      const l = String(body.lang).trim().toLowerCase();
+      if (!LANG_CODES.has(l)) {
+        return NextResponse.json({ error: "لغة غير مدعومة" }, { status: 400 });
+      }
+      data.lang = l;
+    }
+    // r18: بلد الحساب (أي دولة في العالم — يؤثر على العملة والضريبة المقترحة)
+    if (body.countryCode !== undefined) {
+      const c = String(body.countryCode).trim().toUpperCase();
+      if (c === "") {
+        data.countryCode = null;
+      } else if (!worldCountryOf(c)) {
+        return NextResponse.json({ error: "كود بلد غير معروف" }, { status: 400 });
+      } else {
+        data.countryCode = c;
+      }
+    }
     if (!Object.keys(data).length) {
       return NextResponse.json({ error: "لا تغييرات مطلوبة" }, { status: 400 });
     }
@@ -102,7 +125,12 @@ export async function PUT(req: NextRequest) {
     const updated = await db.appUser.update({ where: { id: sub.appUser.id }, data });
     return NextResponse.json({
       ok: true,
-      profile: { displayName: updated.displayName, phone: updated.phone },
+      profile: {
+        displayName: updated.displayName,
+        phone: updated.phone,
+        lang: updated.lang || "ar",
+        countryCode: updated.countryCode,
+      },
     });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });

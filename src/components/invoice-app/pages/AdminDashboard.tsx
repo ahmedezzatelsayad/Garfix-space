@@ -5,6 +5,7 @@ import { getAllUsers, updateUserProfile, deleteUserRecord, ALL_COMPANIES, seedUs
 import { useAuth } from "../context/AuthContext";
 import CreateUserModal, { PERM_LIST, EMPLOYEE_DEFAULTS } from "../components/CreateUserModal";
 import ResendPanel from "../components/ResendPanel";
+import SubscriptionsPanel from "../components/SubscriptionsPanel";
 import { MASTER_EMAIL } from "../firebase/auth";
 
 interface UserRecord {
@@ -232,6 +233,7 @@ const labelOf = (id: string): string => DYN_LABELS[id] || COMPANY_LABELS[id] || 
 
   const TABS = [
     { id:"users", label:"👥 المستخدمون" },
+    { id:"subscriptions", label:"💳 الاشتراكات" },
     { id:"logos", label:"🏢 شعارات الشركات" },
     { id:"resend", label:"📧 بريد Resend" },
   ];
@@ -455,6 +457,9 @@ const labelOf = (id: string): string => DYN_LABELS[id] || COMPANY_LABELS[id] || 
                 ))}
               </div>
             </div>
+          )}
+          {activeTab==="subscriptions"&&(
+            <SubscriptionsPanel toast_={toast_} />
           )}
           {activeTab==="resend"&&(
             <ResendPanel toast_={toast_} />

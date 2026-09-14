@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/passwords";
 import { COOKIE_NAME, SESSION_TTL_SECONDS, makeSessionToken, clientIp, isReservedAccountEmail } from "@/lib/auth-server";
+import { detectCountry } from "@/lib/geo";
+import { LANGUAGES } from "@/lib/i18n";
 
 /**
  * r16: التسجيل الذاتي — «مجاناً لأول 100 مشترك»
@@ -98,6 +100,12 @@ export async function POST(req: NextRequest) {
     }
 
     // ── الإنشاء ──
+    // r18: بلد التسجيل من الـ IP + اللغة المفضلة (اختيارية من الواجهة)
+    const geo = await detectCountry(req);
+    const langCodes = new Set(LANGUAGES.map((l) => l.code));
+    const langRaw = typeof body.lang === "string" ? body.lang.trim().toLowerCase() : "";
+    const lang = langCodes.has(langRaw) ? langRaw : null;
+
     const user = await db.appUser.create({
       data: {
         email,
@@ -107,6 +115,8 @@ export async function POST(req: NextRequest) {
         role: "subscriber",
         plan: "free_early",
         companies: "[]",
+        countryCode: geo.code,
+        lang,
       },
     });
 

@@ -4,7 +4,10 @@ function toApiInvoice(inv, companySlug) {
   const items = inv.items || [];
   const subtotal = items.reduce((s, it) => s + (Number(it.qty) || 0) * (Number(it.price) || 0), 0);
   const shipping = Number(inv.shipping) || 0;
-  const total = subtotal + shipping;
+  // r18: ضريبة اختيارية — نسبة من الفاتورة (٪ 0-100) والمبلغ محسوب منها
+  const taxRate = Math.max(0, Math.min(100, Number(inv.taxRate) || 0));
+  const taxAmount = +(subtotal * taxRate / 100).toFixed(2);
+  const total = subtotal + taxAmount + shipping;
   return {
     invoiceNumber: inv.invNum || `INV${Date.now()}`,
     companySlug: companySlug || inv.companySlug || null,
@@ -22,8 +25,8 @@ function toApiInvoice(inv, companySlug) {
       price: Number(it.price) || 0,
     })),
     subtotal,
-    taxRate: 0,
-    taxAmount: 0,
+    taxRate,
+    taxAmount,
     total,
     shipping,
     paid: Number(inv.paid) || 0,
@@ -47,6 +50,7 @@ function fromApiInvoice(apiInv) {
       price: Number(li.price) || Number(li.unitPrice) || 0,
     })),
     shipping: Number(apiInv.shipping) || 0,
+    taxRate: Number(apiInv.taxRate) || 0,
     date: apiInv.issueDate,
     dueDate: apiInv.dueDate,
     paid: Number(apiInv.paid) || 0,

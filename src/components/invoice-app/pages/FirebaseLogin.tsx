@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { loginUser, registerUser, requestPasswordReset, fetchFreeSeats } from "../firebase/auth";
 import { useTheme } from "../theme";
+import { useI18n, LanguageSwitcher } from "@/lib/i18n-context";
 
 /**
  * r16: صفحة الدخول الشاملة:
@@ -13,6 +14,7 @@ import { useTheme } from "../theme";
 type Mode = "login" | "register" | "forgot";
 
 export default function FirebaseLogin() {
+  const { t, dir, lang } = useI18n(); // r18: الدخول بلغات العالم (يُغذّى من LangProvider في PublicSite)
   const [mode, setMode] = useState<Mode>("login");
   const [email,    setEmail]    = useState("");
   const [pass,     setPass]     = useState("");
@@ -127,14 +129,14 @@ export default function FirebaseLogin() {
     </div>
   );
 
-  const TAB: Record<Mode, string> = { login: "تسجيل الدخول", register: "إنشاء حساب", forgot: "استعادة" };
+  const TAB: Record<Mode, string> = { login: t("login.signIn"), register: t("login.signUp"), forgot: t("login.forgot") };
 
   return (
     <div style={{
       minHeight: "100vh",
       background: "linear-gradient(150deg,#06111f 0%,#0d1e35 45%,#070e1c 100%)",
       display: "flex", alignItems: "center", justifyContent: "center",
-      fontFamily: "'Cairo','Tajawal',sans-serif", direction: "rtl",
+      fontFamily: "'Cairo','Tajawal',sans-serif", direction: dir,
       padding: "20px", position: "relative", overflow: "hidden",
     }}>
       <style>{`
@@ -156,6 +158,8 @@ export default function FirebaseLogin() {
 
       {/* Light/dark theme toggle (persisted app-wide) */}
       <button onClick={toggle} title={dark?"التبديل إلى الوضع النهاري":"التبديل إلى الوضع الليلي"} aria-label="تبديل السمة" type="button" style={{position:"fixed",top:"16px",insetInlineEnd:"16px",background:"rgba(255,255,255,.07)",border:"1px solid rgba(255,255,255,.14)",borderRadius:"8px",padding:"7px 12px",fontSize:"14px",cursor:"pointer",zIndex:10,transition:"all .2s"}}>{dark?"☀️":"🌙"}</button>
+      {/* r18: منتقي لغات العالم — أعلى الشاشة بجوار مبدّل السمة */}
+      <div style={{position:"fixed",top:"16px",insetInlineStart:"16px",zIndex:10}}><LanguageSwitcher compact /></div>
 
       <div style={{width:"100%",maxWidth:"420px",animation:"fadeUp .55s ease",position:"relative"}}>
 
@@ -194,7 +198,7 @@ export default function FirebaseLogin() {
                   background: mode===m ? "linear-gradient(135deg,#c9a227,#9a7318)" : "transparent",
                   color: mode===m ? "#fff" : "rgba(255,255,255,.55)",
                   boxShadow: mode===m ? "0 4px 14px rgba(201,162,39,.35)" : "none",
-                }}>{m==="login" ? "🔑 تسجيل الدخول" : "✨ إنشاء حساب"}</button>
+                }}>{m==="login" ? `🔑 ${t("login.signIn")}` : `✨ ${t("login.signUp")}`}</button>
               ))}
             </div>
           )}
@@ -204,13 +208,13 @@ export default function FirebaseLogin() {
           {mode === "forgot" ? (
             <>
               <div style={{fontSize:"11px",color:"rgba(201,162,39,.6)",fontWeight:700,letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:"22px",textAlign:"center",borderBottom:"1px solid rgba(201,162,39,.12)",paddingBottom:"16px"}}>
-                استعادة كلمة المرور
+                {t("login.forgotTitle")}
               </div>
               <p style={{color:"rgba(255,255,255,.55)",fontSize:12.5,lineHeight:1.9,margin:"0 0 18px",textAlign:"center"}}>
-                أدخل بريدك وسنرسل لك رابط إعادة التعيين — صالح 30 دقيقة ولمرة واحدة
+                {t("login.forgotHint")}
               </p>
               <div style={{marginBottom:"14px"}}>
-                <label style={{fontSize:"11px",color:"rgba(201,162,39,.75)",display:"block",marginBottom:"7px",fontWeight:700,letterSpacing:".6px"}}>البريد الإلكتروني</label>
+                <label style={{fontSize:"11px",color:"rgba(201,162,39,.75)",display:"block",marginBottom:"7px",fontWeight:700,letterSpacing:".6px"}}>{t("login.email")}</label>
                 <input className="g-inp" type="email" placeholder="example@company.com"
                   value={email} onChange={e=>{setEmail(e.target.value);setErr("");}}
                   onKeyDown={e=>e.key==="Enter"&&doForgot()}/>
@@ -233,38 +237,38 @@ export default function FirebaseLogin() {
                 cursor:loading||!email?"not-allowed":"pointer",
                 boxShadow:loading||!email?"none":"0 6px 22px rgba(201,162,39,.45)",
                 letterSpacing:".5px",transition:"all .2s",
-              }}>{loading?"⏳ جارٍ الإرسال...":"📨 أرسل رابط الاستعادة"}</button>
+              }}>{loading?"⏳ …":`📨 ${t("login.send")}`}</button>
               <button type="button" onClick={()=>switchMode("login")} style={{
                 width:"100%",marginTop:12,background:"none",border:"none",color:"rgba(255,255,255,.5)",
                 fontFamily:"inherit",fontSize:12.5,fontWeight:700,cursor:"pointer",
-              }}>← العودة لتسجيل الدخول</button>
+              }}>{`← ${t("login.back")}`}</button>
             </>
           ) : mode === "register" ? (
             <>
               <div style={{fontSize:"11px",color:"rgba(201,162,39,.6)",fontWeight:700,letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:"22px",textAlign:"center",borderBottom:"1px solid rgba(201,162,39,.12)",paddingBottom:"16px"}}>
-                حساب جديد — مجاناً لأول 100 مشترك
+                {t("login.freeBadge")}
               </div>
 
               <div style={{marginBottom:"14px"}}>
-                <label style={{fontSize:"11px",color:"rgba(201,162,39,.75)",display:"block",marginBottom:"7px",fontWeight:700,letterSpacing:".6px"}}>الاسم الكامل *</label>
+                <label style={{fontSize:"11px",color:"rgba(201,162,39,.75)",display:"block",marginBottom:"7px",fontWeight:700,letterSpacing:".6px"}}>{t("login.name")} *</label>
                 <input className="g-inp" placeholder="أحمد محمد" value={name}
                   onChange={e=>{setName(e.target.value);setErr("");}}/>
               </div>
 
               <div style={{marginBottom:"14px"}}>
-                <label style={{fontSize:"11px",color:"rgba(201,162,39,.75)",display:"block",marginBottom:"7px",fontWeight:700,letterSpacing:".6px"}}>البريد الإلكتروني *</label>
+                <label style={{fontSize:"11px",color:"rgba(201,162,39,.75)",display:"block",marginBottom:"7px",fontWeight:700,letterSpacing:".6px"}}>{t("login.email")} *</label>
                 <input className="g-inp" type="email" placeholder="example@company.com" value={email}
                   onChange={e=>{setEmail(e.target.value);setErr("");}}/>
               </div>
 
               <div style={{marginBottom:"14px"}}>
-                <label style={{fontSize:"11px",color:"rgba(201,162,39,.75)",display:"block",marginBottom:"7px",fontWeight:700,letterSpacing:".6px"}}>الجوال (اختياري)</label>
+                <label style={{fontSize:"11px",color:"rgba(201,162,39,.75)",display:"block",marginBottom:"7px",fontWeight:700,letterSpacing:".6px"}}>{t("login.phone")}</label>
                 <input className="g-inp" type="tel" dir="ltr" style={{textAlign:"right"}} placeholder="+965 9XXX XXXX" value={phone}
                   onChange={e=>{setPhone(e.target.value);setErr("");}}/>
               </div>
 
               <div style={{marginBottom:"14px"}}>
-                <label style={{fontSize:"11px",color:"rgba(201,162,39,.75)",display:"block",marginBottom:"7px",fontWeight:700,letterSpacing:".6px"}}>كلمة المرور * (8 أحرف على الأقل)</label>
+                <label style={{fontSize:"11px",color:"rgba(201,162,39,.75)",display:"block",marginBottom:"7px",fontWeight:700,letterSpacing:".6px"}}>{t("login.password")} *</label>
                 <div style={{position:"relative"}}>
                   <input className="g-inp" type={showPass?"text":"password"} placeholder="••••••••••" value={pass}
                     onChange={e=>{setPass(e.target.value);setErr("");}} style={{paddingLeft:"42px"}}/>
@@ -273,7 +277,7 @@ export default function FirebaseLogin() {
               </div>
 
               <div style={{marginBottom:"20px"}}>
-                <label style={{fontSize:"11px",color:"rgba(201,162,39,.75)",display:"block",marginBottom:"7px",fontWeight:700,letterSpacing:".6px"}}>تأكيد كلمة المرور *</label>
+                <label style={{fontSize:"11px",color:"rgba(201,162,39,.75)",display:"block",marginBottom:"7px",fontWeight:700,letterSpacing:".6px"}}>{t("login.password")} *</label>
                 <input className="g-inp" type={showPass?"text":"password"} placeholder="••••••••••" value={pass2}
                   onChange={e=>{setPass2(e.target.value);setErr("");}}
                   onKeyDown={e=>e.key==="Enter"&&doRegister()}/>
@@ -298,7 +302,7 @@ export default function FirebaseLogin() {
                 cursor:(loading||!name||!email||!pass||!pass2||(seats&&!seats.freeOpen))?"not-allowed":"pointer",
                 boxShadow:(loading||!name||!email||!pass||!pass2||(seats&&!seats.freeOpen))?"none":"0 6px 22px rgba(201,162,39,.45)",
                 letterSpacing:".5px",transition:"all .2s",
-              }}>{seats&&!seats.freeOpen ? "⛔ المقاعد المجانية انتهت" : loading ? "⏳ جارٍ إنشاء الحساب..." : "✨ إنشاء الحساب والدخول ←"}</button>
+              }}>{seats&&!seats.freeOpen ? t("pricing.seatsFull") : loading ? "⏳ …" : `✨ ${t("login.signUp")} ←`}</button>
 
               <p style={{color:"rgba(255,255,255,.35)",fontSize:11.5,margin:"14px 0 0",textAlign:"center",lineHeight:1.8}}>
                 بإنشائك الحساب ستحصل على شركة خاصة بك بعد أول دخول — فواتير وعملاء وتقارير بلا أي تكلفة
@@ -307,18 +311,18 @@ export default function FirebaseLogin() {
           ) : (
             <>
               <div style={{fontSize:"11px",color:"rgba(201,162,39,.6)",fontWeight:700,letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:"22px",textAlign:"center",borderBottom:"1px solid rgba(201,162,39,.12)",paddingBottom:"16px"}}>
-                تسجيل الدخول الآمن
+                {t("login.title")}
               </div>
 
               <div style={{marginBottom:"14px"}}>
-                <label style={{fontSize:"11px",color:"rgba(201,162,39,.75)",display:"block",marginBottom:"7px",fontWeight:700,letterSpacing:".6px"}}>البريد الإلكتروني</label>
+                <label style={{fontSize:"11px",color:"rgba(201,162,39,.75)",display:"block",marginBottom:"7px",fontWeight:700,letterSpacing:".6px"}}>{t("login.email")}</label>
                 <input className="g-inp" type="email" placeholder="example@company.com"
                   value={email} onChange={e=>{setEmail(e.target.value);setErr("");}}
                   onKeyDown={e=>e.key==="Enter"&&doLogin()}/>
               </div>
 
               <div style={{marginBottom:"8px"}}>
-                <label style={{fontSize:"11px",color:"rgba(201,162,39,.75)",display:"block",marginBottom:"7px",fontWeight:700,letterSpacing:".6px"}}>كلمة المرور</label>
+                <label style={{fontSize:"11px",color:"rgba(201,162,39,.75)",display:"block",marginBottom:"7px",fontWeight:700,letterSpacing:".6px"}}>{t("login.password")}</label>
                 <div style={{position:"relative"}}>
                   <input className="g-inp" type={showPass?"text":"password"} placeholder="••••••••••"
                     value={pass} onChange={e=>{setPass(e.target.value);setErr("");}}
@@ -331,7 +335,7 @@ export default function FirebaseLogin() {
                 <button type="button" onClick={()=>switchMode("forgot")} style={{
                   background:"none",border:"none",color:"rgba(201,162,39,.75)",fontFamily:"inherit",
                   fontSize:11.5,fontWeight:700,cursor:"pointer",padding:0,
-                }}>هل نسيت كلمة السر؟</button>
+                }}>{t("login.forgot")}</button>
               </div>
 
               {err && (
@@ -348,7 +352,7 @@ export default function FirebaseLogin() {
                 cursor:loading||!email||!pass?"not-allowed":"pointer",
                 boxShadow:loading||!email||!pass?"none":"0 6px 22px rgba(201,162,39,.45)",
                 letterSpacing:".5px",transition:"all .2s",
-              }}>{loading?"⏳ جارٍ التحقق...":"دخول ←"}</button>
+              }}>{loading?"⏳ …":`${t("login.signIn")} ←`}</button>
             </>
           )}
         </div>

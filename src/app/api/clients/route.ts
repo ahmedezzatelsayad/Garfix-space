@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { readBody } from "@/lib/serialize";
 import { cacheWrap, invalidateClients } from "@/lib/cache";
+import { getSessionAppUser } from "@/lib/auth-server";
+import { checkCustomersQuota } from "@/lib/plans";
 
 // GET /api/clients?search=&company= — (r10: كاش Valkey 30 ثانية)
 export async function GET(req: NextRequest) {
@@ -34,8 +36,17 @@ export async function GET(req: NextRequest) {
 }
 
 // POST /api/clients — body: { name, email?, phone?, company?, address?, companyId? }
+// r17: المشترك المسجّل محدود بعدد عملاء خطته (المدير/الموظف/الوضع المحلي بلا حدود)
 export async function POST(req: NextRequest) {
   try {
+    const subscriber = await getSessionAppUser(req);
+    if (subscriber) {
+      const quota = await checkCustomersQuota(subscriber.appUser);
+      if (!quota.ok) {
+        return NextResponse.json({ error: quota.message, code: quota.code }, { status: 403 });
+      }
+    }
+
     const body = await readBody(req);
     if (body.name == null) {
       return NextResponse.json({ error: "name is required" }, { status: 400 });

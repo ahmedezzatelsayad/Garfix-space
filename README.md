@@ -65,6 +65,10 @@ a public multi-page website, and signed server sessions guarding admin routes.]
 **Garfix** هو نظام إدارة فواتير وحسابات متعدد الشركات مصمَّم للسوق الكويتي: عملة دينار كويتي افتراضياً (لكل شركة عملتها الخاصة)،
 أرقام هواتف `+965`، رسائل تحصيل عربية، كشوف حساب بالأسلوب المحاسبي الكويتي، ودعم أرقام عربية (`٣ شاحن`).
 
+ومنذ r17/r18 صار **منتجاً عالمياً**: واجهة الموقع والدخول والأسعار ولوحة «حسابي» **بـ٢٨ لغة** (اتجاه RTL/LTR تلقائي)،
+وأسعار الخطط **بعملة بلد الزائر حسب الـ IP** لكل **١٩٦ دولة** (أسعار صرف حيّة)، مع **ضرائب كل دولة اختيارية**
+(VAT قياسية لكل بلد — تُفعَّل وتُعدَّل من إعدادات الشركة أو لكل فاتورة حسب رغبة المستخدم).
+
 بدأ المشروع كمنصّة Replit (Express 5 + Drizzle) ثم أُعيد بناؤه بالكامل على **Next.js 16 (App Router)**
 مع الحفاظ على عقد JSON نفسه للـ API — وصولاً إلى ما هو عليه اليوم: نظام متكامل يعمل محلياً على
 **PostgreSQL 17** و**Valkey 8.1** (بديل Redis) وخدمة PDF مستقلة، مع حارس **keepalive** يعيد أي خدمة متوقفة تلقائياً.
@@ -324,20 +328,21 @@ a public multi-page website, and signed server sessions guarding admin routes.]
 | التذكيرات والإعدادات | `GET/POST /api/reminders` · `GET/PUT /api/settings` |
 | الذكاء الاصطناعي | `POST /api/ai/chat` (SSE) · `POST /api/ai/action` (تنفيذ إجراء مقترح) · `GET/PUT /api/ai/config` · `POST /api/ai/test` · `GET/DELETE /api/ai/conversations` · `GET /api/ai/conversations/[id]` · `POST /api/ai/process-items` · `POST /api/ai/process-bulk` (r16 — الإدخال المجمع بالذكاء) |
 | البريد | `GET/PUT/POST /api/admin/resend` (إعداد Resend + اختبار — مدير فقط) |
+| الاشتراكات | `GET /api/pricing` (عام: الخطط بعملة بلد الزائر حسب الـ IP + ١٩٦ دولة + VAT) · `GET/PUT/POST /api/subscription` (لوحة «حسابي»: البروفايل + اللغة + البلد + الاستخدام + طلب ترقية) · `GET/PUT/POST /api/admin/subscriptions` (لوحة المؤسس: الخطط + المشتركون + الطلبات — مدير فقط) |
 | النظام | `GET /api/healthz` · `GET /api/backup` · `POST /api/recovery` · `POST /api/pdf` (proxy → :3040) |
 | طوابير المهام | `GET /api/jobs` (إحصائيات + آخر المهام + المجدولة) · `POST /api/jobs` (enqueue / retry / remove) — مدير فقط |
 
-> **46 ملف مسار** في `src/app/api` (تحقّق مباشر). العمليات الإدارية الحساسة (الشركات، إعداد/اختبار الذكاء، النسخ الاحتياطي/الاستعادة، دمج العملاء، محتوى الموقع، طوابير المهام) تتطلب **جلسة مدير** على الخادم — القائمة الكاملة في [قسم الأمان](#-الأمان-security).
+> **48 ملف مسار** في `src/app/api` (تحقّق مباشر). العمليات الإدارية الحساسة (الشركات، إعداد/اختبار الذكاء، النسخ الاحتياطي/الاستعادة، دمج العملاء، محتوى الموقع، طوابير المهام) تتطلب **جلسة مدير** على الخادم — القائمة الكاملة في [قسم الأمان](#-الأمان-security).
 
 ---
 
 ## 🗄️ نموذج البيانات (Data Model)
 
-قاعدة PostgreSQL عبر **Prisma ORM** — 13 نموذجاً (الأعمدة المركّبة مثل بنود الفاتورة تُخزن كسلاسل JSON وتُحوَّل في طبقة الـ API):
+قاعدة PostgreSQL عبر **Prisma ORM** — 16 نموذجاً (الأعمدة المركّبة مثل بنود الفاتورة تُخزن كسلاسل JSON وتُحوَّل في طبقة الـ API):
 
 | النموذج | الجدول | الوصف | أهم الحقول |
 |---|---|---|---|
-| `Company` | `companies` | الشركات — بروفايل كامل قابل للتعديل من الواجهة | `name` · `slug` (فريد) · `code` (فريد) · `currency` (افتراضي `KWD`) · `nameAr` · بيانات اتصال وهوية (هاتف/بريد/عنوان/مدير/ألوان/شعار) |
+| `Company` | `companies` | الشركات — بروفايل كامل قابل للتعديل من الواجهة | `name` · `slug` (فريد) · `code` (فريد) · `currency` (افتراضي `KWD`) · `nameAr` · بيانات اتصال وهوية (هاتف/بريد/عنوان/مدير/ألوان/شعار) · `taxEnabled` + `defaultTaxRate` (r18 — ضريبة اختيارية) |
 | `Client` | `clients` | دليل العملاء المحفوظ | `name` · `phone` · `email` · `address` · `company` |
 | `Invoice` | `invoices` | فواتير البيع | `invoiceNumber` · `companySlug` · بيانات العميل · `lineItems` (JSON) · `subtotal/taxRate/taxAmount/shipping/total/paid` · `status` · `issueDate/dueDate` · `source` |
 | `Payment` | `payments` | دفعات الفواتير | `invoiceId` (FK · Cascade) · `amount` · `method` (cash/knet/online/card) · `date` · `note` |
@@ -350,6 +355,11 @@ a public multi-page website, and signed server sessions guarding admin routes.]
 | `AiMessage` | `ai_messages` | رسائل المحادثات | `conversationId` (Cascade) · `role` · `content` · `latencyMs` |
 | `TeamMember` | `team_members` | أعضاء الفريق (صفحة `#/team` بالموقع العام) | `name` · `role` · `bio` · `emoji` / `photoUrl` · `email` / `linkedin` / `twitter` · `sortOrder` · `published` (نشر/مسودة) |
 | `SiteContent` | `site_content` | محتوى صفحات الموقع العام (14 مفتاحاً مزروعة) | `key` (فريد) · `value` |
+| `AppUser` | `app_users` | المشتركون المسجّلون ذاتياً (scrypt) | `email` (فريد) · `passwordHash` · `plan` · `companies` (JSON) · `countryCode` · `lang` (r18) · `planUpdatedAt` |
+| `PasswordReset` | `password_resets` | رموز استعادة كلمة المرور (SHA-256، 30 دقيقة، مرة واحدة) | `tokenHash` (فريد) · `expiresAt` · `usedAt` |
+| `SubscriptionPlan` | `subscription_plans` | خطط الاشتراك — السعر بالدولار والسعات (r17) | `code` (فريد) · `priceUsd` · `maxCompanies` · `maxCustomers` · `monthlyAiInvoices` · `features` (JSON) · `active` |
+| `UsageCounter` | `usage_counters` | عدّادات الاستخدام الشهرية للمشترك | `userId` + `period` (فريد معاً) · `aiInvoices` |
+| `PlanRequest` | `plan_requests` | طلبات ترقية الخطة (يعتمدها المؤسس) | `userId` · `planCode` · `status` (pending/approved/rejected) · `handledBy` |
 
 > يُبذر محتوى الموقع بـ `bun run scripts/seed-site.ts` — upsert آمن لا يستبدل تعديلات المدير اللاحقة.
 
@@ -685,6 +695,8 @@ cd mini-services/keepalive && ( setsid nohup bun run dev > service.log 2>&1 < /d
 
 | البند | الجولة |
 |---|---|
+| **🌍 السيستم بكل لغات وعملات العالم**: ٢٨ لغة (منتقي لغات حيّ باتجاه RTL/LTR تلقائي) + ١٩٦ دولة بعملاتها (أسعار صرف حيّة من open.er-api.com بكاش Valkey ٦ ساعات + أرقام احتياطية) + **ضرائب كل دولة اختيارية** (VAT قياسية لكل بلد — تفعيل ونسبة افتراضية من إعدادات الشركة وتعديل لكل فاتورة) | r18 |
+| **💳 نظام الاشتراكات**: ٤ خطط (مجاني تأسيسي/البداية/الاحترافية/الأعمال) بأسعار USD تُحوَّل لعملة بلد الزائر حسب الـ IP + حصص (شركات/عملاء/فواتير ذكاء اصطناعي شهرياً) مُطبَّقة على الـ API (403 QUOTA_*) + لوحة «حسابي» (بروفايل + لغة + بلد + عدّادات استخدام + طلب ترقية) + لوحة المؤسس (محرر خطط + مشتركون + اعتماد/رفض الطلبات + MRR) | r17 |
 | **التسجيل الذاتي «مجاناً لأول 100 مشترك»**: حسابات scrypt في PostgreSQL + شركة خاصة لكل مشترك + عدّاد مقاعد حيّ + استعادة كلمة المرور بريدياً عبر Resend تُضبط من لوحة المؤسس | r16 |
 | **الشات بوت داخل الداشبورد الرئيسية** + **الإدخال المجمع بالذكاء الاصطناعي** (أي صيغة نص ← طلبات منظّمة ← فواتير) | r16 |
 | **SEO + GEO كامل**: Metadata + OpenGraph/Twitter + وسوم جغرافية (KW) + JSON-LD + `sitemap.xml` و `robots.txt` ديناميكيان + صورة OG مولّدة | r16 |

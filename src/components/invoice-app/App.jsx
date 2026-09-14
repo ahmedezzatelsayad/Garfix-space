@@ -11,6 +11,7 @@ import AIBulkProcessor from "./components/AIBulkProcessor";
 import SmartChat from "./components/SmartChat";
 import DeepSeekSettings from "./components/DeepSeekSettings";
 import BackupRecovery from "./components/BackupRecovery";
+import AccountPanel from "./components/AccountPanel";
 import JobsPanel from "./components/JobsPanel";
 import CompanyForm from "./components/CompanyForm";
 import SiteManager from "./components/SiteManager";
@@ -78,7 +79,11 @@ const creditLimitOf=(map,phone)=>{
   const n=norm(phone||"");
   return pN((map&&map[n])||0);
 };
-const iT   = inv => inv.items.reduce((s,it)=>s+pN(it.qty)*pN(it.price),0)+pN(inv.shipping||0);
+// r18: الضريبة الاختيارية — iTax يحسب مبلغ ضريبة الفاتورة من نسبتها (٪)، وiT يشملها في الإجمالي
+const iTax = inv => { const r=pN(inv.taxRate||0); if(!(r>0))return 0; const sub=inv.items.reduce((s,it)=>s+pN(it.qty)*pN(it.price),0); return +(sub*r/100).toFixed(2); };
+const iT   = inv => inv.items.reduce((s,it)=>s+pN(it.qty)*pN(it.price),0)+pN(inv.shipping||0)+iTax(inv);
+// r18: الضريبة الافتراضية للشركة (من إعداداتها: taxEnabled + defaultTaxRate)
+const companyTax = co => { const r=co&&co.dbRow; if(!r) return 0; if(r.taxEnabled===false) return 0; const v=Number(r.defaultTaxRate); return Number.isFinite(v)&&v>0?v:0; };
 const nxtN = list=>{ const ns=list.map(i=>parseInt(i.invNum?.replace(/\D/g,"")||0)); return"INV"+(Math.max(0,...ns)+1); };
 const getStatus = inv => { if(inv.status==='cancelled')return'cancel'; const tot=iT(inv);const paid=pN(inv.paid||0); return paid>=tot?"paid":paid>0?"part":"unp"; };
 const stLabel  = {paid:"مدفوعة",part:"جزئي",unp:"غير مدفوعة",cancel:"ملغية"};
@@ -637,7 +642,8 @@ const logoBlock=logoImg
 
 const pages = invList.map(inv => {
 const sub=inv.items.reduce((s,it)=>s+pN(it.qty)*pN(it.price),0);
-const ship=pN(inv.shipping||0);const tot=sub+ship;const paid=pN(inv.paid||0);
+const taxR=pN(inv.taxRate||0);const tax=+(sub*taxR/100).toFixed(2);
+const ship=pN(inv.shipping||0);const tot=sub+tax+ship;const paid=pN(inv.paid||0);
 const due=tot-paid;
 const isCancelled=inv.status==='cancelled';
 const stC=isCancelled?"#6b7280":due<=0?"#16a34a":paid>0?"#b45309":"#dc2626";
@@ -711,6 +717,7 @@ ${S.topBar?`<div style="height:7px;background:linear-gradient(90deg,${acc},${lig
 <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
   <table style="min-width:260px;border-collapse:collapse;border:${boxBorder};border-radius:${S.id==="minimal"?"0px":"6px"};overflow:hidden;">
     <tr style="border-bottom:1px solid ${rowBorder};"><td style="padding:7px 16px;color:#6b7280;font-size:12.5px;">المجموع الجزئي</td><td style="padding:7px 16px;text-align:left;font-size:12.5px;font-weight:600;direction:ltr;">${fKWD(sub)}</td></tr>
+    ${tax>0?`<tr style="border-bottom:1px solid ${rowBorder};"><td style="padding:7px 16px;color:#6b7280;font-size:12.5px;">الضريبة (${taxR}%)</td><td style="padding:7px 16px;text-align:left;font-size:12.5px;font-weight:600;direction:ltr;">${fKWD(tax)}</td></tr>`:""}
     ${ship>0?`<tr style="border-bottom:1px solid ${rowBorder};"><td style="padding:7px 16px;color:#6b7280;font-size:12.5px;">التوصيل</td><td style="padding:7px 16px;text-align:left;font-size:12.5px;font-weight:600;direction:ltr;">${fKWD(ship)}</td></tr>`:""}
     <tr style="${totalBgStyle};color:${S.totalColor};"><td style="padding:10px 16px;font-size:13.5px;font-weight:800;">إجمالي الفاتورة</td><td style="padding:10px 16px;text-align:left;font-size:13.5px;font-weight:900;direction:ltr;">${fKWD(tot)}</td></tr>
     <tr style="border-bottom:1px solid ${rowBorder};"><td style="padding:7px 16px;font-size:12.5px;color:#374151;">المدفوع</td><td style="padding:7px 16px;text-align:left;font-size:12.5px;font-weight:700;direction:ltr;">${fKWD(paid)}</td></tr>
@@ -1155,7 +1162,8 @@ return(
 function InvPreview({inv, company}){
 const c = company;
 const sub=inv.items.reduce((s,it)=>s+pN(it.qty)*pN(it.price),0);
-const ship=pN(inv.shipping||0);const tot=sub+ship;const paid=pN(inv.paid||0);
+const taxR=pN(inv.taxRate||0);const tax=+(sub*taxR/100).toFixed(2);
+const ship=pN(inv.shipping||0);const tot=sub+tax+ship;const paid=pN(inv.paid||0);
 const due=tot-paid;
 const isCancelled=inv.status==='cancelled';
 const stC=stColor[getStatus(inv)];
@@ -1229,6 +1237,7 @@ return(
 <table style={{minWidth:"245px",borderCollapse:"collapse"}}>
 <tbody>
 <tr><td style={{padding:"6px 14px",borderBottom:"1px solid #f0f0f0",color:"#666",fontSize:"12.5px"}}>المجموع الجزئي</td><td style={{padding:"6px 14px",borderBottom:"1px solid #f0f0f0",textAlign:"left",fontWeight:600,fontSize:"12.5px",direction:"ltr"}}>{fKWD(sub)}</td></tr>
+{tax>0&&<tr><td style={{padding:"6px 14px",borderBottom:"1px solid #f0f0f0",color:"#666",fontSize:"12.5px"}}>الضريبة ({taxR}%)</td><td style={{padding:"6px 14px",borderBottom:"1px solid #f0f0f0",textAlign:"left",fontWeight:600,fontSize:"12.5px",direction:"ltr"}}>{fKWD(tax)}</td></tr>}
 {ship>0&&<tr><td style={{padding:"6px 14px",borderBottom:"1px solid #f0f0f0",color:"#666",fontSize:"12.5px"}}>التوصيل</td><td style={{padding:"6px 14px",borderBottom:"1px solid #f0f0f0",textAlign:"left",fontWeight:600,fontSize:"12.5px",direction:"ltr"}}>{fKWD(ship)}</td></tr>}
 <tr style={{background:c.color}}><td style={{padding:"9px 14px",color:"#fff",fontWeight:800,fontSize:"13px"}}>إجمالي الفاتورة</td><td style={{padding:"9px 14px",color:"#fff",fontWeight:900,fontSize:"13px",textAlign:"left",direction:"ltr"}}>{fKWD(tot)}</td></tr>
 <tr><td style={{padding:"6px 14px",borderBottom:"1px solid #f0f0f0",color:"#16a34a",fontSize:"12.5px"}}>المدفوع</td><td style={{padding:"6px 14px",borderBottom:"1px solid #f0f0f0",textAlign:"left",fontWeight:600,color:"#16a34a",fontSize:"12.5px",direction:"ltr"}}>{fKWD(paid)}</td></tr>
@@ -2403,7 +2412,7 @@ const [dbCompanies,setDbCompanies]=useState(null); // r12: سجل الشركات
 const [companyModal,setCompanyModal]=useState(null); // r12: {mode:'create'} | {mode:'edit',company}
 const { dark, toggle } = useTheme();   // light/dark theme (hooks must run before early returns)
 
-const emptyForm=()=>({clientName:"",clientPhone:"",clientAddress:"",items:[{name:"",desc:"",qty:1,price:""}],shipping:0,date:today(),dueDate:addD(today(),30),paid:0,notes:""});
+const emptyForm=()=>({clientName:"",clientPhone:"",clientAddress:"",items:[{name:"",desc:"",qty:1,price:""}],shipping:0,taxRate:"",date:today(),dueDate:addD(today(),30),paid:0,notes:""});
 const [form,setForm]=useState(emptyForm());
 
 // Filter available companies based on user permissions
@@ -2588,7 +2597,7 @@ const openEdit=(inv)=>{
     clientName:inv.clientName||"",clientPhone:inv.clientPhone||"",
     clientAddress:inv.clientAddress||"",
     items:inv.items.map(it=>({...it})),
-    shipping:inv.shipping??0,date:inv.date,dueDate:inv.dueDate,
+    shipping:inv.shipping??0,taxRate:inv.taxRate??0,date:inv.date,dueDate:inv.dueDate,
     paid:inv.paid??0,notes:inv.notes||"",status:inv.status||"",
   });
   setSelInv(null);
@@ -2601,7 +2610,7 @@ const updateInvoice=async()=>{
   const updated={...editingInv,clientName:name,clientPhone:phone,
     clientAddress:editForm.clientAddress,
     items:editForm.items.map(it=>({...it,qty:parseInt(toW(String(it.qty)))||1,price:pN(it.price)})),
-    shipping:pN(editForm.shipping),date:editForm.date,dueDate:editForm.dueDate,
+    shipping:pN(editForm.shipping),taxRate:(editForm.taxRate!==""&&editForm.taxRate!=null?pN(editForm.taxRate):companyTax(company)),date:editForm.date,dueDate:editForm.dueDate,
     paid:pN(editForm.paid),notes:editForm.notes,status:editForm.status||"",updatedAt:new Date().toISOString()};
   const list=invoices.map(inv=>inv.id===updated.id?updated:inv);
   await persist(list);
@@ -2663,7 +2672,7 @@ const name=form.clientName||phone||"عميل";
 }
 const newInv={id:Date.now(),invNum:nxtN(invoices),clientName:name,clientPhone:phone,
 clientAddress:form.clientAddress,items:form.items.map(it=>({...it,qty:parseInt(toW(it.qty))||1,price:pN(it.price)})),
-shipping:pN(form.shipping),date:form.date,dueDate:form.dueDate,paid:pN(form.paid),notes:form.notes,createdAt:new Date().toISOString()};
+shipping:pN(form.shipping),taxRate:(form.taxRate!==""&&form.taxRate!=null?pN(form.taxRate):companyTax(company)),date:form.date,dueDate:form.dueDate,paid:pN(form.paid),notes:form.notes,createdAt:new Date().toISOString()};
 const list=[...invoices,newInv];
 await persist(list);
 api.createInvoice({...newInv,companySlug:company?.sk},company?.sk).then(()=>refreshInvoices()).catch(()=>{});
@@ -2693,7 +2702,7 @@ bulkParsed.forEach(b=>{
   date:b.date,dueDate:b.dueDate,paid:0,notes:"",createdAt:new Date().toISOString()});
 });
 await persist([...list,...newBulk]);
-api.bulkCreateInvoices(newBulk,company?.sk).then(()=>refreshInvoices()).catch(()=>{});
+api.bulkCreateInvoices(newBulk.map(v=>({...v,taxRate:v.taxRate??companyTax(company)})),company?.sk).then(()=>refreshInvoices()).catch(()=>{});
 setBulkStep(2);toast_(`✅ تم حفظ ${bulkParsed.length} فاتورة`);
 };
 
@@ -2785,6 +2794,7 @@ const TABS=[
 {id:"chat",l:"💬 المساعد الذكي"},
 {id:"print",l:"🖨️ طباعة"},
 {id:"purchase",l:"🛒 المشتريات"},
+{id:"account",l:"👤 حسابي"},
 {id:"deepseek",l:"🧠 DeepSeek"},
 {id:"site",l:"🌐 الموقع"},
 {id:"system",l:"💾 النظام"},
@@ -2795,7 +2805,7 @@ const TABS=[
 const [sitePage,setSitePage]=useState(null);
 useEffect(()=>{
   const apply=()=>{
-    const m=location.hash.match(/^#\/(team|founder|login|reset)?(\?.*)?$/);
+    const m=location.hash.match(/^#\/(team|founder|login|reset|pricing)?(\?.*)?$/);
     setSitePage(m?(m[1]||"home"):null);
   };
   apply();
@@ -2883,7 +2893,7 @@ return(
       existingInvoices={invoices}
       onImport={async newInvs=>{
         setInvoices(p=>[...p,...newInvs]);
-        api.bulkCreateInvoices(newInvs,company?.sk).then(()=>refreshInvoices()).catch(()=>{});
+        api.bulkCreateInvoices(newInvs.map(v=>({...v,taxRate:v.taxRate??companyTax(company)})),company?.sk).then(()=>refreshInvoices()).catch(()=>{});
         setShowAliphia(false);
         toast_(`✅ تم استيراد ${newInvs.length} فاتورة من Aliphia`);
         setView("list");
@@ -2992,7 +3002,7 @@ return(
           onOpenInvoice={inv=>{setSelInv(inv);setView("list");}}
           onImportDone={async newInvs=>{
             setInvoices(p=>[...p,...newInvs]);
-            api.bulkCreateInvoices(newInvs,company?.sk).then(()=>refreshInvoices()).catch(()=>{});
+            api.bulkCreateInvoices(newInvs.map(v=>({...v,taxRate:v.taxRate??companyTax(company)})),company?.sk).then(()=>refreshInvoices()).catch(()=>{});
             toast_(`✅ تم استيراد البيانات من Aliphia`);
           }}
         />
@@ -3266,15 +3276,19 @@ return(
           </div>
         ))}
         <button className="btn btn-outline" style={{marginBottom:"12px",fontSize:"12px"}} onClick={()=>setForm(f=>({...f,items:[...f.items,{name:"",desc:"",qty:1,price:""}]}))}>+ إضافة منتج</button>
-        <div className="form-2col" style={{marginBottom:"12px"}}>
-          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>التوصيل (KD) — 0 للمجاني</label>
+        <div className="form-3col" style={{marginBottom:"12px"}}>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>التوصيل ({currencySymbol()}) — 0 للمجاني</label>
             <input className="inp" placeholder="0.000" value={form.shipping} onChange={e=>setField("shipping",e.target.value)}/></div>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>🧾 الضريبة (٪) — اختيارية{companyTax(company)>0?` — افتراضي الشركة ${companyTax(company)}٪`:""}</label>
+            <input className="inp" type="number" min="0" max="100" step="0.5" inputMode="decimal" placeholder={String(companyTax(company)||0)} value={form.taxRate} onChange={e=>setField("taxRate",e.target.value)}/></div>
           <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>ملاحظات</label>
             <input className="inp" value={form.notes} onChange={e=>setField("notes",e.target.value)}/></div>
         </div>
-        {(()=>{const sub=form.items.reduce((s,it)=>s+(parseInt(toW(it.qty))||1)*pN(it.price),0);const ship=pN(form.shipping);const tot=sub+ship;
-          return(<div style={{background:cardBg,borderRadius:"9px",padding:"11px 16px",marginBottom:"14px",display:"flex",gap:"16px",fontSize:"13px",border:`1px solid ${col}22`}}>
-            <span>المجموع: <b>{fKWD(sub)}</b></span>{ship>0&&<span>التوصيل: <b>{fKWD(ship)}</b></span>}
+        {(()=>{const sub=form.items.reduce((s,it)=>s+(parseInt(toW(it.qty))||1)*pN(it.price),0);const ship=pN(form.shipping);const rate=form.taxRate!==""&&form.taxRate!=null?pN(form.taxRate):companyTax(company);const tax=+(sub*rate/100).toFixed(2);const tot=sub+tax+ship;
+          return(<div style={{background:cardBg,borderRadius:"9px",padding:"11px 16px",marginBottom:"14px",display:"flex",gap:"16px",fontSize:"13px",border:`1px solid ${col}22`,flexWrap:"wrap"}}>
+            <span>المجموع: <b>{fKWD(sub)}</b></span>
+            {tax>0&&<span>الضريبة ({rate}%): <b>{fKWD(tax)}</b></span>}
+            {ship>0&&<span>التوصيل: <b>{fKWD(ship)}</b></span>}
             <span style={{fontWeight:900,color:colTx}}>الإجمالي: <b>{fKWD(tot)}</b></span>
           </div>);})()}
         {/* Live credit-limit warning for the entered client phone */}
@@ -3364,19 +3378,22 @@ return(
         ))}
         <button className="btn btn-outline" style={{marginBottom:"12px",fontSize:"12px"}} onClick={()=>setEditForm(f=>({...f,items:[...f.items,{name:"",desc:"",qty:1,price:""}]}))}>+ إضافة منتج</button>
 
-        <div className="form-2col" style={{marginBottom:"12px"}}>
-          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>التوصيل (KD) — 0 للمجاني</label>
+        <div className="form-3col" style={{marginBottom:"12px"}}>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>التوصيل ({currencySymbol()}) — 0 للمجاني</label>
             <input className="inp" placeholder="0.000" value={editForm.shipping} onChange={e=>setEditField("shipping",e.target.value)}/></div>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>🧾 الضريبة (٪) — اختيارية{companyTax(company)>0?` — افتراضي الشركة ${companyTax(company)}٪`:""}</label>
+            <input className="inp" type="number" min="0" max="100" step="0.5" inputMode="decimal" placeholder={String(companyTax(company)||0)} value={editForm.taxRate} onChange={e=>setEditField("taxRate",e.target.value)}/></div>
           <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>ملاحظات</label>
             <input className="inp" value={editForm.notes} onChange={e=>setEditField("notes",e.target.value)}/></div>
         </div>
 
         {(()=>{
           const sub=editForm.items.reduce((s,it)=>(parseInt(toW(String(it.qty)))||1)*pN(it.price)+s,0);
-          const ship=pN(editForm.shipping);const tot=sub+ship;
+          const ship=pN(editForm.shipping);const rate=editForm.taxRate!==""&&editForm.taxRate!=null?pN(editForm.taxRate):companyTax(company);const tax=+(sub*rate/100).toFixed(2);const tot=sub+tax+ship;
           return(
-            <div style={{background:cardBg,borderRadius:"9px",padding:"11px 16px",marginBottom:"14px",display:"flex",gap:"16px",fontSize:"13px",border:`1px solid ${col}22`}}>
+            <div style={{background:cardBg,borderRadius:"9px",padding:"11px 16px",marginBottom:"14px",display:"flex",gap:"16px",fontSize:"13px",border:`1px solid ${col}22`,flexWrap:"wrap"}}>
               <span>المجموع: <b>{fKWD(sub)}</b></span>
+              {tax>0&&<span>الضريبة ({rate}%): <b>{fKWD(tax)}</b></span>}
               {ship>0&&<span>التوصيل: <b>{fKWD(ship)}</b></span>}
               <span style={{fontWeight:900,color:colTx}}>الإجمالي: <b>{fKWD(tot)}</b></span>
             </div>
@@ -3550,6 +3567,12 @@ return(
     {view==="chat"&&(
       <div style={{animation:"fadeUp .25s"}}>
         <SmartChat company={company} onDataChanged={()=>{ refreshInvoices(); refreshClients(); }} />
+      </div>
+    )}
+
+    {view==="account"&&(
+      <div style={{animation:"fadeUp .25s"}}>
+        <AccountPanel toast_={toast_} />
       </div>
     )}
 

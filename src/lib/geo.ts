@@ -1,70 +1,50 @@
 import type { NextRequest } from "next/server";
 import { cacheWrap } from "@/lib/cache";
+import { WORLD_BY_CODE, WORLD_COUNTRIES, worldCountryOf, type WorldCountry } from "@/lib/countries-world";
 
 /**
- * r17: التسعير العالمي بالدولار + التحويل لعملة بلد الزائر حسب الـ IP.
+ * r17+r18: التسعير العالمي بالدولار + التحويل لعملة بلد الزائر حسب الـ IP + الضرائب لكل دولة.
  *
- * - 22 دولة عربية بعملاتها وأعلامها وأرقامها الدولية.
- * - أسعار الصرف مقابل USD من open.er-api.com (مجاني بلا مفتاح، تحديث يومي)
- *   مع كاش Valkey 6 ساعات + أرقام احتياطية ثابتة عند تعطل الشبكة.
- * - تحديد البلد من الـ IP: ترويسات CDN أولاً (cf-ipcountry / x-vercel-ip-country)
- *   ثم ip-api.com للـ IP العام (كاش ساعة لكل IP) — والافتراضي الكويت.
+ * - ١٩٦ دولة بعملاتها (countries-world.ts) — أسعار الصرف من open.er-api.com
+ *   (مجاني بلا مفتاح، ~١٦٠ عملة، تحديث يومي) مع كاش Valkey ٦ ساعات + أرقام احتياطية.
+ * - تحديد البلد من الـ IP: ترويسات CDN أولاً ثم ip-api.com (كاش ساعة لكل IP) — افتراضي الكويت.
+ * - ضريبة القيمة المضافة القياسية لكل دولة (vat) — اختيارية تماماً عند الفوترة
+ *   (تفعيل ونسبة افتراضية من إعدادات الشركة، وتعديل لكل فاتورة).
  */
 
-// ── جدول الدول العربية (22 دولة) ──
-export interface ArabCountry {
-  code: string; // ISO-3166 alpha-2
-  nameAr: string;
-  currency: string; // ISO-4217
-  currencyAr: string;
-  flag: string;
-  dial: string;
-  decimals: number; // منازل عرض الأسعار بعملة البلد
+export { worldCountryOf, WORLD_BY_CODE, WORLD_COUNTRIES };
+export type { WorldCountry };
+
+// ── علم الدولة من رمزها (رموز المؤشرات الإقليمية) ──
+export function flagOf(code: string | null | undefined): string {
+  const c = String(code || "").toUpperCase();
+  if (!/^[A-Z]{2}$/.test(c)) return "🌍";
+  return String.fromCodePoint(...[...c].map((ch) => 0x1f1e6 + ch.charCodeAt(0) - 65));
 }
 
-export const ARAB_COUNTRIES: ArabCountry[] = [
-  { code: "KW", nameAr: "الكويت",     currency: "KWD", currencyAr: "دينار كويتي",    flag: "🇰🇼", dial: "+965",  decimals: 3 },
-  { code: "SA", nameAr: "السعودية",   currency: "SAR", currencyAr: "ريال سعودي",     flag: "🇸🇦", dial: "+966",  decimals: 2 },
-  { code: "AE", nameAr: "الإمارات",    currency: "AED", currencyAr: "درهم إماراتي",   flag: "🇦🇪", dial: "+971",  decimals: 2 },
-  { code: "QA", nameAr: "قطر",        currency: "QAR", currencyAr: "ريال قطري",      flag: "🇶🇦", dial: "+974",  decimals: 2 },
-  { code: "BH", nameAr: "البحرين",    currency: "BHD", currencyAr: "دينار بحريني",   flag: "🇧🇭", dial: "+973",  decimals: 3 },
-  { code: "OM", nameAr: "عُمان",      currency: "OMR", currencyAr: "ريال عماني",     flag: "🇴🇲", dial: "+968",  decimals: 3 },
-  { code: "IQ", nameAr: "العراق",     currency: "IQD", currencyAr: "دينار عراقي",    flag: "🇮🇶", dial: "+964",  decimals: 0 },
-  { code: "JO", nameAr: "الأردن",     currency: "JOD", currencyAr: "دينار أردني",    flag: "🇯🇴", dial: "+962",  decimals: 2 },
-  { code: "LB", nameAr: "لبنان",      currency: "LBP", currencyAr: "ليرة لبنانية",   flag: "🇱🇧", dial: "+961",  decimals: 0 },
-  { code: "SY", nameAr: "سوريا",      currency: "SYP", currencyAr: "ليرة سورية",     flag: "🇸🇾", dial: "+963",  decimals: 0 },
-  { code: "YE", nameAr: "اليمن",      currency: "YER", currencyAr: "ريال يمني",      flag: "🇾🇪", dial: "+967",  decimals: 0 },
-  { code: "EG", nameAr: "مصر",        currency: "EGP", currencyAr: "جنيه مصري",      flag: "🇪🇬", dial: "+20",   decimals: 2 },
-  { code: "LY", nameAr: "ليبيا",      currency: "LYD", currencyAr: "دينار ليبي",     flag: "🇱🇾", dial: "+218",  decimals: 2 },
-  { code: "TN", nameAr: "تونس",       currency: "TND", currencyAr: "دينار تونسي",    flag: "🇹🇳", dial: "+216",  decimals: 2 },
-  { code: "DZ", nameAr: "الجزائر",    currency: "DZD", currencyAr: "دينار جزائري",   flag: "🇩🇿", dial: "+213",  decimals: 0 },
-  { code: "MA", nameAr: "المغرب",     currency: "MAD", currencyAr: "درهم مغربي",     flag: "🇲🇦", dial: "+212",  decimals: 2 },
-  { code: "MR", nameAr: "موريتانيا",  currency: "MRU", currencyAr: "أوقية موريتانية", flag: "🇲🇷", dial: "+222",  decimals: 0 },
-  { code: "SD", nameAr: "السودان",    currency: "SDG", currencyAr: "جنيه سوداني",    flag: "🇸🇩", dial: "+249",  decimals: 0 },
-  { code: "SO", nameAr: "الصومال",    currency: "SOS", currencyAr: "شلن صومالي",     flag: "🇸🇴", dial: "+252",  decimals: 0 },
-  { code: "DJ", nameAr: "جيبوتي",     currency: "DJF", currencyAr: "فرنك جيبوتي",    flag: "🇩🇯", dial: "+253",  decimals: 0 },
-  { code: "KM", nameAr: "جزر القمر",  currency: "KMF", currencyAr: "فرنك قمري",      flag: "🇰🇲", dial: "+269",  decimals: 0 },
-  { code: "PS", nameAr: "فلسطين",     currency: "ILS", currencyAr: "شيكل",           flag: "🇵🇸", dial: "+970",  decimals: 2 },
-];
+// ── منازل العرض لكل عملة (0 / 2 / 3) ──
+const ZERO_DECIMALS = new Set([
+  "JPY", "KRW", "VND", "CLP", "DJF", "KMF", "XOF", "XAF", "XPF", "GNF", "RWF", "UGX", "VUV",
+]);
+const THREE_DECIMALS = new Set(["KWD", "BHD", "OMR", "JOD", "IQD", "TND", "LYD"]);
 
-const BY_CODE = new Map(ARAB_COUNTRIES.map((c) => [c.code, c]));
-export const DEFAULT_COUNTRY = BY_CODE.get("KW")!;
-
-export function countryOf(code: string | null | undefined): ArabCountry {
-  return BY_CODE.get(String(code || "").toUpperCase()) || DEFAULT_COUNTRY;
-}
-
-export function isArabCountry(code: string | null | undefined): boolean {
-  return BY_CODE.has(String(code || "").toUpperCase());
+function decimalsOf(currency: string): number {
+  const c = currency.toUpperCase();
+  if (c === "MRU" || c === "MGA") return 1; // الأوقية والأرياري بأنصف وحدات
+  if (ZERO_DECIMALS.has(c)) return 0;
+  if (THREE_DECIMALS.has(c)) return 3;
+  return 2;
 }
 
 // ── أسعار الصرف الاحتياطية (USD → عملة) عند تعطل المصدر الخارجي ──
-// أرقام تقريبية محدّثة — تُستخدم فقط كي لا تتعطل واجهة التسعير.
+// أرقام تقريبية — تُستخدم فقط كي لا تتعطل واجهة التسعير.
 const FALLBACK_USD_RATES: Record<string, number> = {
-  USD: 1, KWD: 0.307, SAR: 3.75, AED: 3.6725, QAR: 3.64, BHD: 0.376, OMR: 0.3845,
-  IQD: 1310, JOD: 0.709, LBP: 89500, SYP: 13000, YER: 830, EGP: 48.2, LYD: 5.42,
-  TND: 3.12, DZD: 134, MAD: 9.9, MRU: 39.8, SDG: 601, SOS: 571, DJF: 177.7,
-  KMF: 457, ILS: 3.65,
+  USD: 1, EUR: 0.92, GBP: 0.79, JPY: 152, CNY: 7.24, CHF: 0.88, CAD: 1.37, AUD: 1.52,
+  INR: 84, TRY: 34.5, BRL: 5.5, RUB: 92, KRW: 1380, IDR: 15800, MXN: 18.5, ZAR: 17.8,
+  SGD: 1.34, NZD: 1.66, HKD: 7.79, SEK: 10.7, NOK: 10.9, DKK: 6.9, PLN: 4.05, CZK: 23.2,
+  HUF: 365, ILS: 3.72, PHP: 58.5, MYR: 4.7, THB: 34.5, VND: 25400, AED: 3.6725, SAR: 3.75,
+  QAR: 3.64, KWD: 0.307, BHD: 0.376, OMR: 0.3845, EGP: 48.2, JOD: 0.709, IQD: 1310,
+  MAD: 9.9, TND: 3.12, DZD: 134, LYD: 5.42, SDG: 601, YER: 830, SYP: 13000, LBP: 89500,
 };
 
 export interface UsdRates {
@@ -110,13 +90,7 @@ function isPrivateIp(ip: string): boolean {
     ip.startsWith("127.") ||
     ip.startsWith("10.") ||
     ip.startsWith("192.168.") ||
-    ip.startsWith("172.16.") ||
-    ip.startsWith("172.17.") ||
-    ip.startsWith("172.18.") ||
-    ip.startsWith("172.19.") ||
-    ip.startsWith("172.2") ||
-    ip.startsWith("172.30.") ||
-    ip.startsWith("172.31.") ||
+    ip.startsWith("172.") && (() => { const n = parseInt(ip.split(".")[1] || "0", 10); return n >= 16 && n <= 31; })() ||
     ip.startsWith("::1") ||
     ip.startsWith("fd") ||
     ip.startsWith("fe80")
@@ -135,14 +109,10 @@ async function lookupIpCountry(ip: string): Promise<string | null> {
         cache: "no-store",
       });
       const data = (await res.json()) as { status?: string; countryCode?: string };
-      if (data.status === "success" && data.countryCode && isArabCountry(data.countryCode)) {
-        ipCountryCache.set(ip, { code: data.countryCode, at: Date.now() });
-        return data.countryCode;
-      }
       if (data.status === "success" && data.countryCode) {
-        // زائر من خارج الدول العربية → نعرض الدولار نفسه مع ذكر بلده
-        ipCountryCache.set(ip, { code: "USD", at: Date.now() });
-        return "USD";
+        const code = data.countryCode.toUpperCase();
+        ipCountryCache.set(ip, { code, at: Date.now() });
+        return code; // قد يكون أي دولة في العالم (أو غير معروفة لدينا → null عند الاستخدام)
       }
     } finally {
       clearTimeout(t);
@@ -154,27 +124,45 @@ async function lookupIpCountry(ip: string): Promise<string | null> {
 }
 
 export interface PricingGeo {
-  country: ArabCountry | null; // null = زائر من خارج الدول العربية (عرض بالدولار)
+  country: WorldCountry | null; // null = غير معروف (عرض بالدولار)
+  countryCode: string | null;
   currency: string;
-  currencyAr: string;
+  currencyAr: string | null;
   flag: string;
   decimals: number;
   rate: number; // USD → currency
   rateSource: "live" | "fallback";
-  detected: "header" | "ip" | "default" | "override" | "outside";
-  visitorCountryName: string | null; // اسم بلد الزائر إن كان خارج الدول العربية
+  detected: "header" | "ip" | "default" | "override" | "unknown";
+  vat: number; // نسبة الضريبة القياسية للبلد (%)
+}
+
+/** كشف بلد الطلب (ترويسة → IP) دون أسعار — يستعمله التسجيل لحفظ بلد المشترك */
+export async function detectCountry(req: NextRequest): Promise<{ code: string; how: "header" | "ip" | "default" }> {
+  const h =
+    req.headers.get("cf-ipcountry") ||
+    req.headers.get("x-vercel-ip-country") ||
+    req.headers.get("x-country-code");
+  if (h && WORLD_BY_CODE[h.toUpperCase()]) return { code: h.toUpperCase(), how: "header" };
+  const fwd = req.headers.get("x-forwarded-for");
+  const ip = (fwd ? fwd.split(",")[0].trim() : req.headers.get("x-real-ip") || "local") || "local";
+  if (!isPrivateIp(ip)) {
+    const looked = await lookupIpCountry(ip);
+    if (looked && WORLD_BY_CODE[looked]) return { code: looked, how: "ip" };
+    if (looked) return { code: looked, how: "ip" }; // بلد معروف للشبكة لكن ليس في جدولنا
+  }
+  return { code: "KW", how: "default" };
 }
 
 /**
- * سياق التسعير للطلب: بلد الزائر (ترويسة → IP → الكويت افتراضياً) + سعر الصرف.
- * `override` (اختياري): كود بلد عربي من منتقي الدول في الواجهة.
+ * سياق التسعير للطلب: بلد الزائر (ترويسة → IP → الكويت افتراضياً) + سعر الصرف + الضريبة.
+ * `override` (اختياري): كود بلد من منتقي الدول في الواجهة (أي بلد في العالم).
  */
 export async function resolvePricingGeo(req: NextRequest, override?: string | null): Promise<PricingGeo> {
   let code: string | null = null;
   let detected: PricingGeo["detected"] = "default";
 
-  // 0) تجاوز صريح من منتقي الدول (عربي فقط)
-  if (override && isArabCountry(override)) {
+  // 0) تجاوز صريح من منتقي الدول
+  if (override && WORLD_BY_CODE[override.toUpperCase()]) {
     code = override.toUpperCase();
     detected = "override";
   }
@@ -185,12 +173,15 @@ export async function resolvePricingGeo(req: NextRequest, override?: string | nu
       req.headers.get("cf-ipcountry") ||
       req.headers.get("x-vercel-ip-country") ||
       req.headers.get("x-country-code");
-    if (h && isArabCountry(h)) {
-      code = h.toUpperCase();
-      detected = "header";
-    } else if (h) {
-      code = "USD";
-      detected = "outside";
+    if (h) {
+      const up = h.toUpperCase();
+      if (WORLD_BY_CODE[up]) {
+        code = up;
+        detected = "header";
+      } else {
+        code = "USD";
+        detected = "unknown";
+      }
     }
   }
 
@@ -200,52 +191,53 @@ export async function resolvePricingGeo(req: NextRequest, override?: string | nu
     const ip = (fwd ? fwd.split(",")[0].trim() : req.headers.get("x-real-ip") || "local") || "local";
     if (!isPrivateIp(ip)) {
       const looked = await lookupIpCountry(ip);
-      if (looked && isArabCountry(looked)) {
-        code = looked;
-        detected = "ip";
-      } else if (looked === "USD") {
-        code = "USD";
-        detected = "outside";
+      if (looked) {
+        if (WORLD_BY_CODE[looked]) {
+          code = looked;
+          detected = "ip";
+        } else {
+          code = "USD";
+          detected = "unknown";
+        }
       }
     }
   }
 
-  // 3) الافتراضي: الكويت (السوق الأساسي للمنتج)
-  if (!code) code = "KW";
-
   const rates = await getUsdRates();
   if (code === "USD") {
     return {
-      country: null,
-      currency: "USD",
-      currencyAr: "دولار أمريكي",
-      flag: "🌍",
-      decimals: 2,
-      rate: 1,
-      rateSource: rates.source,
-      detected,
-      visitorCountryName: null,
+      country: null, countryCode: null, currency: "USD", currencyAr: "دولار أمريكي",
+      flag: "🌍", decimals: 2, rate: 1, rateSource: rates.source, detected, vat: 0,
     };
   }
-  const c = countryOf(code);
+
+  // 3) الافتراضي: الكويت (السوق الأساسي للمنتج)
+  const country = code ? worldCountryOf(code) : null;
+  const c = country ?? worldCountryOf("KW")!;
   const rate = rates.rates[c.currency] ?? FALLBACK_USD_RATES[c.currency] ?? 1;
   return {
     country: c,
+    countryCode: c.code,
     currency: c.currency,
-    currencyAr: c.currencyAr,
-    flag: c.flag,
-    decimals: c.decimals,
+    currencyAr: null,
+    flag: flagOf(c.code),
+    decimals: decimalsOf(c.currency),
     rate,
     rateSource: rates.source,
     detected,
-    visitorCountryName: null,
+    vat: c.vat,
   };
 }
 
-/** تحويل سعر دولار وتنسيقه بعملة البلد — "٥٧٫٠٠ ر.س" أو "٣٩٩٠ د.ع" */
+/** تحويل سعر دولار وتنسيقه بعملة البلد — "٥٧٫٠٠ SAR" أو "٣٩٩٠ IQD" */
 export function convertAndFormat(usd: number, geo: PricingGeo): { amount: number; formatted: string; currency: string } {
   const amount = usd * geo.rate;
   const rounded = geo.decimals === 0 ? Math.round(amount) : Number(amount.toFixed(geo.decimals));
   const shown = geo.decimals === 0 ? String(rounded) : rounded.toFixed(geo.decimals);
   return { amount: rounded, formatted: `${shown} ${geo.currency}`, currency: geo.currency };
+}
+
+/** الضريبة القياسية لبلد ما (0 إذا غير معروفة) — للاقتراح في إعدادات الشركة */
+export function vatOf(code: string | null | undefined): number {
+  return worldCountryOf(code)?.vat ?? 0;
 }

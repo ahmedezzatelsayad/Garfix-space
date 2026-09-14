@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { cacheWrap, cacheDelPattern } from "@/lib/cache";
 import { requireAdmin, getSessionAppUser } from "@/lib/auth-server";
+import { checkCompaniesQuota } from "@/lib/plans";
 
 /**
  * r12: إدارة الشركات — سجل كامل قابل للتعديل من الواجهة (كانت hard-coded في الواجهة فقط).
@@ -33,6 +34,8 @@ interface CompanyProfile {
   cardBg: string | null;
   emoji: string | null;
   logo: string | null;
+  taxEnabled: boolean;
+  defaultTaxRate: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -55,6 +58,8 @@ function serializeCompany(c: {
   cardBg: string | null;
   emoji: string | null;
   logo: string | null;
+  taxEnabled: boolean;
+  defaultTaxRate: number | null;
   createdAt: Date;
   updatedAt: Date;
 }): CompanyProfile {
@@ -76,6 +81,8 @@ function serializeCompany(c: {
     cardBg: c.cardBg,
     emoji: c.emoji,
     logo: c.logo,
+    taxEnabled: c.taxEnabled,
+    defaultTaxRate: c.defaultTaxRate,
     createdAt: c.createdAt.toISOString(),
     updatedAt: c.updatedAt.toISOString(),
   };
@@ -120,6 +127,13 @@ export async function POST(req: NextRequest) {
   const denied = requireAdmin(req);
   const subscriber = denied ? await getSessionAppUser(req) : null;
   if (denied && !subscriber) return denied;
+  // r17: حصة المشترك — عدد الشركات محدود بخطته (المدير/الموظف غير محدودين)
+  if (subscriber) {
+    const quota = await checkCompaniesQuota(subscriber.appUser);
+    if (!quota.ok) {
+      return NextResponse.json({ error: quota.message, code: quota.code }, { status: 403 });
+    }
+  }
   try {
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
 
@@ -184,6 +198,12 @@ export async function POST(req: NextRequest) {
         cardBg: str(body.cardBg) ?? "#f1f5f9",
         emoji: str(body.emoji, 8) ?? "🏢",
         logo: str(body.emoji, 8) ?? "🏢",
+        // r18: الضرائب الاختيارية — التفعيل + النسبة الافتراضية (٪)
+        taxEnabled: body.taxEnabled === undefined ? true : body.taxEnabled === true || body.taxEnabled === "true",
+        defaultTaxRate:
+          body.defaultTaxRate === undefined || body.defaultTaxRate === null || body.defaultTaxRate === ""
+            ? null
+            : Math.max(0, Math.min(100, Number(body.defaultTaxRate) || 0)),
         // r16: ربط الشركة بصاحبها المشترك (يعمل كمالك لها في الواجهة)
         firebaseOwnerId: subscriber ? subscriber.appUser.email : null,
       },

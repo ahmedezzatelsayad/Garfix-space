@@ -12,11 +12,11 @@ datasource db {
 // `code` is the short routing id (e.g. "tawfeer"), `slug` stays the storage key (tw_inv_…_v1),
 // `currency` is ISO-4217 (default KWD — the Kuwaiti market baseline).
 model Company {
-  id              Int       @id @default(autoincrement())
+  id              Int      @id @default(autoincrement())
   name            String
-  slug            String    @unique // storage key: tw_inv_x_v1 (used as companySlug everywhere)
-  code            String?   @unique // short routing code: tawfeer | mahhal | boss | laqta | …
-  currency        String    @default("KWD")
+  slug            String   @unique // storage key: tw_inv_x_v1 (used as companySlug everywhere)
+  code            String?  @unique // short routing code: tawfeer | mahhal | boss | laqta | …
+  currency        String   @default("KWD")
   nameAr          String?
   phone           String?
   email           String?
@@ -30,9 +30,13 @@ model Company {
   cardBg          String?
   emoji           String?
   logo            String?
+  // r18: الضرائب الاختيارية — تفعيل الضريبة لفواتير الشركة + النسبة الافتراضية (%)
+  // النسبة المقترحة من ضريبة بلد الشركة (VAT) وقابلة للتعديل يدوياً لكل فاتورة.
+  taxEnabled      Boolean  @default(true)
+  defaultTaxRate  Float? // مثل 15 (السعودية) / 5 (الإمارات) / 0 (الكويت) — فارغ = بلا ضريبة
   firebaseOwnerId String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model Client {
@@ -50,7 +54,7 @@ model Client {
 }
 
 model Invoice {
-  id            Int      @id @default(autoincrement())
+  id            Int           @id @default(autoincrement())
   payments      Payment[]
   reminders     ReminderLog[]
   invoiceNumber String
@@ -63,31 +67,31 @@ model Invoice {
   clientAddress String?
   issueDate     String
   dueDate       String
-  status        String   @default("draft")
-  lineItems     String   @default("[]")
-  subtotal      Float    @default(0)
-  taxRate       Float    @default(0)
-  taxAmount     Float    @default(0)
-  total         Float    @default(0)
-  shipping      Float    @default(0)
-  paid          Float    @default(0)
+  status        String        @default("draft")
+  lineItems     String        @default("[]")
+  subtotal      Float         @default(0)
+  taxRate       Float         @default(0)
+  taxAmount     Float         @default(0)
+  total         Float         @default(0)
+  shipping      Float         @default(0)
+  paid          Float         @default(0)
   notes         String?
   source        String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   @@map("invoices")
 }
 
 model Payment {
-  id         Int      @id @default(autoincrement())
-  invoiceId  Int
-  amount     Float
-  method     String   @default("knet") // cash | knet | online | card
-  date       String   // YYYY-MM-DD
-  note       String?
-  createdAt  DateTime @default(now())
-  invoice    Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  id        Int      @id @default(autoincrement())
+  invoiceId Int
+  amount    Float
+  method    String   @default("knet") // cash | knet | online | card
+  date      String // YYYY-MM-DD
+  note      String?
+  createdAt DateTime @default(now())
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@map("payments")
 }
@@ -153,7 +157,7 @@ model Setting {
 // r10: مزوّد الذكاء الاصطناعي (DeepSeek) — إعداد على مستوى المشروع بأكمله
 model AiSetting {
   id              Int       @id @default(autoincrement())
-  provider        String    @default("deepseek") @unique
+  provider        String    @unique @default("deepseek")
   apiKey          String? // مفتاح DeepSeek API
   baseUrl         String    @default("https://api.deepseek.com")
   model           String    @default("deepseek-chat") // deepseek-chat | deepseek-reasoner
@@ -242,7 +246,8 @@ model AppUser {
   role          String    @default("subscriber") // subscriber (لا صلاحيات إدارية خادمياً)
   plan          String    @default("free_early") // كود الخطة من subscription_plans (r17)
   companies     String    @default("[]")
-  countryCode   String? // r17: بلد التسجيل حسب الـ IP (KW/SA/EG/…)
+  countryCode   String? // r17: بلد التسجيل حسب الـ IP (KW/SA/EG/…) — r18: قابل للتغيير من «حسابي»
+  lang          String? // r18: لغة الواجهة المفضلة (ar/en/fr/… من سجل اللغات)
   planUpdatedAt DateTime? // r17: آخر مرة غيّر المؤسس/المشترك خطته
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth-server";
+import { requireAdmin, getSession } from "@/lib/auth-server";
 import { listPlans, serializePlan, ensurePlans, getUsageSnapshot, FREE_SUBSCRIBER_LIMIT } from "@/lib/plans";
 
 /**
@@ -162,7 +162,8 @@ export async function PUT(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const denied = requireAdmin(req);
   if (denied) return denied;
-  const adminEmail = (getSessionEmail(req) || "").toLowerCase();
+  const sess = getSession(req);
+  const adminEmail = (sess ? sess.email : "").toLowerCase();
   try {
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
     const action = typeof body.action === "string" ? body.action : "";
@@ -217,12 +218,4 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
-}
-
-function getSessionEmail(req: NextRequest): string | null {
-  // البريد من الكوكي الموقّع — عبر getSession في auth-server (نسخة خفيفة محلية)
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { getSession } = require("@/lib/auth-server") as typeof import("@/lib/auth-server");
-  const s = getSession(req);
-  return s ? s.email : null;
 }

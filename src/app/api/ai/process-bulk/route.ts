@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { chatComplete } from "@/lib/ai-provider";
-import { getSession } from "@/lib/auth-server";
+import { getSession, getSessionAppUser } from "@/lib/auth-server";
+import { checkAiQuota, incrAiInvoices } from "@/lib/plans";
 
 /**
  * r16: الإدخال المجمع بالذكاء الاصطناعي — «زرار المعالجة والإضافة بالذكاء الاصطناعي»
@@ -45,6 +46,20 @@ export async function POST(req: NextRequest) {
     }
     if (rawText.length > MAX_TEXT) {
       return NextResponse.json({ error: `النص أطول من الحد (${MAX_TEXT} محرف)` }, { status: 413 });
+    }
+
+    // r17: حصة المشترك — فواتير الذكاء الاصطناعي الشهرية محدودة بخطته
+    // (تُحتسب بعدد الطلبات المستخرجة فعلياً؛ التقدير المبدئي يمنع تجاوز الحد بطلبات ضخمة)
+    const subscriber = await getSessionAppUser(req);
+    if (subscriber) {
+      const blocks = rawText.split(/\n\s*\n/).filter((b) => b.trim()).length;
+      const quota = await checkAiQuota(subscriber.appUser, Math.max(1, Math.min(blocks, MAX_ORDERS)));
+      if (!quota.ok) {
+        return NextResponse.json(
+          { error: quota.message, code: quota.code, usage: quota.usage },
+          { status: 403 },
+        );
+      }
     }
 
     const systemPrompt = `You are the bulk-order parser for a Kuwaiti invoicing system (Arabic-first).
@@ -129,6 +144,11 @@ No markdown, no commentary. prices as strings or numbers (we accept both).`;
 
     if (!orders.length) {
       return NextResponse.json({ error: "لم يستطع المساعد استخراج أي طلب من النص — وضّح الطلبات (كل طلب بسطر/كتلة)" }, { status: 422 });
+    }
+
+    // r17: احتساب الاستخدام الفعلي للمشترك (بعد نجاح المعالجة)
+    if (subscriber) {
+      await incrAiInvoices(subscriber.appUser.id, orders.length);
     }
 
     return NextResponse.json({

@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { listPlans } from "@/lib/plans";
-import { ARAB_COUNTRIES, resolvePricingGeo, convertAndFormat } from "@/lib/geo";
-import { FREE_SUBSCRIBER_LIMIT } from "@/lib/plans";
+import { listPlans, FREE_SUBSCRIBER_LIMIT } from "@/lib/plans";
+import { WORLD_COUNTRIES, flagOf, resolvePricingGeo, convertAndFormat, type Region } from "@/lib/geo";
 
 /**
- * r17: صفحة الأسعار العامة — الخطط بالدولار + تحويل لعملة بلد الزائر حسب الـ IP.
+ * r17+r18: صفحة الأسعار العامة — الخطط بالدولار + تحويل لعملة بلد الزائر حسب الـ IP
+ * + عملات كل دول العالم (١٩٦ دولة) + الضريبة القياسية لكل بلد (اختيارية عند الفوترة).
  *
  * GET /api/pricing                  → بلد الزائر مكتشفاً تلقائياً
- * GET /api/pricing?country=SA       → تجاوز صريح من منتقي الدول (عربي فقط)
+ * GET /api/pricing?country=SA       → تجاوز صريح من منتقي الدول (أي بلد في العالم)
  *
- * الرد: { plans: [{ …, priceLocal }], geo: {…}, countries: [22], freeSeats: {…} }
+ * الرد: { plans: [{ …, priceLocal }], geo: {…, vat}, countries: [196], freeSeats }
  * عام بلا جلسة — يغذّي صفحة #/pricing العامة وتبويب «حسابي».
  */
 export async function GET(req: NextRequest) {
@@ -32,20 +32,23 @@ export async function GET(req: NextRequest) {
       geo: {
         country: geo.country ? geo.country.code : null,
         countryNameAr: geo.country ? geo.country.nameAr : null,
+        countryNameEn: geo.country ? geo.country.nameEn : null,
         currency: geo.currency,
-        currencyAr: geo.currencyAr,
         flag: geo.flag,
         rate: geo.rate,
         rateSource: geo.rateSource,
         detected: geo.detected,
+        vat: geo.vat, // r18: الضريبة القياسية لبلد الزائر (اختيارية عند الفوترة)
       },
-      countries: ARAB_COUNTRIES.map((c) => ({
+      countries: WORLD_COUNTRIES.map((c) => ({
         code: c.code,
         nameAr: c.nameAr,
+        nameEn: c.nameEn,
         currency: c.currency,
-        currencyAr: c.currencyAr,
-        flag: c.flag,
-        dial: c.dial,
+        region: c.region as Region,
+        vat: c.vat,
+        arabic: c.arabic,
+        flag: flagOf(c.code),
       })),
       freeSeats: {
         registered,

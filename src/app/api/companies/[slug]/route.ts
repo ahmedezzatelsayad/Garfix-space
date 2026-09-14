@@ -53,7 +53,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     }
 
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-    const data: Record<string, string | null> = {};
+    const data: Record<string, string | number | boolean | null> = {};
 
     const name = str(body.name);
     if (name) data.name = name;
@@ -97,6 +97,22 @@ export async function PUT(req: NextRequest, { params }: Params) {
       }
     }
 
+    // r18: الضرائب الاختيارية — تفعيل الضريبة + النسبة الافتراضية (٪ 0-100)
+    if (body.taxEnabled !== undefined) {
+      data.taxEnabled = body.taxEnabled === true || body.taxEnabled === "true";
+    }
+    if (body.defaultTaxRate !== undefined) {
+      if (body.defaultTaxRate === null || body.defaultTaxRate === "") {
+        data.defaultTaxRate = null;
+      } else {
+        const rate = Number(body.defaultTaxRate);
+        if (!Number.isFinite(rate) || rate < 0 || rate > 100) {
+          return NextResponse.json({ error: "نسبة الضريبة يجب أن تكون بين 0 و 100" }, { status: 400 });
+        }
+        data.defaultTaxRate = rate;
+      }
+    }
+
     if (Object.keys(data).length === 0) {
       return NextResponse.json({ error: "لا حقول للتحديث" }, { status: 400 });
     }
@@ -126,6 +142,8 @@ export async function PUT(req: NextRequest, { params }: Params) {
         cardBg: row.cardBg,
         emoji: row.emoji,
         logo: row.logo,
+        taxEnabled: row.taxEnabled,
+        defaultTaxRate: row.defaultTaxRate,
         createdAt: row.createdAt.toISOString(),
         updatedAt: row.updatedAt.toISOString(),
       },
