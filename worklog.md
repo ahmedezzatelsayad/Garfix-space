@@ -667,3 +667,46 @@ Unresolved issues / risks / next-phase priorities:
 - الموديل المدمج قد يخطئ أحياناً في تفاصيل صغيرة مقترحة من عنده (لوحظ سنة استحقاق 2026 بدل 2025 مرة) — البطاقة تعرض كل التفاصيل قبل التنفيذ ليمتنع المستخدم عند الشك؛ تحسين لاحق: تحقق ذكي من التواريخ المستقبلية البعيدة.
 - تحديد معدل على /api/ai/action غير منفذ (عمليات الكتابة الأخرى مثله) — مرشح للإضافة مع فرض الأدوار.
 - next-phase: NextAuth، فرض الأدوار على كل الكتابة (بما فيها ai/action)، تحديد معدل بالإجراءات، أتمتة التذكيرات عبر BullMQ (معالج reminder جاهز الإطار)، إطار زمني للتقارير في الشات.
+
+---
+Task ID: r16
+Agent: main (Z.ai Code)
+Task: طلبات المؤسس «خلص الشات بوت ف الداشبورد + اسمي أحمد عزت الصياد + شيل اسماء الفريق + الادخال المجمع زرار AI + SEO/GEO + مجانا لأول 100 مشترك واسمح بالتسجيل + نسيت كلمة السر بـ Resend من لوحة المؤسس»
+
+Work Log:
+- **قراءة worklog + استكشاف**: فُحص App.jsx (3488 سطراً) و AIBulkProcessor و FirebaseLogin و AuthContext و firebase/auth.js و AdminDashboard و مسارات auth/companies و seed-site و prisma schema قبل أي تعديل.
+- **Prisma r16**: موديلان جديدان — `AppUser` (email/passwordHash scrypt/displayName/phone/role=subscriber/plan=free_early/companies JSON) و `PasswordReset` (email/tokenHash SHA-256/expiresAt/usedAt) + db:push ناجح (بسبب env override في الشل: تمرير DATABASE_URL=postgres صراحة عند كل أمر prisma/bun).
+- **التسجيل الذاتي «مجاناً لأول 100»**:
+  - `src/lib/passwords.ts` (جديد): scrypt hash/verify (ملح 16B، مقارنة timingSafeEqual) + hashToken/generateResetToken.
+  - `POST/GET /api/auth/register` (جديد): GET عدّاد المقاعد العام (registered/limit/remaining/freeOpen) — POST بتحقق صارم (اسم 2-60/بريد regex/جوال اختياري/كلمة 8+) + rate limit 10/15د + حجز بريدات الحسابات المدمجة (isReservedAccountEmail جديد في auth-server) + حد 100 مقعد (403 FREE_LIMIT_REACHED) + تفرّد البريد (409) + إنشاء بجلسة viewer موقّعة (دخول فوري).
+  - `login/route.ts`: يدعم AppUser من PostgreSQL بعد الحسابات المدمجة — يرجع role=companies/kind للمشترك.
+  - `firebase/auth.js` أعيدت كتابته: دخول «خادم أولاً» (سقوط محلي دون اتصال) + registerUser + fetchFreeSeats + requestPasswordReset + resetPasswordWithToken + refreshAuthUser (مزامنة الملف بعد إنشاء شركة).
+  - `AuthContext.tsx`: دور `subscriber` في ROLE_DEFAULTS (صلاحيات عمل كاملة بلا الإدارية الأربعة) + بناء ملف المشترك من /api/auth/profile.
+- **شركة المشترك (self-serve)**: `companies/route.ts` POST يسمح للمشترك المسجّل (getSessionAppUser) بإنشاء شركته — تُربط به (firebaseOwnerId + AppUser.companies)؛ `[slug]/route.ts` PUT يسمح بالتعديل لمالك الشركة فقط (403 OWNER_REQUIRED لغيرها). CompanySelector: السقوط لكل الشركات للمدير فقط + canAdd للمشترك + حالة فراغ موجهة «أنشئ شركتك الأولى» + مطابقة allowedCompanies بالكود أو الـslug.
+- **«هل نسيت كلمة السر؟» عبر Resend**:
+  - `src/lib/resend.ts` (جديد): إعداد مخزن في Setting(resend_config/__global__) + sendEmail عبر REST + قالب HTML عربي بهوية ذهبية.
+  - `POST /api/auth/forgot-password`: رد موحد (لا تسريب وجود البريد) + 503 عند غياب الإعداد + رمز 32B بصمة SHA-256 صلاحية 30د لمرة واحدة (إبطال القديم).
+  - `POST /api/auth/reset-password`: تحقق من الرمز/الانتهاء/الاستخدام (410) + تحديث scrypt + استهلاك الرمز transactionally.
+  - `GET/PUT/POST /api/admin/resend` (مدير فقط): قراءة مقنعة/حفظ بتحقق re_/اختبار إرسال فعلي.
+  - `ResendPanel.jsx` (جديد) في لوحة المؤسس (تبويب «📧 بريد Resend» في AdminDashboard): مفتاح مقنّع + مرسل/اسم + زر اختبار + ترجمة أخطاء شائعة للعربية.
+  - صفحة `#/reset?token=…`: `ResetPasswordPage.jsx` + دعم hash جديد في App.jsx regex و PublicSite (page==="reset").
+  - `FirebaseLogin.tsx` أعيد بناؤها: تبويب دخول/تسجيل + شارة 🎁 مجاناً لأول 100 بعداد حي وشريط تقدم + وضع استعادة بريدي + رسائل نجاح/خطأ لكل وضع.
+- **الشات بوت في الداشبورد الرئيسية**: view==="dash" يضم SmartChat كاملاً (مع بطاقة تعريف + زر «فتح المحادثة الكاملة») أسفل لوحة المؤشرات — نفس onDataChanged (تحديث فوري للفواتير/العملاء).
+- **الإدخال المجمع بالذكاء (زر المعالجة والإضافة)**: `POST /api/ai/process-bulk` (جديد، يتطلب جلسة): برومبت يفهم أي صيغة (إيموجي/حر/مختلط) + تحقق صارم بعد الموديل (كميات 1-9999/أسعار ≥0/50 طلباً كحد أقصى/لا اختراع أسعار). واجهة bulk: زر أساسي بنفسجي «🤖 معالجة وإضافة بالذكاء الاصطناعي» + حالة تحميل حية + شارة «⚡ عولج بالذكاء الاصطناعي» + «💾 إضافة الفواتير» + «إعادة معالجة».
+- **اسم المؤسس «أحمد عزت الصياد»**: تحديث DB (founder_name/founder_signature) + seed-site.ts + users.js + auth-server.ts + AuthContext + تذييلي App/PublicSite (كانا «أحمد الصياد»).
+- **حذف أسماء الفريق**: deleteMany team_members (4 صفوف) + إزالة البذر من seed-site.ts + حالة فراغ جديدة بصفحة الفريق («بنية مركّزة بقيادة المؤسس») — الموديل والإدارة من تبويب الموقع باقيان.
+- **SEO + GEO**: layout.tsx جديد كلياً — metadata شاملة (title default+template/keywords/authors/OG locale ar_KW/Twitter card/robots max-image-preview/alternates canonical+ar) + وسوم GEO (geo.region KW/placename/position/ICBM/og:country-name) + JSON-LD ثلاثي (Organization بالمؤسس والعنوان الكويتي + WebSite + SoftwareApplication بعرض «مجاناً لأول 100») + `sitemap.ts` و `robots.ts` ديناميكيان (يقرآن مضيف الطلب خلف البوابة، SITE_URL اختياري) + حذف public/robots.txt الثابت + صورة OG 1344×768 مولّدة بالذهبي الداكن (public/og.png).
+- **بانر الرئيسية**: عدّاد «مجاناً لأول 100 مشترك» بشريط تقدم حي في HomePage + CTA «أنشئ حسابك» + تحديث نصوص الدعوة الأخيرة.
+- **إصلاحات أثناء QA**: صياغة TS في .jsx (ResetPasswordPage) + اقتباس زائد في شارات bulk + fontSize:11px بلا اقتباس + عرض err/okMsg في وضع الاستعادة (كان ناقصاً) + سقوط CompanySelector لكل الشركات للمشترك + مطابقة الـslug.
+- **QA شامل (agent-browser + curl)**: تسجيل كامل E2E (نموذج → دخول → إنشاء شركة «متجر سارة» → ربط تلقائي → دخول الشات من الداشبورد برسالة حقيقية → إدخال مجمع AI لطلبين بصيغتين مختلفتين → حفظ فاتورتين → مسح) · دخول المدير يعرض 5 شركات ولوحة Resend (حفظ مفتاح صالح ✓ رفض re_ غير صالح 400 ✓ اختبار إرسال ✓ حالة «مهيأة وتعمل» ✓) · استعادة كاملة (زرع رمز → #/reset → كلمة جديدة تعمل 200 → القديمة 401 → إعادة استخدام الرمز 410) · حماية: مشترك↔/api/admin/resend=403، تعديل شركة أجنبية=403، بريد مدير محجوز=409، أخطاء 400/401/410/503/429 كلها صحيحة · فريق بلا أسماء + مؤسس بالاسم الكامل + بانر العداد · سلامة الجوال 393px بلا overflow (دخول/تسجيل/رئيسية) · sitemap.xml و robots.txt يعملان ديناميكياً · lint: 0 أخطاء · dev.log بلا أخطاء تشغيل.
+- **تنظيف**: حذف كل بيانات الاختبار (مشترك/شركته/فاتورتاه/محادثته/رموز الاستعادة/مفتاح Resend الوهمي) — قاعدة نظيفة: 4 شركات، 0 مشتركين، remaining=100.
+- **README**: أقسام r16 (تسجيل/استعادة/شات داشبورد/إدخال مجمع AI/SEO+GEO) + جدول API (46 مساراً) + SITE_URL + ملاحظة Resend + صفوف «منجز حديثاً».
+
+Stage Summary:
+- r16 مكتملة: الشات بوت صار في **الداشبورد الرئيسية** مباشرة، والإدخال المجمع له **زر معالجة وإضافة بالذكاء الاصطناعي** يفهم أي صيغة نص. التطبيق صار منتجاً مفتوحاً للتسجيل: **«مجاناً لأول 100 مشترك»** بعداد حي، والمشترك ينشئ شركته الخاصة بضغطة واحدة (بلا أي صلاحية إدارية خادمية). **«هل نسيت كلمة السر؟**» يعمل بريدياً عبر Resend يُضبط كاملاً **من لوحة المؤسس**. اسم المؤسس **أحمد عزت الصياد** في كل مكان وأسماء الفريق حُذفت. **SEO+GEO كامل** (metadata/OG/geo/JSON-LD/sitemap/robots/صورة OG). كل المسارات محمية ومختبرة E2E بلا أخطاء.
+
+Unresolved issues / risks / next-phase priorities:
+- تحديد معدل على /api/ai/process-bulk و /api/ai/action غير منفذ (مثل بقية عمليات الذكاء) — مرشح مع فرض الأدوار الشامل.
+- رسائل البريد الفعلية تحتاج مفتاح Resend حقيقياً من المؤسس (اللوحة جاهزة؛ الواجهة تُرشد للأخطاء الشائعة بالعربية).
+- توطين رسالة «too many requests» من الخادم للمشترك المسجل عند إعادة المحاولة السريعة.
+- next-phase: NextAuth كحل جذري، فرض الأدوار على كل الكتابة، لوحة إدارة المشتركين (عرض/تعطيل/ترقية plan)، تخصيص قالب بريد الاستعادة من الواجهة، مسارات SEO لصفحات hash المفهرسة (prerender للزوار).

@@ -14,7 +14,7 @@ const CONTENT: Record<string, string> = {
   hero_title: "إدارة مالية ذكية لكل شركاتك، في مكان واحد",
   hero_sub:
     "من الفاتورة الأولى حتى آخر دينار محصَّل: فواتير فورية، مدفوعات جزئية، تذكيرات واتساب، تقارير لحظية، ومساعد ذكي يقرأ بياناتك ويجيبك — بعملة كل شركة وبالعربية الكاملة.",
-  founder_name: "أحمد عزت السيد",
+  founder_name: "أحمد عزت الصياد",
   founder_title: "المؤسس والرئيس التنفيذي",
   founder_emoji: "👨‍💼",
   founder_photo: "",
@@ -31,48 +31,14 @@ const CONTENT: Record<string, string> = {
 هذا المشروع بالنسبة لي ليس منتجاً نقطة وننتهي، بل رحلة نشارككم فيها: نظام ينمو مع كل شركة تنضم إلينا، ويتعلم من كل فاتورة تُصدر.
 
 شكراً لثقتكم — وكل عام والتجارة الكويتية بخير وازدهار.`,
-  founder_signature: "أحمد عزت السيد",
+  founder_signature: "أحمد عزت الصياد",
   contact_phone: "+96598737207",
   contact_email: "ahmedezzatelsayad@gmail.com",
   contact_address: "الكويت — حولي",
 };
 
-const TEAM: {
-  name: string;
-  role: string;
-  bio: string;
-  emoji: string;
-  sortOrder: number;
-}[] = [
-  {
-    name: "أيمن",
-    role: "مدير العمليات",
-    bio: "يشرف على التشغيل اليومي للشركات الأربع ويضمن سير الفواتير والمدفوعات دون تأخير.",
-    emoji: "🧑‍💼",
-    sortOrder: 1,
-  },
-  {
-    name: "آية سيد",
-    role: "مديرة المبيعات",
-    bio: "تدير علاقات العملاء الكبار ومتابعة التحصيل — صاحبة أدنى نسبة مديونيات متأخرة في الفريق.",
-    emoji: "👩‍💼",
-    sortOrder: 2,
-  },
-  {
-    name: "قسم الحسابات",
-    role: "المحاسبة والمراجعة",
-    bio: "مراجعة يومية لكل القيود، مطابقة المدفوعات الجزئية، وإعداد تقارير الإدارة الأسبوعية.",
-    emoji: "🧾",
-    sortOrder: 3,
-  },
-  {
-    name: "فريق الدعم",
-    role: "دعم العملاء",
-    bio: "رد سريع على استفسارات الفواتير والروابط عبر واتساب خلال ساعات العمل الرسمية.",
-    emoji: "🎧",
-    sortOrder: 4,
-  },
-];
+// r16: أسماء الفريق حُذفت بطلب المؤسس — صفحة الفريق تعرض المؤسس فقط.
+// (موديل TeamMember باقٍ: يستطيع المؤسس إضافة أعضاء لاحقاً من تبويب 🌐 الموقع)
 
 async function main() {
   for (const [key, value] of Object.entries(CONTENT)) {
@@ -81,10 +47,6 @@ async function main() {
       update: {}, // لا نستبدل تعديلات المدير
       create: { key, value },
     });
-  }
-  const existing = await db.teamMember.count();
-  if (existing === 0) {
-    await db.teamMember.createMany({ data: TEAM });
   }
   const counts = {
     content: await db.siteContent.count(),

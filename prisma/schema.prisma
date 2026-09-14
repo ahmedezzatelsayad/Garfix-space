@@ -228,3 +228,36 @@ model SiteContent {
 
   @@map("site_content")
 }
+
+// r16: مشتركو التطبيق المسجّلون ذاتياً — «مجاناً لأول 100 مشترك»
+// كلمة المرور مخزنة بصيغة scrypt (salt$hash) — لا نص صريح أبداً.
+// companies: JSON string بمصفوفة slugs الشركات المرتبطة بالمشترك
+// (تُربط تلقائياً عند إنشاء شركته الأولى بعد التسجيل).
+model AppUser {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String
+  displayName  String
+  phone        String?
+  role         String   @default("subscriber") // subscriber (لا صلاحيات إدارية خادمياً)
+  plan         String   @default("free_early") // free_early (أول 100) | paid
+  companies    String   @default("[]")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("app_users")
+}
+
+// r16: رموز استعادة كلمة المرور — تُرسل بالبريد عبر Resend
+// tokenHash = SHA-256 للرمز الأصلي (لا يُخزَّن الرمز نفسه)، صلاحية 30 دقيقة، استخدام واحد.
+model PasswordReset {
+  id        Int       @id @default(autoincrement())
+  email     String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([email])
+  @@map("password_resets")
+}

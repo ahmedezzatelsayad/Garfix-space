@@ -1,9 +1,22 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { DEFAULT_FEATURES } from "./site-shared";
 
-/** r13: الصفحة الرئيسية للموقع العام — بطل + إحصاءات + مزايا + الشركات + تيعير المؤسس */
+/** r13: الصفحة الرئيسية للموقع العام — بطل + إحصاءات + مزايا + الشركات + تيعير المؤسس
+ *  r16: بانر «مجاناً لأول 100 مشترك» بعداد مقاعد حيّ + دعوة تسجيل */
 export default function HomePage({ stats, companies, content, authed, onEnterApp }) {
+  // r16: عدّاد المقاعد المجانية (GET /api/auth/register)
+  const [seats, setSeats] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/auth/register")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((s) => alive && setSeats(s))
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
   const statsRow = [
     { label: "شركات مُدارة", value: stats?.companies ?? companies.length ?? 4 },
     { label: "فاتورة مُصدَرة", value: stats?.invoices ?? "—" },
@@ -68,11 +81,46 @@ export default function HomePage({ stats, companies, content, authed, onEnterApp
             {authed ? (
               <button className="s-btn s-btn-gold" onClick={onEnterApp}>دخول النظام ←</button>
             ) : (
-              <a className="s-btn s-btn-gold" href="#/login" onClick={goLogin}>ابدأ الآن — تسجيل الدخول ←</a>
+              <a className="s-btn s-btn-gold" href="#/login" onClick={goLogin}>ابدأ الآن — مجاناً ←</a>
             )}
             <a className="s-btn s-btn-outline" href="#/team" onClick={goTeam}>تعرّف على الفريق</a>
           </div>
         </div>
+
+        {/* r16: بانر مجاناً لأول 100 مشترك — عدّاد حيّ */}
+        {seats && seats.freeOpen && !authed && (
+          <div
+            className="s-fade s-fade-4"
+            style={{
+              maxWidth: 620, margin: "34px auto 0", padding: "16px 22px", borderRadius: 16,
+              background: "linear-gradient(135deg,rgba(201,162,39,.16),rgba(201,162,39,.05))",
+              border: "1px solid rgba(201,162,39,.4)", display: "flex", alignItems: "center",
+              gap: 16, flexWrap: "wrap", justifyContent: "center", textAlign: "center",
+            }}
+          >
+            <div style={{ fontSize: 30 }}>🎁</div>
+            <div style={{ flex: 1, minWidth: 220 }}>
+              <b style={{ fontSize: 15, display: "block", marginBottom: 4, color: "#e5c558" }}>
+                مجاناً لأول {seats.limit} مشترك
+              </b>
+              <span style={{ color: "rgba(255,255,255,.65)", fontSize: 12.5 }}>
+                متبقي <b style={{ color: "#e5c558", fontSize: 14 }}>{seats.remaining}</b> مقعداً — سجّل الآن واحصل على شركتك الخاصة بفواتير وعملاء وتقارير
+              </span>
+              {/* شريط تقدّم المقاعد المحجوزة */}
+              <div style={{ height: 6, borderRadius: 4, background: "rgba(255,255,255,.12)", marginTop: 10, overflow: "hidden", direction: "ltr" }}>
+                <div style={{
+                  height: "100%", borderRadius: 4,
+                  width: `${((seats.limit - seats.remaining) / seats.limit) * 100}%`,
+                  background: "linear-gradient(90deg,#c9a227,#e5c558)",
+                  transition: "width .6s ease",
+                }} />
+              </div>
+            </div>
+            <a className="s-btn s-btn-gold" href="#/login" onClick={goLogin} style={{ flexShrink: 0, padding: "10px 22px", fontSize: 13 }}>
+              أنشئ حسابك ←
+            </a>
+          </div>
+        )}
 
         {/* شريط الإحصاءات */}
         <div className="s-fade s-fade-4" style={{ display: "flex", gap: 14, flexWrap: "wrap", maxWidth: 860, margin: "54px auto 0", justifyContent: "center" }}>
@@ -164,12 +212,14 @@ export default function HomePage({ stats, companies, content, authed, onEnterApp
             جاهز تنظّم مالية شركاتك؟
           </h2>
           <p style={{ color: "rgba(255,255,255,.6)", margin: "0 0 22px", fontSize: 14 }}>
-            سجّل الدخول الآن — بياناتك بانتظارك في لوحة واحدة.
+            {seats && seats.freeOpen
+              ? "أنشئ حسابك الآن — مجاناً لأول 100 مشترك، بدون بطاقة ولا التزام."
+              : "سجّل الدخول الآن — بياناتك بانتظارك في لوحة واحدة."}
           </p>
           {authed ? (
             <button className="s-btn s-btn-gold" onClick={onEnterApp}>دخول النظام ←</button>
           ) : (
-            <a className="s-btn s-btn-gold" href="#/login" onClick={goLogin}>تسجيل الدخول ←</a>
+            <a className="s-btn s-btn-gold" href="#/login" onClick={goLogin}>أنشئ حسابك المجاني ←</a>
           )}
         </div>
       </section>

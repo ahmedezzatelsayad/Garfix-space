@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { cacheWrap, cacheDelPattern } from "@/lib/cache";
-import { requireAdmin } from "@/lib/auth-server";
+import { requireAdmin, getSessionAppUser } from "@/lib/auth-server";
 
 /**
  * r12: إدارة الشركات — سجل كامل قابل للتعديل من الواجهة (كانت hard-coded في الواجهة فقط).
@@ -11,6 +11,8 @@ import { requireAdmin } from "@/lib/auth-server";
  *                        sellerRef?, manager?, managerPhone?, color?, accent?,
  *                        cardBg?, emoji?, code?, slug? }
  *                                     → 201 { company }  (code/slug تُولَّد من الاسم عند غيابهما)
+ * r16: المشترك المسجّل (AppUser) ينشئ شركته بنفسه — «مجاناً لأول 100 مشترك»؛
+ *      تُربط الشركة تلقائياً بحسابه ويفقد كل صلاحيات إدارية أخرى (جلسته viewer).
  */
 
 interface CompanyProfile {
@@ -113,8 +115,11 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   // r13: إضافة شركة = عملية إدارية — تتطلب جلسة مدير
+  // r16: استثناء آمن: المشترك المسجّل (AppUser) ينشئ شركته الخاصة (workspace) —
+  //      تُربط به فوراً ولا يحصل على أي صلاحية إدارية على الشركات الأخرى.
   const denied = requireAdmin(req);
-  if (denied) return denied;
+  const subscriber = denied ? await getSessionAppUser(req) : null;
+  if (denied && !subscriber) return denied;
   try {
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
 
@@ -179,8 +184,19 @@ export async function POST(req: NextRequest) {
         cardBg: str(body.cardBg) ?? "#f1f5f9",
         emoji: str(body.emoji, 8) ?? "🏢",
         logo: str(body.emoji, 8) ?? "🏢",
+        // r16: ربط الشركة بصاحبها المشترك (يعمل كمالك لها في الواجهة)
+        firebaseOwnerId: subscriber ? subscriber.appUser.email : null,
       },
     });
+
+    // r16: أضف الشركة لقائمة شركات المشترك (يعمل بها مباشرة بعد الإنشاء)
+    if (subscriber) {
+      const companies = [...new Set([...subscriber.companies, row.slug])];
+      await db.appUser.update({
+        where: { email: subscriber.appUser.email },
+        data: { companies: JSON.stringify(companies) },
+      });
+    }
 
     await cacheDelPattern("companies:*");
     await cacheDelPattern("ai:ctx:*"); // لقطة الشركات في سياق المساعد الذكي

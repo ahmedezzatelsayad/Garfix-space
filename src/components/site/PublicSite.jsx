@@ -6,6 +6,7 @@ import FirebaseLogin from "../invoice-app/pages/FirebaseLogin";
 import HomePage from "./HomePage";
 import TeamPage from "./TeamPage";
 import FounderPage from "./FounderPage";
+import ResetPasswordPage from "./ResetPasswordPage";
 import { SITE_CSS, DEFAULT_CONTENT } from "./site-shared";
 
 /**
@@ -15,6 +16,7 @@ import { SITE_CSS, DEFAULT_CONTENT } from "./site-shared";
  * التنقل: hash-based داخل مسار "/" الواحد:
  *   #/        → الرئيسية     #/team  → الفريق
  *   #/founder → رسالة المؤسس #/login → صفحة الدخول
+ * r16: #/reset?token=… → إعادة تعيين كلمة المرور (من رسالة Resend)
  */
 export default function PublicSite({ page = "home", authed = false, onEnterApp = () => {} }) {
   const [stats, setStats] = useState(null);
@@ -41,10 +43,16 @@ export default function PublicSite({ page = "home", authed = false, onEnterApp =
       team: "فريق العمل",
       founder: "رسالة المؤسس",
       login: "تسجيل الدخول",
+      reset: "كلمة مرور جديدة",
     };
     const t = titles[page] || "";
     const apply = () => {
-      document.title = t ? `${t} | ${content.site_name}` : content.site_name;
+      // r16: الرئيسية تحمل العنوان الكامل (يطابق metadata الخادم — أفضل لـ SEO)
+      document.title = page === "home"
+        ? `${content.site_name} | نظام إدارة الفواتير والحسابات — الكويت`
+        : t
+          ? `${t} | ${content.site_name}`
+          : content.site_name;
     };
     apply();
     // React يعيد تطبيق عنوان metadata عند اكتمال الإنعاش (hydration) وقد يكتب فوقه —
@@ -65,6 +73,11 @@ export default function PublicSite({ page = "home", authed = false, onEnterApp =
     setMenuOpen(false);
     onEnterApp();
   };
+
+  // صفحة إعادة تعيين كلمة المرور (r16) — من رابط رسالة البريد
+  if (page === "reset") {
+    return <ResetPasswordPage />;
+  }
 
   // صفحة الدخول: نموذج الدخول الكامل + زر عودة للموقع
   if (page === "login") {
@@ -239,7 +252,7 @@ export default function PublicSite({ page = "home", authed = false, onEnterApp =
               <span>
                 تم البرمجة والتطوير بواسطة{" "}
                 <a href="https://wa.me/201033514479" target="_blank" rel="noopener noreferrer" style={{ color: "#c9a227", textDecoration: "none", fontWeight: 700 }}>
-                  أحمد الصياد
+                  أحمد عزت الصياد
                 </a>
               </span>
             </div>

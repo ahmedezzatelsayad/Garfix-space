@@ -23,8 +23,49 @@ function notify(u) {
   LISTENERS.forEach(cb => { try { cb(u); } catch {} });
 }
 
+/**
+ * r16: الدخول صار «خادم أولاً» — يقبل المشتركين المسجّلين (AppUser في PostgreSQL)
+ * بجانب الحسابات المدمجة. عند غياب الخادم يسقط للحسابات المحلية (تجربة دون اتصال).
+ */
 export async function loginUser(email, password) {
   const e = (email || "").trim().toLowerCase();
+
+  // 1) الخادم (المصدر الموثوق — يشمل المشتركين المسجّلين)
+  try {
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: e, password }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const u = data.user || {};
+      const user = {
+        uid: btoa(e),
+        email: e,
+        displayName: u.displayName || e.split("@")[0],
+        role: u.role,                    // "subscriber" للمشتركين المسجّلين
+        companies: u.companies || [],    // slugs شركات المشترك
+        plan: u.plan,
+      };
+      setStored(user);
+      notify(user);
+      return user;
+    }
+    if (res.status === 401 || res.status === 429) {
+      const err = new Error(res.status === 429 ? "too many" : "wrong");
+      err.code = res.status === 429 ? "auth/too-many-requests" : "auth/invalid-credential";
+      const data = await res.json().catch(() => ({}));
+      if (data.error) err.serverMessage = data.error;
+      throw err;
+    }
+    // 400/500 وغيرها → سقوط للحسابات المحلية (الخادم قد يكون مُعطَّلاً جزئياً)
+  } catch (netErr) {
+    if (netErr && netErr.code) throw netErr; // خطأ صريح من الخادم (401/429)
+    // خطأ شبكة → سقوط محلي
+  }
+
+  // 2) الحسابات المحلية المدمجة (دون اتصال / فشل شبكة فقط)
   const expected = CREDENTIALS[e];
   if (!expected) {
     const err = new Error("user not found"); err.code = "auth/user-not-found"; throw err;
@@ -35,18 +76,102 @@ export async function loginUser(email, password) {
   const user = { uid: btoa(e), email: e, displayName: e.split("@")[0] };
   setStored(user);
   notify(user);
-  // r13: جلسة خادم موقّعة (httpOnly cookie) — تفتح المسارات الإدارية المحمية.
-  // fire-and-forget: التجربة المحلية كما هي؛ فشل الخادم لا يمنع الدخول.
-  fetch("/api/auth/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: e, password }),
-  }).catch(() => {});
   return user;
 }
 
+/** r16: التسجيل الذاتي — «مجاناً لأول 100 مشترك» (تسجيل + دخول بضغطة واحدة) */
+export async function registerUser({ displayName, email, phone, password }) {
+  const res = await fetch("/api/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ displayName, email, phone, password }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.error || `HTTP ${res.status}`);
+    err.code = data.code || `register/${res.status}`;
+    throw err;
+  }
+  const u = data.user || {};
+  const user = {
+    uid: btoa(u.email),
+    email: u.email,
+    displayName: u.displayName,
+    role: u.role || "subscriber",
+    companies: u.companies || [],
+    plan: u.plan || "free_early",
+  };
+  setStored(user);
+  notify(user);
+  return { user, remaining: data.remaining };
+}
+
+/** r16: عدّاد المقاعد المجانية (الموقع العام + صفحة الدخول) */
+export async function fetchFreeSeats() {
+  try {
+    const res = await fetch("/api/auth/register");
+    if (res.ok) return await res.json();
+  } catch { /* دون اتصال */ }
+  return null;
+}
+
+/** r16: «هل نسيت كلمة السر؟» — يرسل بريد استعادة عبر Resend */
+export async function requestPasswordReset(email) {
+  const res = await fetch("/api/auth/forgot-password", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.error || `HTTP ${res.status}`);
+    err.code = data.code || `forgot/${res.status}`;
+    throw err;
+  }
+  return data.message || "إذا كان البريد مسجلاً لدينا فستصلك رسالة الاستعادة خلال دقائق";
+}
+
+/** r16: إعادة تعيين كلمة المرور بالرمز من رسالة البريد (#/reset?token=…) */
+export async function resetPasswordWithToken(token, password) {
+  const res = await fetch("/api/auth/reset-password", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, password }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.error || `HTTP ${res.status}`);
+    err.code = data.code || `reset/${res.status}`;
+    throw err;
+  }
+  return true;
+}
+
+/** r16: تحديث ملف المشترك من الخادم بعد إنشاء شركته (تظهر فوراً في المُنتقي) */
+export async function refreshAuthUser() {
+  const stored = getStored();
+  if (!stored || !stored.role) return stored; // الحسابات المدمجة بلا دور خادمي
+  try {
+    const res = await fetch("/api/auth/profile");
+    if (res.ok) {
+      const data = await res.json();
+      if (data.profile) {
+        const user = {
+          ...stored,
+          displayName: data.profile.displayName || stored.displayName,
+          companies: Array.isArray(data.profile.companies) ? data.profile.companies : stored.companies,
+        };
+        setStored(user);
+        notify(user);
+        return user;
+      }
+    }
+  } catch { /* دون اتصال — نُبقي المخزّن */ }
+  return stored;
+}
+
 export async function logoutUser() {
-  // r13: مسح جلسة الخادم أيضاً
+  // مسح جلسة الخادم أيضاً
   fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
   setStored(null);
   notify(null);

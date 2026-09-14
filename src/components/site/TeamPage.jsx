@@ -2,7 +2,9 @@
 
 import { memberAvatar } from "./site-shared";
 
-/** r13: صفحة الفريق — بطاقة المؤسس + شبكة أعضاء الفريق (من /api/site/team) */
+/** r13: صفحة الفريق — بطاقة المؤسس + شبكة أعضاء الفريق (من /api/site/team)
+ *  r16: أسماء الفريق حُذفت بطلب المؤسس — الصفحة تركّز على المؤسس أحمد عزت الصياد،
+ *  والمدير يستطيع إضافة أعضاء لاحقاً من تبويب «🌐 الموقع» إن رغب. */
 export default function TeamPage({ team, content }) {
   const members = team || null; // null = loading, [] = فارغ
   const goFounder = (e) => {
@@ -60,11 +62,11 @@ export default function TeamPage({ team, content }) {
             ))}
 
           {members !== null && members.length === 0 && (
-            <div className="s-card" style={{ gridColumn: "1/-1", textAlign: "center", padding: 40 }}>
-              <div style={{ fontSize: 34, marginBottom: 10 }}>🤝</div>
-              <b>أعضاء الفريق قريباً</b>
-              <p style={{ color: "rgba(255,255,255,.5)", fontSize: 13, margin: "6px 0 0" }}>
-                يدير المدير الأعضاء من تبويب «🌐 الموقع» داخل النظام.
+            <div className="s-card" style={{ gridColumn: "1/-1", textAlign: "center", padding: 44 }}>
+              <div style={{ fontSize: 36, marginBottom: 12 }}>🏛️</div>
+              <b style={{ fontSize: 16 }}>بنية مركّزة بقيادة المؤسس مباشرة</b>
+              <p style={{ color: "rgba(255,255,255,.5)", fontSize: 13, margin: "8px auto 0", maxWidth: 420, lineHeight: 1.9 }}>
+                كل ملاحظة وكل طلب ميزة يمرّ على المؤسس نفسه — هكذا نضمن أن النظام يكبر بما ينفع التجّار فعلاً، لا بما يبدو جيداً في العروض فقط.
               </p>
             </div>
           )}

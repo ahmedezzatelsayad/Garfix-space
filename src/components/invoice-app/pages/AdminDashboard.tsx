@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { getAllUsers, updateUserProfile, deleteUserRecord, ALL_COMPANIES, seedUserProfiles } from "../firebase/users";
 import { useAuth } from "../context/AuthContext";
 import CreateUserModal, { PERM_LIST, EMPLOYEE_DEFAULTS } from "../components/CreateUserModal";
+import ResendPanel from "../components/ResendPanel";
 import { MASTER_EMAIL } from "../firebase/auth";
 
 interface UserRecord {
@@ -232,6 +233,7 @@ const labelOf = (id: string): string => DYN_LABELS[id] || COMPANY_LABELS[id] || 
   const TABS = [
     { id:"users", label:"👥 المستخدمون" },
     { id:"logos", label:"🏢 شعارات الشركات" },
+    { id:"resend", label:"📧 بريد Resend" },
   ];
 
   return (
@@ -453,6 +455,9 @@ const labelOf = (id: string): string => DYN_LABELS[id] || COMPANY_LABELS[id] || 
                 ))}
               </div>
             </div>
+          )}
+          {activeTab==="resend"&&(
+            <ResendPanel toast_={toast_} />
           )}
         </div>
       </div>

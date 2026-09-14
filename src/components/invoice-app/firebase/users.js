@@ -15,7 +15,7 @@ const SEED_PROFILES = [
   { uid: btoa("info@mahhl.com"),    email:"info@mahhl.com",    displayName:"محلكم أونلاين",    companies:["mahhal"],                           role:"employee", permissions:EMPLOYEE_PERMS },
   { uid: btoa("info@boss.com"),     email:"info@boss.com",     displayName:"بوص نيولايف",      companies:["boss"],                             role:"employee", permissions:EMPLOYEE_PERMS },
   { uid: btoa("ayman@manager.com"), email:"ayman@manager.com", displayName:"أيمن - مدير",      companies:["tawfeer","mahhal","boss","laqta"],   role:"admin",    permissions:{} },
-  { uid: btoa(MASTER_EMAIL),        email:MASTER_EMAIL,         displayName:"Ahmed Ezzat",      companies:ALL_COMPANIES,                        role:"admin",    permissions:{} },
+  { uid: btoa(MASTER_EMAIL),        email:MASTER_EMAIL,         displayName:"أحمد عزت الصياد",   companies:ALL_COMPANIES,                        role:"admin",    permissions:{} },
 ];
 
 const SK_EXTRA = "__inv_extra_users__";

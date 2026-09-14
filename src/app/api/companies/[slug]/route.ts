@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { cacheDelPattern } from "@/lib/cache";
-import { requireAdmin } from "@/lib/auth-server";
+import { requireAdmin, getSessionAppUser } from "@/lib/auth-server";
 
 /**
  * r12: تعديل بيانات شركة موجودة (slug = مفتاح التخزين tw_inv_…_v1).
@@ -11,6 +11,7 @@ import { requireAdmin } from "@/lib/auth-server";
  *     manager?, managerPhone?, color?, accent?, cardBg?, emoji? }
  * → 200 { company }  — تحديث جزئي: فقط الحقول المُرسلة تتغير.
  *   لا يمكن تغيير slug/code من هنا (هوية الفواتير مرتبطة بها).
+ * r16: مدير عام أو المشترك المالك للشركة نفسها (تُربط به عند إنشائها).
  */
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -28,8 +29,17 @@ interface Params {
 
 export async function PUT(req: NextRequest, { params }: Params) {
   // r13: تعديل شركة = عملية إدارية — تتطلب جلسة مدير
+  // r16: أو مالكها المشترك المسجّل (الشركة ضمن قائمة شركاته)
   const denied = requireAdmin(req);
-  if (denied) return denied;
+  if (denied) {
+    const subscriber = await getSessionAppUser(req);
+    if (!subscriber) return denied;
+    const { slug: slugParam0 } = await params;
+    const owns = subscriber.companies.includes(decodeURIComponent(slugParam0 ?? "").trim());
+    if (!owns) {
+      return NextResponse.json({ error: "يمكنك تعديل شركتك فقط", code: "OWNER_REQUIRED" }, { status: 403 });
+    }
+  }
   try {
     const { slug: slugParam } = await params;
     const slug = decodeURIComponent(slugParam ?? "").trim();

@@ -41,7 +41,7 @@ const MASTER_EMAIL = "ahmedezzatelsayad@gmail.com";
 
 function buildUsers(): ServerUser[] {
   const defs: { email: string; pass: string; displayName: string; role: "admin" | "employee" }[] = [
-    { email: MASTER_EMAIL, pass: "admin123", displayName: "Ahmed Ezzat", role: "admin" },
+    { email: MASTER_EMAIL, pass: "admin123", displayName: "أحمد عزت الصياد", role: "admin" },
     { email: "ayman@manager.com", pass: "ayman123", displayName: "أيمن - مدير", role: "admin" },
     { email: "info@tawfeer.com", pass: "tawfeer123", displayName: "توفير أونلاين", role: "employee" },
     { email: "info@laqta.com", pass: "laqta123", displayName: "لقطة", role: "employee" },
@@ -52,6 +52,12 @@ function buildUsers(): ServerUser[] {
 }
 
 const SERVER_USERS = buildUsers();
+
+/** r16: بريدات الحسابات المدمجة — محجوزة: لا يجوز التسجيل بها (منع انتحال المدير/الموظفين) */
+export function isReservedAccountEmail(email: string): boolean {
+  const e = (email || "").trim().toLowerCase();
+  return SERVER_USERS.some((u) => u.email === e);
+}
 
 // ── سر التوقيع: يُولَّد مرة ويُخزَّن في db/session-secret (خارج git) ──
 const SECRET_FILE = path.join(process.cwd(), "db", "session-secret");
@@ -120,6 +126,26 @@ export function parseSessionToken(token: string | undefined | null): SessionUser
 export function getSession(req: NextRequest): SessionUser | null {
   const raw = req.cookies.get(COOKIE_NAME)?.value;
   return parseSessionToken(raw);
+}
+
+/** r16: هل صاحب الجلسة مشترك مسجّل (AppUser)؟ — يقرأ من قاعدة البيانات */
+export async function getSessionAppUser(req: NextRequest) {
+  const sess = getSession(req);
+  if (!sess) return null;
+  try {
+    const { db } = await import("@/lib/db");
+    const appUser = await db.appUser.findUnique({ where: { email: sess.email } });
+    if (!appUser) return null;
+    let companies: string[] = [];
+    try { companies = JSON.parse(appUser.companies) as string[]; } catch { /* [] */ }
+    return {
+      session: sess,
+      appUser,
+      companies,
+    };
+  } catch {
+    return null;
+  }
 }
 
 export function verifyCredentials(email: string, password: string): { email: string; displayName: string; role: string } | null {

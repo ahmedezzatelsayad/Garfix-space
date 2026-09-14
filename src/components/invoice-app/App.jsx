@@ -923,8 +923,11 @@ setTimeout(()=>downloadCSV(toCSV(fullHeaders, fullRows), `Customers_${today()}.c
 function CompanySelector({ onSelect, companies, onAdd, onEdit }) {
 const { profile, isAdmin } = useAuth();
 const { dark, toggle } = useTheme();
-const cols = companies && companies.length > 0 ? companies : Object.values(COMPANIES);
+// r16: السقوط للشركات الافتراضية للمدير فقط — المشترك بلا شركات يُوجّه لإنشاء شركته
+const isSubscriber = profile?.role === "subscriber";
+const cols = companies && companies.length > 0 ? companies : (isAdmin ? Object.values(COMPANIES) : []);
 const gridCols = cols.length === 1 ? "repeat(1,1fr)" : cols.length === 2 ? "repeat(2,1fr)" : "repeat(2,1fr)";
+const canAdd = isAdmin || isSubscriber; // r16: المشترك ينشئ شركته الخاصة
 return (
 <div style={{minHeight:"100vh",background:"#0a0a0f",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Cairo','Tajawal',sans-serif",direction:"rtl",padding:"20px",position:"relative",overflow:"hidden"}}>
 <style>{`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap'); *{box-sizing:border-box} @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}} @keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}} .co-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:28px 20px;cursor:pointer;transition:all .3s cubic-bezier(.4,0,.2,1);text-align:center;animation:fadeUp .5s ease both;position:relative;overflow:hidden;} .co-card::before{content:"";position:absolute;inset:0;opacity:0;transition:opacity .3s;background:radial-gradient(circle at 50% 0%,var(--co-color) 0%,transparent 70%);} .co-card:hover,.co-card:active{transform:translateY(-4px) scale(1.02);border-color:var(--co-color);box-shadow:0 20px 60px rgba(0,0,0,.5),0 0 0 1px var(--co-color)} .co-card:hover::before,.co-card:active::before{opacity:.15} .co-icon{font-size:40px;margin-bottom:12px;display:block;animation:float 3s ease-in-out infinite} .co-grid{display:grid;gap:14px} .co-edit{position:absolute;top:10px;insetInlineEnd:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:rgba(255,255,255,.75);padding:4px 9px;font-size:12px;cursor:pointer;font-family:inherit;opacity:0;transition:all .2s;z-index:2} .co-card:hover .co-edit{opacity:1} .co-edit:hover{background:rgba(255,255,255,.18);color:#fff} .co-add{border:2px dashed rgba(255,255,255,.15);background:rgba(255,255,255,.02);border-radius:20px;padding:28px 20px;cursor:pointer;text-align:center;animation:fadeUp .5s ease both;transition:all .25s;color:rgba(255,255,255,.4)} .co-add:hover{border-color:#10b981;color:#10b981;background:rgba(16,185,129,.06);transform:translateY(-4px)} @media(min-width:600px){.co-grid{grid-template-columns:repeat(4,1fr)}}`}</style>
@@ -940,11 +943,24 @@ return (
 </div>
 </div>
 {cols.length === 0 ? (
+  canAdd ? (
+    <div style={{textAlign:"center",padding:"40px 20px",color:"rgba(255,255,255,.55)",animation:"fadeUp .5s ease"}}>
+      <div style={{fontSize:"44px",marginBottom:"14px"}}>🚀</div>
+      <div style={{fontSize:"19px",fontWeight:900,color:"#fff",marginBottom:"8px"}}>{isSubscriber?"أنشئ شركتك الأولى وابدإ الفواتير":"أضف شركتك الأولى"}</div>
+      <div style={{fontSize:"12.5px",lineHeight:1.9,marginBottom:"22px",maxWidth:380,marginInline:"auto"}}>
+        {isSubscriber
+          ? "شركة واحدة خاصة بك: فواتير وعملاء وتقارير ومساعد ذكي — كاملة مجاناً ضمن أول 100 مشترك."
+          : "بيانات كاملة + العملة من شاشة واحدة."}
+      </div>
+      <button onClick={()=>onAdd&&onAdd()} style={{background:"linear-gradient(135deg,#10b981,#059669)",border:"none",borderRadius:"12px",padding:"14px 34px",color:"#fff",fontFamily:"inherit",fontSize:"15px",fontWeight:800,cursor:"pointer",boxShadow:"0 8px 26px rgba(16,185,129,.35)"}}>＋ إنشاء شركتي الآن</button>
+    </div>
+  ) : (
   <div style={{textAlign:"center",padding:"48px",color:"rgba(255,255,255,.4)"}}>
     <div style={{fontSize:"40px",marginBottom:"12px"}}>🔒</div>
     <div style={{fontSize:"16px",fontWeight:700}}>لا توجد شركات مخصصة لحسابك</div>
     <div style={{fontSize:"12px",marginTop:"8px"}}>تواصل مع المدير لإضافة صلاحيات</div>
   </div>
+  )
 ) : (
   <div className="co-grid" style={{gridTemplateColumns:gridCols}}>
   {cols.map((co, i) => (
@@ -963,7 +979,7 @@ return (
   <div style={{marginTop:"10px",padding:"8px",borderRadius:"8px",background:"rgba(255,255,255,.04)",fontSize:"11px",color:"rgba(255,255,255,.3)"}}>{co.email}</div>
   </div>
   ))}
-  {isAdmin&&onAdd&&(
+  {canAdd&&onAdd&&(
   <div className="co-add" style={{animationDelay:`${cols.length*0.1}s`}} onClick={()=>onAdd()} role="button" aria-label="إضافة شركة جديدة">
   <div style={{fontSize:34,marginBottom:10,lineHeight:1}}>＋</div>
   <div style={{fontSize:14,fontWeight:900,marginBottom:4,color:"inherit"}}>إضافة شركة جديدة</div>
@@ -2359,6 +2375,10 @@ const [printRange,setPrintRange]=useState({from:"",to:""});
 const [bulkText,setBulkText]=useState("");
 const [bulkParsed,setBulkParsed]=useState([]);
 const [bulkStep,setBulkStep]=useState(0);
+// r16: معالجة الإدخال المجمع بالذكاء الاصطناعي (زر المعالجة والإضافة)
+const [bulkAiBusy,setBulkAiBusy]=useState(false);
+const [bulkAiUsed,setBulkAiUsed]=useState(false);
+const [bulkAiErr,setBulkAiErr]=useState("");
 const [toast,setToast]=useState(null);
 const [pdfBusy,setPdfBusy]=useState(false);
 const [printStyle,setPrintStyle]=useState("classic");
@@ -2429,8 +2449,9 @@ const COMPANIES_MERGED = (() => {
   return merged;
 })();
 
+// r16: مطابقة بالكود (الأنظمة المدمجة) أو بالـ slug (شركات المشتركين المسجّلين من الخادم)
 const availableCompanies = Object.values(COMPANIES_MERGED).filter(co =>
-  isAdmin ? true : allowedCompanies.includes(co.id)
+  isAdmin ? true : (allowedCompanies.includes(co.id) || allowedCompanies.includes(co.sk))
 );
 
 // Auto-direct single-company users straight to their dashboard (skip selector).
@@ -2530,7 +2551,8 @@ if(company)dbSet(company.sk,list);
 
 const toast_=(msg,type="ok")=>{setToast({msg,type});setTimeout(()=>setToast(null),2600);};
 
-// r12: بعد حفظ شركة (إضافة/تعديل) — أعد تحميل السجل وحدّث الشركة النشطة فوراً إن كانت هي
+// r16: بعد حفظ شركة (إضافة/تعديل) — أعد تحميل السجل وحدّث الشركة النشطة فوراً إن كانت هي
+// وللمشترك المسجّل: حدّث ملفه من الخادم (شركته الجديدة تظهر فوراً في المُنتقي)
 const onCompanySaved=async()=>{
   setCompanyModal(null);
   try{
@@ -2550,6 +2572,9 @@ const onCompanySaved=async()=>{
         ...(row.cardBg&&{cardBg:row.cardBg}), ...(row.emoji&&{emoji:row.emoji,logo:row.emoji}),
         currency:row.currency||c.currency||"KWD", dbRow:row};
     });
+    // r16: المشترك المسجّل — مزامنة ملفه (قائمة شركاته) من الخادم
+    const { refreshAuthUser } = await import("./firebase/auth");
+    refreshAuthUser().catch(()=>{});
   }catch{}
 };
 const setField=(k,v)=>setForm(f=>({...f,[k]:v}));
@@ -2672,6 +2697,38 @@ api.bulkCreateInvoices(newBulk,company?.sk).then(()=>refreshInvoices()).catch(()
 setBulkStep(2);toast_(`✅ تم حفظ ${bulkParsed.length} فاتورة`);
 };
 
+// r16: معالجة الإدخال المجمع بالذكاء الاصطناعي — «زرار المعالجة والإضافة بالذكاء الاصطناعي»
+// نص حر بأي صيغة (إيموجي واتساب / عادي / مختلط) → طلبات منظّمة للمراجعة ثم الحفظ
+const processBulkAI=async()=>{
+  if(!bulkText.trim())return;
+  setBulkAiBusy(true);setBulkAiErr("");
+  try{
+    const res=await fetch("/api/ai/process-bulk",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({rawText:bulkText.trim()}),
+    });
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok)throw new Error(data.error||`HTTP ${res.status}`);
+    const orders=(data.orders||[]).map(o=>({
+      clientName:o.clientName||"عميل",
+      clientPhone:o.clientPhone||"",
+      clientAddress:o.clientAddress||"",
+      items:(o.items||[]).map(it=>({name:it.name||"منتج",desc:it.desc||"",qty:Number(it.qty)||1,price:String(it.price??"")})),
+      shipping:Number(o.shipping)||0,
+      date:today(),dueDate:addD(today(),30),paid:0,notes:"",
+    }));
+    if(!orders.length)throw new Error("لم يُستخرج أي طلب من النص");
+    setBulkParsed(orders);
+    setBulkAiUsed(true);
+    setBulkStep(1);
+    toast_(`🤖 عولج ${orders.length} طلب بالذكاء الاصطناعي`);
+  }catch(e){
+    setBulkAiErr(e.message||"تعذرّت المعالجة الذكية");
+  }finally{
+    setBulkAiBusy(false);
+  }
+};
+
 const printRangeList=()=>{
 const fn=parseInt(toW(printRange.from).replace(/\D/g,""))||0;
 const tn=parseInt(toW(printRange.to).replace(/\D/g,""))||999999;
@@ -2733,12 +2790,12 @@ const TABS=[
 {id:"system",l:"💾 النظام"},
 ];
 
-// r13: توجيه hash داخل مسار / الواحد — #/ أو #/team أو #/founder أو #/login (v2)
+// r16: توجيه hash داخل مسار / الواحد — #/ أو #/team أو #/founder أو #/login أو #/reset?token=…
 // تفتح صفحات الموقع العام (للزائر قبل الدخول، وللمدير كمعاينة بعد الدخول)
 const [sitePage,setSitePage]=useState(null);
 useEffect(()=>{
   const apply=()=>{
-    const m=location.hash.match(/^#\/(team|founder|login)?$/);
+    const m=location.hash.match(/^#\/(team|founder|login|reset)?(\?.*)?$/);
     setSitePage(m?(m[1]||"home"):null);
   };
   apply();
@@ -2905,6 +2962,19 @@ return(
         ):(
           <Dashboard invoices={invoices} company={company} onNavigate={go=>{if(go.status)setStatusFilter(go.status);setView(go.view);setSelInv(null);}}/>
         )}
+        {/* r16: المساعد الذكي داخل الداشبورد الرئيسية — بطلب المؤسس:
+            تحليل فوري + إجراءات تنفيذية (إنسان في الحلقة) بلا مغادرة الشاشة */}
+        <div className="card" style={{marginTop:14,padding:"14px 16px 16px",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+          <span style={{fontSize:18}}>💬</span>
+          <div style={{flex:1,minWidth:200}}>
+            <div style={{fontSize:13.5,fontWeight:900,color:colTx}}>المساعد الذكي — اسأل بياناتك ونفّذ من هنا</div>
+            <div style={{fontSize:11.5,color:"var(--ia-sub)",marginTop:2}}>ملخصات وتحليلات فورية + إنشاء فواتير وعملاء ودفوعات ببطاقة تأكيد</div>
+          </div>
+          <button className="btn" style={{background:col,color:"#fff",padding:"8px 16px"}} onClick={()=>setView("chat")}>فتح المحادثة الكاملة ←</button>
+        </div>
+        <div style={{marginTop:14}}>
+          <SmartChat company={company} onDataChanged={()=>{ refreshInvoices(); refreshClients(); }} />
+        </div>
       </div>
     )}
 
@@ -3323,18 +3393,57 @@ return(
     {/* BULK */}
     {view==="bulk"&&(
       <div className="card" style={{padding:"24px",animation:"fadeUp .25s"}}>
-        <div style={{fontSize:"16px",fontWeight:900,color:colTx,marginBottom:"5px"}}>📦 إدخال مجمع</div>
-        <p style={{fontSize:"12px",color:"var(--ia-sub)",marginBottom:"16px"}}>كل طلب يفصله سطر فارغ — يدعم صيغة الإيموجي</p>
+        <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"5px",flexWrap:"wrap"}}>
+          <div style={{fontSize:"16px",fontWeight:900,color:colTx}}>📦 إدخال مجمع</div>
+          <span style={{background:"rgba(124,58,237,.12)",color:"#7c3aed",border:"1px solid rgba(124,58,237,.25)",borderRadius:"20px",padding:"2px 10px",fontSize:"10.5px",fontWeight:800}}>🤖 بالذكاء الاصطناعي</span>
+        </div>
+        <p style={{fontSize:"12px",color:"var(--ia-sub)",marginBottom:"16px"}}>
+          كل طلب يفصله سطر فارغ — يقبل صيغة الإيموجي أو <b>أي صيغة حرة</b> (عربي/إنجليزي): المساعد الذكي يفهم ويستخرج الطلبات والأسعار والتوصيل
+        </p>
         {bulkStep===0&&(
-          <><textarea className="inp" style={{minHeight:"200px",resize:"vertical",marginBottom:"10px",fontSize:"12px",lineHeight:"1.7"}}
-            value={bulkText} onChange={e=>setBulkText(e.target.value)}
-            placeholder={"📍 الاسم: محمد أبو العينين\n📞 الهاتف: 97479196\n🏠 العنوان: حولي\n🛠️ الطلب: ماتور بوص واحد حصان\n💰 السعر: 11.900\n🚚 التوصيل: مجاني"}/>
-          <button className="btn" style={{background:col,color:"#fff"}} onClick={()=>{setBulkParsed(parseBulk(bulkText));setBulkStep(1);}}>
-            🔍 معاينة ({bulkText.split(/\n\s*\n/).filter(s=>s.trim().length>5).length} طلب)
-          </button></>
+          <>
+            <textarea className="inp" style={{minHeight:"200px",resize:"vertical",marginBottom:"10px",fontSize:"12px",lineHeight:"1.7"}}
+              value={bulkText} onChange={e=>{setBulkText(e.target.value);setBulkAiErr("");setBulkAiUsed(false);}}
+              placeholder={"📍 الاسم: محمد أبو العينين\n📞 الهاتف: 97479196\n🏠 العنوان: حولي\n🛠️ الطلب: ماتور بوص واحد حصان\n💰 السعر: 11.900\n🚚 التوصيل: مجاني"}/>
+            {bulkAiErr&&(
+              <div style={{background:"var(--ia-red-bg)",border:"1px solid var(--ia-red-bd)",borderRadius:"8px",padding:"10px 14px",color:"var(--ia-red-tx)",fontSize:"12.5px",marginBottom:"10px"}}>
+                ❌ {bulkAiErr}
+              </div>
+            )}
+            {bulkAiBusy?(
+              <div style={{display:"flex",alignItems:"center",gap:"12px",background:"rgba(124,58,237,.07)",border:"1.5px solid rgba(124,58,237,.25)",borderRadius:"10px",padding:"16px 18px"}}>
+                <div style={{fontSize:"26px",animation:"spin 1s linear infinite"}}>🤖</div>
+                <div style={{flex:1}}>
+                  <div style={{fontWeight:800,fontSize:13.5,color:"#7c3aed",marginBottom:3}}>جارٍ المعالجة بالذكاء الاصطناعي…</div>
+                  <div style={{fontSize:11.5,color:"var(--ia-sub)"}}>يقرأ النص، يستخرج العملاء والمنتجات والكميات والأسعار والتوصيل</div>
+                </div>
+                <style>{`@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}`}</style>
+              </div>
+            ):(
+              <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
+                <button className="btn" style={{background:"linear-gradient(135deg,#7c3aed,#6d28d9)",color:"#fff",flex:2,justifyContent:"center",padding:"13px",fontSize:"14px",minWidth:"210px",boxShadow:"0 4px 14px rgba(124,58,237,.3)"}}
+                  onClick={processBulkAI} disabled={!bulkText.trim()}>
+                  🤖 معالجة وإضافة بالذكاء الاصطناعي
+                </button>
+                <button className="btn btn-outline" style={{flex:1,justifyContent:"center",padding:"13px",minWidth:"130px"}}
+                  onClick={()=>{setBulkParsed(parseBulk(bulkText));setBulkAiUsed(false);setBulkStep(1);}}>
+                  🔍 معاينة سريعة
+                </button>
+              </div>
+            )}
+            <p style={{fontSize:"11px",color:"var(--ia-muted)",margin:"10px 0 0"}}>
+              💡 «المعاينة السريعة» تستخدم المحلل المحلي لصيغة الإيموجي فقط — زرّ الذكاء الاصطناعي يفهم أي صيغة
+            </p>
+          </>
         )}
         {bulkStep===1&&(
-          <><div style={{color:"#16a34a",fontWeight:700,marginBottom:"10px"}}>✅ {bulkParsed.length} طلب جاهز</div>
+          <>
+            <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"10px",flexWrap:"wrap"}}>
+              <div style={{color:"#16a34a",fontWeight:800}}>✅ {bulkParsed.length} طلب جاهز</div>
+              {bulkAiUsed&&(
+                <span style={{background:"rgba(124,58,237,.1)",color:"#7c3aed",border:"1px solid rgba(124,58,237,.25)",borderRadius:"20px",padding:"2px 10px",fontSize:"10.5px",fontWeight:800}}>⚡ عولج بالذكاء الاصطناعي</span>
+              )}
+            </div>
           <div style={{maxHeight:"360px",overflow:"auto",marginBottom:"12px"}}>
             {bulkParsed.map((b,i)=>{const tot=b.items.reduce((s,it)=>s+it.qty*pN(it.price),0)+pN(b.shipping||0);
               return(<div key={i} style={{border:"1px solid var(--ia-border)",borderRadius:"8px",padding:"10px 14px",marginBottom:"6px",background:"var(--ia-row-alt)"}}>
@@ -3349,9 +3458,10 @@ return(
                 </div>
               </div>);})}
           </div>
-          <div style={{display:"flex",gap:"8px"}}>
-            <button className="btn" style={{background:"#16a34a",color:"#fff",flex:1}} onClick={saveBulk}>💾 حفظ الكل ({bulkParsed.length})</button>
-            <button className="btn btn-ghost" onClick={()=>setBulkStep(0)}>← تعديل</button>
+          <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
+            <button className="btn" style={{background:"#16a34a",color:"#fff",flex:1,fontSize:"13.5px",padding:"11px"}} onClick={saveBulk}>💾 إضافة الفواتير ({bulkParsed.length})</button>
+            <button className="btn" style={{background:"linear-gradient(135deg,#7c3aed,#6d28d9)",color:"#fff",padding:"11px 16px"}} onClick={()=>{setBulkStep(0);}} disabled={bulkAiBusy}>🤖 إعادة معالجة بالذكاء</button>
+            <button className="btn btn-ghost" onClick={()=>setBulkStep(0)}>← تعديل النص</button>
           </div></>
         )}
         {bulkStep===2&&(
@@ -3478,7 +3588,7 @@ return(
       تم البرمجة والتطوير بواسطة{" "}
       <a href="https://wa.me/201033514479" target="_blank" rel="noopener noreferrer"
         style={{color:col,textDecoration:"none",fontWeight:700}}>
-        أحمد الصياد
+        أحمد عزت الصياد
       </a>
     </div>
 
