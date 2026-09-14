@@ -25,6 +25,15 @@ interface I18nValue {
 
 const I18nContext = createContext<I18nValue | null>(null);
 
+/**
+ * r19 (E2E fix): حدث مزامنة بين نسخ LangProvider المتداخلة.
+ * الموقع العام يغلّف PricingPage/AccountPanel وكلٌّ منها يغلّف نفسه بمزوّده الخاص —
+ * كانت الحالات لا تتزامن: تبديل اللغة من النافبار يحدّث المزوّد الخارجي فقط
+ * وتبقى الصفحة الداخلية بلغتها القديمة حتى إعادة التحميل.
+ * الحل: setLang يبثّ الحدث وكل مزوّد يستمع له ويحدّث حالته فوراً.
+ */
+const LANG_CHANGE_EVENT = "garfix-lang-change";
+
 function readStored(): string {
   try {
     const v = localStorage.getItem(STORAGE_KEY);
@@ -65,7 +74,19 @@ export function LangProvider({ children, initialLang }: { children: React.ReactN
     if (LANGUAGES.some((l) => l.code === c)) {
       setLangState(c);
       try { localStorage.setItem(STORAGE_KEY, c); } catch { /* ignore */ }
+      // r19: بثّ لكل نسخ LangProvider الأخرى (نفس التبويب) لتتزامن فوراً
+      try { window.dispatchEvent(new CustomEvent(LANG_CHANGE_EVENT, { detail: c })); } catch { /* SSR */ }
     }
+  }, []);
+
+  // r19: الاستماع لتبديل اللغة من أي مزوّد آخر (متداخل أو خارجي)
+  useEffect(() => {
+    const onLangChange = (e: Event) => {
+      const c = (e as CustomEvent<string>).detail;
+      if (typeof c === "string" && LANGUAGES.some((l) => l.code === c)) setLangState(c);
+    };
+    window.addEventListener(LANG_CHANGE_EVENT, onLangChange as EventListener);
+    return () => window.removeEventListener(LANG_CHANGE_EVENT, onLangChange as EventListener);
   }, []);
 
   const language = useMemo(() => langOf(lang), [lang]);
