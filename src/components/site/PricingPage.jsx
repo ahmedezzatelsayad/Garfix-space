@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LangProvider, useI18n } from "@/lib/i18n-context";
 import { SITE_CSS } from "./site-shared";
+import { tr } from "@/lib/i18n-app";
 
 /**
  * r18: صفحة الأسعار العامة — خطط الاشتراك بعملة بلد الزائر (١٩٦ دولة)
@@ -98,7 +99,7 @@ function CountrySelect({ countries, value, onChange, busy, t }) {
     >
       <span style={{ fontSize: 17, flexShrink: 0 }}>{c.flag}</span>
       <span style={{ flex: 1, minWidth: 0 }}>
-        {c.nameAr}
+        {tr(c.nameAr)}
         <span dir="ltr" style={{ display: "block", fontSize: 10.5, fontWeight: 600, color: "rgba(255,255,255,.4)" }}>
           {c.nameEn}
         </span>
@@ -167,11 +168,11 @@ function CountrySelect({ countries, value, onChange, busy, t }) {
               </div>
             )}
             {arab.length > 0 && (
-              <div className="s-label" style={{ padding: "6px 10px 4px", fontSize: 9.5 }}>🌍 الدول العربية</div>
+              <div className="s-label" style={{ padding: "6px 10px 4px", fontSize: 9.5 }}>{tr("🌍 الدول العربية")}</div>
             )}
             {arab.map((c, i) => row(c, i))}
             {rest.length > 0 && (
-              <div className="s-label" style={{ padding: "8px 10px 4px", fontSize: 9.5 }}>🌏 باقي دول العالم</div>
+              <div className="s-label" style={{ padding: "8px 10px 4px", fontSize: 9.5 }}>{tr("🌏 باقي دول العالم")}</div>
             )}
             {rest.map((c, i) => row(c, arab.length + i))}
           </div>
@@ -184,7 +185,7 @@ function CountrySelect({ countries, value, onChange, busy, t }) {
 /* ── بطاقة خطة واحدة ── */
 function PlanCard({ plan, t, i }) {
   const isFree = plan.code === "free_early";
-  const popular = plan.badgeAr && String(plan.badgeAr).indexOf("الأكثر") !== -1;
+  const popular = plan.badgeAr && String(plan.badgeAr).indexOf(tr("الأكثر")) !== -1;
   const quotas = [
     ["🏢", t("pricing.quotaCompanies"), plan.maxCompanies],
     ["👥", t("pricing.quotaCustomers"), plan.maxCustomers],
@@ -202,7 +203,7 @@ function PlanCard({ plan, t, i }) {
     >
       {plan.badgeAr && <span className="s-chip" style={{ alignSelf: "flex-start" }}>{plan.badgeAr}</span>}
       <div>
-        <div style={{ fontSize: 20, fontWeight: 900, marginBottom: 4 }}>{plan.nameAr}</div>
+        <div style={{ fontSize: 20, fontWeight: 900, marginBottom: 4 }}>{tr(plan.nameAr)}</div>
         {plan.descAr && (
           <div style={{ color: "rgba(255,255,255,.55)", fontSize: 12.5, lineHeight: 1.8 }}>{plan.descAr}</div>
         )}
@@ -275,7 +276,7 @@ function PricingInner({ content }) {
       setData(json);
       if (!code && json.geo?.country) setCountry(json.geo.country);
     } catch (e) {
-      setError(e.message || "تعذّر تحميل الأسعار");
+      setError(e.message || tr("تعذّر تحميل الأسعار"));
     } finally {
       firstLoad.current = false;
       setLoading(false);
@@ -412,7 +413,7 @@ function PricingInner({ content }) {
               {t("pricing.loginToSubscribe")}
             </a>
             <div style={{ marginTop: 14, color: "rgba(255,255,255,.6)", fontSize: 13, fontWeight: 700 }}>
-              🎁 {content?.site_name ? `${content.site_name} — ` : ""}مجاناً لأول {freeSeats?.limit ?? 100} مشترك
+              🎁 {content?.site_name ? `${content.site_name} — ` : ""}{tr("مجاناً لأول")} {freeSeats?.limit ?? 100} {tr("مشترك")}
             </div>
           </div>
         </section>

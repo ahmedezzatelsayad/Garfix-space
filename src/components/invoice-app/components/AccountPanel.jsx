@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LangProvider, useI18n } from "@/lib/i18n-context";
 import { LANGUAGES } from "@/lib/i18n";
+import { tr } from "@/lib/i18n-app";
 
 /**
  * r18: تبويب «حسابي» — الملف الشخصي والاشتراك والاستخدام للمستخدم الحالي.
@@ -94,7 +95,7 @@ function CountryPicker({ countries, value, onChange, t, disabled }) {
       onClick={() => pick(c)}
     >
       <span style={{ fontSize: 15, flexShrink: 0 }}>{c.flag}</span>
-      <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.nameAr}</span>
+      <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tr(c.nameAr)}</span>
       <span dir="ltr" style={{ fontSize: 10, color: "var(--ia-muted)", flexShrink: 0 }}>{c.currency}</span>
       {c.vat > 0 && (
         <span dir="ltr" style={{ fontSize: 9.5, background: "rgba(201,162,39,.14)", color: "#9a7318", borderRadius: 20, padding: "1px 7px", flexShrink: 0 }}>VAT {c.vat}%</span>
@@ -150,11 +151,11 @@ function CountryPicker({ countries, value, onChange, t, disabled }) {
               <div style={{ padding: "18px 8px", textAlign: "center", color: "var(--ia-muted)", fontSize: 12 }}>🌍 —</div>
             )}
             {arab.length > 0 && (
-              <div style={{ padding: "5px 8px 3px", fontSize: 9.5, color: "var(--ia-muted)", fontWeight: 800, letterSpacing: 1 }}>🌍 الدول العربية</div>
+              <div style={{ padding: "5px 8px 3px", fontSize: 9.5, color: "var(--ia-muted)", fontWeight: 800, letterSpacing: 1 }}>{tr("🌍 الدول العربية")}</div>
             )}
             {arab.map((c, i) => row(c, i))}
             {rest.length > 0 && (
-              <div style={{ padding: "7px 8px 3px", fontSize: 9.5, color: "var(--ia-muted)", fontWeight: 800, letterSpacing: 1 }}>🌏 باقي دول العالم</div>
+              <div style={{ padding: "7px 8px 3px", fontSize: 9.5, color: "var(--ia-muted)", fontWeight: 800, letterSpacing: 1 }}>{tr("🌏 باقي دول العالم")}</div>
             )}
             {rest.map((c, i) => row(c, arab.length + i))}
           </div>
@@ -232,7 +233,7 @@ function AccountInner({ toast_ }) {
         setCountry(j.profile.country || "KW");
       }
     } catch (e) {
-      setErr(e.message || "تعذّر تحميل بيانات الحساب");
+      setErr(e.message || tr("تعذّر تحميل بيانات الحساب"));
     } finally {
       setLoading(false);
     }
@@ -276,7 +277,7 @@ function AccountInner({ toast_ }) {
       setLang(j.profile.lang || langSel);
       notify("✅ " + t("account.saved"));
     } catch (e) {
-      notify("❌ " + (e.message || "فشل الحفظ"), "warn");
+      notify("❌ " + (e.message || tr("فشل الحفظ")), "warn");
     } finally {
       setSaving(false);
     }
@@ -297,7 +298,7 @@ function AccountInner({ toast_ }) {
       setData((d) => (d ? { ...d, pendingRequest: { planCode, note: noteText || null } } : d));
       notify("✅ " + t("pricing.requestSent"));
     } catch (e) {
-      notify("❌ " + (e.message || "فشل إرسال الطلب"), "warn");
+      notify("❌ " + (e.message || tr("فشل إرسال الطلب")), "warn");
     } finally {
       setReqBusy(false);
     }
@@ -316,7 +317,7 @@ function AccountInner({ toast_ }) {
       setData((d) => (d ? { ...d, pendingRequest: null } : d));
       notify("🗑️ " + t("pricing.requestCancelled"));
     } catch (e) {
-      notify("❌ " + (e.message || "فشل الإلغاء"), "warn");
+      notify("❌ " + (e.message || tr("فشل الإلغاء")), "warn");
     } finally {
       setReqBusy(false);
     }
@@ -389,7 +390,7 @@ function AccountInner({ toast_ }) {
         <div className="card" style={{ ...card, maxWidth: 640, margin: "0 auto", padding: 28, textAlign: dir === "rtl" ? "right" : "left" }}>
           <div style={{ fontSize: 40, marginBottom: 12 }} aria-hidden="true">⭐</div>
           <h3 style={{ margin: "0 0 8px", fontSize: 17, fontWeight: 800, color: "var(--ia-text)" }}>
-            حساب مؤسسي مدمج — وصول غير محدود بلا حصص
+            {tr("حساب مؤسسي مدمج — وصول غير محدود بلا حصص")}
           </h3>
           <div style={{ color: "var(--ia-sub)", fontSize: 12.5, lineHeight: 1.9, marginBottom: 18 }}>
             {t("account.unlimitedNote")}
@@ -405,7 +406,7 @@ function AccountInner({ toast_ }) {
               <div dir="ltr" style={{ fontWeight: 700, fontSize: 13, color: "var(--ia-text2)" }}>{profile.email || "—"}</div>
             </div>
             <div>
-              <label style={lbl}>الصفة</label>
+              <label style={lbl}>{tr("الصفة")}</label>
               <div style={{ fontWeight: 700, fontSize: 13, color: "var(--ia-text2)" }}>{profile.role || "—"}</div>
             </div>
             <div>
@@ -420,7 +421,7 @@ function AccountInner({ toast_ }) {
                   <option key={l.code} value={l.code}>{l.flag} {l.nativeName}</option>
                 ))}
               </select>
-              <div style={{ fontSize: 10.5, color: "var(--ia-muted)", marginTop: 5 }}>تُطبَّق على الواجهة فوراً</div>
+              <div style={{ fontSize: 10.5, color: "var(--ia-muted)", marginTop: 5 }}>{tr("تُطبَّق على الواجهة فوراً")}</div>
             </div>
           </div>
         </div>
@@ -459,7 +460,7 @@ function AccountInner({ toast_ }) {
           </div>
           {data?.plan && (
             <span style={{ background: "rgba(201,162,39,.14)", color: "#9a7318", border: "1px solid rgba(201,162,39,.35)", borderRadius: 30, padding: "5px 14px", fontSize: 11.5, fontWeight: 800 }}>
-              ✓ {t("account.plan")}: {data.plan.nameAr}
+              ✓ {t("account.plan")}: {tr(data.plan.nameAr)}
             </span>
           )}
         </div>
@@ -582,7 +583,7 @@ function AccountInner({ toast_ }) {
                     </span>
                   )}
                   <div>
-                    <div style={{ fontWeight: 900, fontSize: 15.5 }}>{p.nameAr}</div>
+                    <div style={{ fontWeight: 900, fontSize: 15.5 }}>{tr(p.nameAr)}</div>
                     {p.descAr && <div style={{ color: "var(--ia-sub)", fontSize: 11.5, lineHeight: 1.7, marginTop: 3 }}>{p.descAr}</div>}
                   </div>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { tr } from "@/lib/i18n-app";
 
 /**
  * r16: لوحة المؤسس — إعداد Resend (بريد «هل نسيت كلمة السر؟»)
@@ -53,9 +54,9 @@ export default function ResendPanel({ toast_ }) {
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       setCfg(data.config);
       setApiKey("");
-      toast_("✅ تم حفظ إعدادات Resend");
+      toast_(tr("✅ تم حفظ إعدادات Resend"));
     } catch (e) {
-      toast_("❌ " + (e.message || "فشل الحفظ"), "err");
+      toast_("❌ " + (e.message || tr("فشل الحفظ")), "err");
     } finally {
       setSaving(false);
     }
@@ -72,9 +73,9 @@ export default function ResendPanel({ toast_ }) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-      toast_("📨 أُرسل بريد الاختبار — تحقق من صندوق الوارد");
+      toast_(tr("📨 أُرسل بريد الاختبار — تحقق من صندوق الوارد"));
     } catch (e) {
-      toast_("❌ " + (e.message || "فشل الإرسال"), "err");
+      toast_("❌ " + (e.message || tr("فشل الإرسال")), "err");
     } finally {
       setTesting(false);
     }
@@ -87,7 +88,7 @@ export default function ResendPanel({ toast_ }) {
   if (loading) {
     return (
       <div style={{ textAlign: "center", padding: 48, color: "var(--ia-sub)" }}>
-        <div style={{ fontSize: 34, marginBottom: 10 }}>⏳</div>جارٍ تحميل إعدادات البريد...
+        <div style={{ fontSize: 34, marginBottom: 10 }}>⏳</div>{tr("جارٍ تحميل إعدادات البريد...")}
       </div>
     );
   }
@@ -97,9 +98,8 @@ export default function ResendPanel({ toast_ }) {
 
       {/* الشرح */}
       <div style={{ ...card, fontSize: 12.5, color: "var(--ia-sub)", lineHeight: 1.9, background: "var(--ia-soft)" }}>
-        📧 خدمة البريد <b dir="ltr">Resend</b> تشغّل ميزة <b>«هل نسيت كلمة السر؟»</b> — عند طلب أي مشترك استعادة كلمة مروره
-        يُرسل له رابط إعادة التعيين بريدياً (صالح 30 دقيقة ولمرة واحدة).<br />
-        أنشئ حساباً في <span dir="ltr">resend.com</span>، انسخ مفتاح API (يبدأ بـ <span dir="ltr">re_</span>) والصقه هنا.
+        {tr("📧 خدمة البريد")} <b dir="ltr">Resend</b> {tr("تشغّل ميزة")} <b>{tr("«هل نسيت كلمة السر؟»")}</b> {tr("— عند طلب أي مشترك استعادة كلمة مروره\n        يُرسل له رابط إعادة التعيين بريدياً (صالح 30 دقيقة ولمرة واحدة).")}<br />
+        {tr("أنشئ حساباً في")} <span dir="ltr">resend.com</span>{tr("، انسخ مفتاح API (يبدأ بـ")} <span dir="ltr">re_</span>{tr(") والصقه هنا.")}
       </div>
 
       {/* الحالة */}
@@ -107,10 +107,10 @@ export default function ResendPanel({ toast_ }) {
         <span style={{ fontSize: 22 }}>{cfg?.configured ? "✅" : "⚪"}</span>
         <div style={{ flex: 1, minWidth: 200 }}>
           <div style={{ fontWeight: 800, fontSize: 14, color: cfg?.configured ? "var(--ia-ok-tx)" : "var(--ia-sub)" }}>
-            {cfg?.configured ? "خدمة البريد مهيأة وتعمل" : "غير مهيأة — أضف المفتاح أدناه"}
+            {cfg?.configured ? tr("خدمة البريد مهيأة وتعمل") : tr("غير مهيأة — أضف المفتاح أدناه")}
           </div>
           {cfg?.configured && (
-            <div style={{ fontSize: 11.5, color: "var(--ia-muted)", marginTop: 3, direction: "ltr", textAlign: "right" }}>
+            <div style={{ fontSize: 11.5, color: "var(--ia-muted)", marginTop: 3, direction: "ltr", textAlign: "start" }}>
               {cfg.apiKeyMasked} → {cfg.from}
             </div>
           )}
@@ -119,13 +119,13 @@ export default function ResendPanel({ toast_ }) {
 
       {/* الإعدادات */}
       <div style={card}>
-        <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 14 }}>⚙️ بيانات الاتصال</div>
+        <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 14 }}>{tr("⚙️ بيانات الاتصال")}</div>
         <div style={{ display: "grid", gap: 12 }}>
           <div>
-            <label style={lbl}>مفتاح Resend API {cfg?.configured ? "(اتركه فارغاً للإبقاء على الحالي)" : "*"}</label>
+            <label style={lbl}>{tr("مفتاح Resend API")} {cfg?.configured ? tr("(اتركه فارغاً للإبقاء على الحالي)") : "*"}</label>
             <div style={{ position: "relative" }}>
               <input
-                style={{ ...inp, paddingLeft: 40, direction: "ltr", textAlign: "right" }}
+                style={{ ...inp, paddingInlineEnd: 40, direction: "ltr", textAlign: "start" }}
                 type={showKey ? "text" : "password"}
                 placeholder="re_XXXXXXXXXXXXXXXX"
                 value={apiKey}
@@ -138,16 +138,16 @@ export default function ResendPanel({ toast_ }) {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div>
-              <label style={lbl}>بريد المرسل</label>
-              <input style={{ ...inp, direction: "ltr", textAlign: "right" }} placeholder="onboarding@resend.dev" value={from} onChange={e => setFrom(e.target.value)} />
+              <label style={lbl}>{tr("بريد المرسل")}</label>
+              <input style={{ ...inp, direction: "ltr", textAlign: "start" }} placeholder="onboarding@resend.dev" value={from} onChange={e => setFrom(e.target.value)} />
             </div>
             <div>
-              <label style={lbl}>اسم المرسل (اختياري)</label>
-              <input style={inp} placeholder="نظام إدارة الحسابات" value={fromName} onChange={e => setFromName(e.target.value)} />
+              <label style={lbl}>{tr("اسم المرسل (اختياري)")}</label>
+              <input style={inp} placeholder={tr("نظام إدارة الحسابات")} value={fromName} onChange={e => setFromName(e.target.value)} />
             </div>
           </div>
           <div style={{ fontSize: 11, color: "var(--ia-muted)", lineHeight: 1.7 }}>
-            💡 بياناتك المجانية في Resend تستخدم <span dir="ltr">onboarding@resend.dev</span> — للبريد باسم نطاقك فعّل نطاقك من لوحة Resend أولاً.
+            {tr("💡 بياناتك المجانية في Resend تستخدم")} <span dir="ltr">onboarding@resend.dev</span> {tr("— للبريد باسم نطاقك فعّل نطاقك من لوحة Resend أولاً.")}
           </div>
           <div>
             <button
@@ -160,7 +160,7 @@ export default function ResendPanel({ toast_ }) {
                 color: (saving || (!apiKey.trim() && !cfg?.configured)) ? "var(--ia-muted)" : "#fff",
               }}
             >
-              {saving ? "⏳ جارٍ الحفظ..." : "💾 حفظ الإعدادات"}
+              {saving ? tr("⏳ جارٍ الحفظ...") : tr("💾 حفظ الإعدادات")}
             </button>
           </div>
         </div>
@@ -168,13 +168,13 @@ export default function ResendPanel({ toast_ }) {
 
       {/* اختبار الإرسال */}
       <div style={card}>
-        <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 6 }}>🧪 اختبار الإرسال</div>
+        <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 6 }}>{tr("🧪 اختبار الإرسال")}</div>
         <div style={{ fontSize: 11.5, color: "var(--ia-muted)", marginBottom: 12, lineHeight: 1.7 }}>
-          أرسل بريداً تجريبياً لأي عنوان تملكه للتأكد أن المفتاح والمرسل يعملان فعلاً.
+          {tr("أرسل بريداً تجريبياً لأي عنوان تملكه للتأكد أن المفتاح والمرسل يعملان فعلاً.")}
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <input
-            style={{ ...inp, flex: 1, minWidth: 220, direction: "ltr", textAlign: "right" }}
+            style={{ ...inp, flex: 1, minWidth: 220, direction: "ltr", textAlign: "start" }}
             type="email"
             placeholder="your@email.com"
             value={testTo}
@@ -191,7 +191,7 @@ export default function ResendPanel({ toast_ }) {
               color: (testing || !testTo.trim() || !cfg?.configured) ? "var(--ia-muted)" : "#fff",
             }}
           >
-            {testing ? "⏳ جارٍ الإرسال..." : "📨 أرسل بريداً تجريبياً"}
+            {testing ? tr("⏳ جارٍ الإرسال...") : tr("📨 أرسل بريداً تجريبياً")}
           </button>
         </div>
       </div>

@@ -170,13 +170,23 @@ export async function buildProjectContext(input: CompanyContextInput): Promise<C
   });
 }
 
-/** يحوّل اللقطة إلى system prompt عربي مُوجَّه */
-export function contextToSystemPrompt(snap: ContextSnapshot): string {
+/** يحوّل اللقطة إلى system prompt مُوجَّه (r20: يتبع لغة الواجهة — ar افتراضياً) */
+export function contextToSystemPrompt(snap: ContextSnapshot, lang?: string): string {
+  const en = String(lang || "ar").toLowerCase().split("-")[0] !== "ar";
   const cur = snap.currency;
   const fmt = (n: number) => fKD(n, cur);
   const lines: string[] = [];
+  if (en) {
+    lines.push(`You are "Garfix Smart Assistant" — a financial & administrative assistant embedded in a Kuwaiti multi-company invoicing system.`);
+    lines.push(`Always answer in clear, professional English, and use numbers from the real data below only.`);
+    lines.push(`The official currency of the current scope is ${cur.en || cur.ar} (${cur.code}) — abbreviate it "${cur.shortEn || cur.short}" after numbers, with its decimals (${cur.decimals}).`);
+    lines.push(`If asked about something missing from the data, say so honestly and never invent numbers.`);
+  } else {
   lines.push(`أنت "مساعد جرفِكس الذكي" — مساعد مالي وإداري مدمج في نظام إدارة حسابات وفواتير كويتي متعدد الشركات (واجهة عربية RTL).`);
   lines.push(`أجب دائماً بالعربية بأسلوب واضح ومهني، واستخدم الأرقام من البيانات الحقيقية أدناه فقط.`);
+  lines.push(`العملة الرسمية لنطاق العمل الحالي هي ${cur.ar} (${cur.code}) — اختصرها "${cur.short}" بعد الأرقام، وبمنازلها العشرية (${cur.decimals}).`);
+  lines.push(`إن سُئلت عن شيء غير موجود في البيانات فاذكر ذلك بصراحة ولا تخترع أرقاماً.`);
+  }
   lines.push(`العملة الرسمية لنطاق العمل الحالي هي ${cur.ar} (${cur.code}) — اختصرها "${cur.short}" بعد الأرقام، وبمنازلها العشرية (${cur.decimals}).`);
   lines.push(`إن سُئلت عن شيء غير موجود في البيانات فاذكر ذلك بصراحة ولا تخترع أرقاماً.`);
   lines.push("");

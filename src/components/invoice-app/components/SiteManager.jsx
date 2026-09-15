@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api";
+import { tr } from "@/lib/i18n-app";
 
 /**
  * r13: تبويب 🌐 الموقع (للمدير فقط) — إدارة محتوى الموقع العام:
@@ -68,7 +69,7 @@ export default function SiteManager({ toast }) {
       setContent(c || {});
       setTeam(t || []);
     } catch (e) {
-      toast_("تعذّر تحميل محتوى الموقع: " + (e.message || e), "warn");
+      toast_(tr("تعذّر تحميل محتوى الموقع: ") + (e.message || e), "warn");
     } finally {
       setLoading(false);
     }
@@ -87,9 +88,9 @@ export default function SiteManager({ toast }) {
         if (v) payload[f.key] = v;
       }
       const out = await api.saveSiteContent(payload);
-      toast_(`✅ تم حفظ محتوى الموقع (${out?.saved ?? 0} حقل) — تحديث الصفحات فوري`);
+      toast_(tr("✅ تم حفظ محتوى الموقع ({0} حقل) — تحديث الصفحات فوري",[out?.saved ?? 0]));
     } catch (e) {
-      toast_("فشل الحفظ: " + (e.message || e), "warn");
+      toast_(tr("فشل الحفظ: ") + (e.message || e), "warn");
     } finally {
       setSavingContent(false);
     }
@@ -104,14 +105,14 @@ export default function SiteManager({ toast }) {
 
   const saveMember = async () => {
     if (!String(editor.name || "").trim()) {
-      toast_("اسم العضو مطلوب", "warn");
+      toast_(tr("اسم العضو مطلوب"), "warn");
       return;
     }
     setSavingMember(true);
     try {
       const data = {
         name: editor.name,
-        role: editor.role || "عضو الفريق",
+        role: editor.role || tr("عضو الفريق"),
         bio: editor.bio || "",
         emoji: editor.emoji || "",
         photoUrl: editor.photoUrl || "",
@@ -123,11 +124,11 @@ export default function SiteManager({ toast }) {
       };
       if (editor.id) await api.updateTeamMember(editor.id, data);
       else await api.createTeamMember(data);
-      toast_(editor.id ? "✅ تم تحديث العضو" : "✅ تمت إضافة العضو — يظهر فوراً بصفحة الفريق");
+      toast_(editor.id ? tr("✅ تم تحديث العضو") : tr("✅ تمت إضافة العضو — يظهر فوراً بصفحة الفريق"));
       setEditor(null);
       await load();
     } catch (e) {
-      toast_("فشل الحفظ: " + (e.message || e), "warn");
+      toast_(tr("فشل الحفظ: ") + (e.message || e), "warn");
     } finally {
       setSavingMember(false);
     }
@@ -137,9 +138,9 @@ export default function SiteManager({ toast }) {
     try {
       await api.updateTeamMember(m.id, { published: !m.published });
       setTeam((p) => p.map((x) => (x.id === m.id ? { ...x, published: !m.published } : x)));
-      toast_(m.published ? "📝 العضو أصبح مسودة (لن يظهر بالموقع)" : "👁 العضو أصبح منشوراً");
+      toast_(m.published ? tr("📝 العضو أصبح مسودة (لن يظهر بالموقع)") : tr("👁 العضو أصبح منشوراً"));
     } catch (e) {
-      toast_("فشل التبديل: " + (e.message || e), "warn");
+      toast_(tr("فشل التبديل: ") + (e.message || e), "warn");
     }
   };
 
@@ -159,18 +160,18 @@ export default function SiteManager({ toast }) {
         return arr;
       });
     } catch (e) {
-      toast_("فشل إعادة الترتيب: " + (e.message || e), "warn");
+      toast_(tr("فشل إعادة الترتيب: ") + (e.message || e), "warn");
     }
   };
 
   const removeMember = async (m) => {
-    if (!window.confirm(`حذف «${m.name}» من الفريق نهائياً؟`)) return;
+    if (!window.confirm(tr("حذف «{0}» من الفريق نهائياً؟",[m.name]))) return;
     try {
       await api.deleteTeamMember(m.id);
       setTeam((p) => p.filter((x) => x.id !== m.id));
-      toast_("🗑 تم حذف العضو");
+      toast_(tr("🗑 تم حذف العضو"));
     } catch (e) {
-      toast_("فشل الحذف: " + (e.message || e), "warn");
+      toast_(tr("فشل الحذف: ") + (e.message || e), "warn");
     }
   };
 
@@ -190,19 +191,18 @@ export default function SiteManager({ toast }) {
       <div className="card" style={{ padding: 18 }}>
         <SectionTitle
           icon="🌐"
-          title="الموقع العام — الرئيسية والفريق ورسالة المؤسس"
-          sub="كل ما تحفظه هنا يظهر فوراً للزوار قبل تسجيل الدخول"
+          title={tr("الموقع العام — الرئيسية والفريق ورسالة المؤسس")}
+          sub={tr("كل ما تحفظه هنا يظهر فوراً للزوار قبل تسجيل الدخول")}
           extra={
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              <button className="btn btn-outline" onClick={openPreview("#/")}>👁 الرئيسية</button>
-              <button className="btn btn-outline" onClick={openPreview("#/team")}>👥 الفريق</button>
-              <button className="btn btn-outline" onClick={openPreview("#/founder")}>✉️ رسالة المؤسس</button>
+              <button className="btn btn-outline" onClick={openPreview("#/")}>{tr("👁 الرئيسية")}</button>
+              <button className="btn btn-outline" onClick={openPreview("#/team")}>{tr("👥 الفريق")}</button>
+              <button className="btn btn-outline" onClick={openPreview("#/founder")}>{tr("✉️ رسالة المؤسس")}</button>
             </div>
           }
         />
         <div style={{ background: "var(--ia-hover)", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, color: "var(--ia-sub)", lineHeight: 1.8 }}>
-          💡 أزرار المعاينة تفتح صفحات الموقع فوق النظام — زر «↩️ العودة للنظام» في شريط الموقع يعيدك هنا.
-          الزائر غير المسجّل يرى الموقع تلقائياً بمجرد فتح التطبيق.
+          {tr("💡 أزرار المعاينة تفتح صفحات الموقع فوق النظام — زر «↩️ العودة للنظام» في شريط الموقع يعيدك هنا.\n          الزائر غير المسجّل يرى الموقع تلقائياً بمجرد فتح التطبيق.")}
         </div>
       </div>
 
@@ -210,11 +210,11 @@ export default function SiteManager({ toast }) {
       <div className="card" style={{ padding: 18 }}>
         <SectionTitle
           icon="✉️"
-          title="رسالة المؤسس ومحتوى الصفحة الرئيسية"
-          sub="فاصل الفقرات في الرسالة: سطر فارغ واحد"
+          title={tr("رسالة المؤسس ومحتوى الصفحة الرئيسية")}
+          sub={tr("فاصل الفقرات في الرسالة: سطر فارغ واحد")}
           extra={
             <button className="btn io-btn" onClick={saveContent} disabled={savingContent}>
-              {savingContent ? "⏳ جارٍ الحفظ…" : "💾 حفظ المحتوى"}
+              {savingContent ? tr("⏳ جارٍ الحفظ…") : tr("💾 حفظ المحتوى")}
             </button>
           }
         />
@@ -222,13 +222,13 @@ export default function SiteManager({ toast }) {
           {CONTENT_FIELDS.map((f) => (
             <div key={f.key} style={{ gridColumn: f.area || f.key === "hero_title" ? "1/-1" : "auto" }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: "var(--ia-sub)", display: "block", marginBottom: 6 }}>
-                {f.label}
+                {tr(f.label)}
               </label>
               {f.area ? (
                 <textarea
                   className="inp"
                   rows={f.rows || 3}
-                  placeholder={f.placeholder}
+                  placeholder={tr(f.placeholder)}
                   value={content[f.key] ?? ""}
                   onChange={(e) => setField(f.key, e.target.value)}
                   style={{ resize: "vertical", lineHeight: 1.8 }}
@@ -236,7 +236,7 @@ export default function SiteManager({ toast }) {
               ) : (
                 <input
                   className="inp"
-                  placeholder={f.placeholder}
+                  placeholder={tr(f.placeholder)}
                   value={content[f.key] ?? ""}
                   onChange={(e) => setField(f.key, e.target.value)}
                 />
@@ -250,17 +250,17 @@ export default function SiteManager({ toast }) {
       <div className="card" style={{ padding: 18 }}>
         <SectionTitle
           icon="👥"
-          title="أعضاء الفريق"
-          sub={`${team.length} عضو — الترتيب بالأسهم، والنشر بعين 👁`}
+          title={tr("أعضاء الفريق")}
+          sub={tr("{0} عضو — الترتيب بالأسهم، والنشر بعين 👁",[team.length])}
           extra={
-            <button className="btn io-btn" onClick={openAdd}>＋ إضافة عضو</button>
+            <button className="btn io-btn" onClick={openAdd}>{tr("＋ إضافة عضو")}</button>
           }
         />
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {team.length === 0 && (
             <div style={{ textAlign: "center", padding: 24, color: "var(--ia-sub)", fontSize: 13 }}>
-              لا يوجد أعضاء بعد — أضف أول عضو بزر «＋ إضافة عضو»
+              {tr("لا يوجد أعضاء بعد — أضف أول عضو بزر «＋ إضافة عضو»")}
             </div>
           )}
           {team.map((m, i) => (
@@ -289,17 +289,17 @@ export default function SiteManager({ toast }) {
                 <b style={{ fontSize: 14 }}>{m.name}</b>
                 <span style={{ color: "var(--ia-sub)", fontSize: 12, marginInlineStart: 8 }}>{m.role}</span>
                 <div style={{ fontSize: 11, color: "var(--ia-muted)", marginTop: 2 }}>
-                  ترتيب {m.sortOrder} {m.published ? "· 👁 منشور" : "· 📝 مسودة"}
+                  {tr("ترتيب")} {m.sortOrder} {m.published ? tr("· 👁 منشور") : tr("· 📝 مسودة")}
                 </div>
               </div>
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                <button className="btn btn-ghost" onClick={() => move(m, -1)} disabled={i === 0} title="أعلى" style={{ padding: "6px 10px" }}>⬆️</button>
-                <button className="btn btn-ghost" onClick={() => move(m, 1)} disabled={i === team.length - 1} title="أسفل" style={{ padding: "6px 10px" }}>⬇️</button>
-                <button className="btn btn-ghost" onClick={() => togglePublished(m)} title={m.published ? "تحويل لمسودة" : "نشر"} style={{ padding: "6px 10px" }}>
+                <button className="btn btn-ghost" onClick={() => move(m, -1)} disabled={i === 0} title={tr("أعلى")} style={{ padding: "6px 10px" }}>⬆️</button>
+                <button className="btn btn-ghost" onClick={() => move(m, 1)} disabled={i === team.length - 1} title={tr("أسفل")} style={{ padding: "6px 10px" }}>⬇️</button>
+                <button className="btn btn-ghost" onClick={() => togglePublished(m)} title={m.published ? tr("تحويل لمسودة") : tr("نشر")} style={{ padding: "6px 10px" }}>
                   {m.published ? "👁" : "📝"}
                 </button>
-                <button className="btn btn-ghost" onClick={() => openEdit(m)} title="تعديل" style={{ padding: "6px 10px" }}>✏️</button>
-                <button className="btn btn-red" onClick={() => removeMember(m)} title="حذف" style={{ padding: "6px 10px" }}>🗑</button>
+                <button className="btn btn-ghost" onClick={() => openEdit(m)} title={tr("تعديل")} style={{ padding: "6px 10px" }}>✏️</button>
+                <button className="btn btn-red" onClick={() => removeMember(m)} title={tr("حذف")} style={{ padding: "6px 10px" }}>🗑</button>
               </div>
             </div>
           ))}
@@ -319,24 +319,24 @@ export default function SiteManager({ toast }) {
           <div className="card" style={{ maxWidth: 640, width: "100%", maxHeight: "88vh", overflowY: "auto", padding: 20 }}>
             <SectionTitle
               icon={editor.id ? "✏️" : "＋"}
-              title={editor.id ? `تعديل: ${editor.name || "عضو"}` : "إضافة عضو جديد"}
-              sub="الحقول الاختيارية الفارغة تُتجاهل"
+              title={editor.id ? tr("تعديل: {0}",[editor.name || tr("عضو")]) : tr("إضافة عضو جديد")}
+              sub={tr("الحقول الاختيارية الفارغة تُتجاهل")}
             />
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(230px,1fr))", gap: 12 }}>
               {MEMBER_FIELDS.map((f) => (
                 <div key={f.key}>
                   <label style={{ fontSize: 11, fontWeight: 700, color: "var(--ia-sub)", display: "block", marginBottom: 6 }}>
-                    {f.label} {f.required && <span style={{ color: "#dc2626" }}>*</span>}
+                    {tr(f.label)} {f.required && <span style={{ color: "#dc2626" }}>*</span>}
                   </label>
                   {f.area ? (
                     <textarea
-                      className="inp" rows={f.rows || 3} placeholder={f.placeholder}
+                      className="inp" rows={f.rows || 3} placeholder={tr(f.placeholder)}
                       value={editor[f.key] ?? ""}
                       onChange={(e) => setEditor((p) => ({ ...p, [f.key]: e.target.value }))}
                     />
                   ) : (
                     <input
-                      className="inp" placeholder={f.placeholder}
+                      className="inp" placeholder={tr(f.placeholder)}
                       value={editor[f.key] ?? ""}
                       onChange={(e) => setEditor((p) => ({ ...p, [f.key]: e.target.value }))}
                     />
@@ -349,14 +349,14 @@ export default function SiteManager({ toast }) {
                   onChange={(e) => setEditor((p) => ({ ...p, published: e.target.checked }))}
                 />
                 <label htmlFor="tm-published" style={{ fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
-                  👁 منشور (يظهر بصفحة الفريق)
+                  {tr("👁 منشور (يظهر بصفحة الفريق)")}
                 </label>
               </div>
             </div>
             <div style={{ display: "flex", gap: 8, marginTop: 16, justifyContent: "flex-end" }}>
-              <button className="btn btn-outline" onClick={() => setEditor(null)}>إلغاء</button>
+              <button className="btn btn-outline" onClick={() => setEditor(null)}>{tr("إلغاء")}</button>
               <button className="btn io-btn" onClick={saveMember} disabled={savingMember}>
-                {savingMember ? "⏳ جارٍ الحفظ…" : "💾 حفظ العضو"}
+                {savingMember ? tr("⏳ جارٍ الحفظ…") : tr("💾 حفظ العضو")}
               </button>
             </div>
           </div>

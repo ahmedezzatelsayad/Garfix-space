@@ -23,6 +23,8 @@ import PaymentsPanel from "./components/PaymentsPanel";
 import RemindersPanel from "./components/RemindersPanel";
 import { buildStatementHTML } from "./statement";
 import { useTheme, txAdapt, softAdapt, chartColors, lighten } from "./theme";
+import { tr, useAppI18n, appDir, appLang, companyName, dateLocale } from "@/lib/i18n-app";
+import { LanguageSwitcher } from "@/lib/i18n-context";
 
 // ─── Companies Config ─────────────────────────────────────────────
 const COMPANIES = {
@@ -109,15 +111,15 @@ const waReminderHref = (inv, company) => {
   if (!phone) return null;
   const tot = iT(inv), paid = pN(inv.paid || 0), due = tot - paid, od = overdueDays(inv);
   const lines = [
-    `عميلنا العزيز ${inv.clientName || ""}،`,
-    `تذكير ودّي من ${company.nameAr} 🙏`,
-    `📄 الفاتورة رقم ${inv.invNum} بتاريخ ${fDate(inv.date)}`,
-    `💰 الإجمالي: ${fKWD(tot)}`,
-    paid > 0 ? `✅ المدفوع: ${fKWD(paid)} — المتبقي: ${fKWD(due)}` : `المبلغ المطلوب: ${fKWD(due)}`,
-    `📅 تاريخ الاستحقاق: ${fDate(inv.dueDate)}${od > 0 ? ` (متأخرة ${od} يوم)` : ""}`,
-    `نرجو التكرم بتسوية المبلغ المتبقي في أقرب وقت 🙏`,
-    `شكراً لتعاونكم 🌹`,
-    `${company.nameAr} — ${company.phone}`,
+    tr("عميلنا العزيز {0}،",[inv.clientName || ""]),
+    tr("تذكير ودّي من {0} 🙏",[companyName(company)]),
+    tr("📄 الفاتورة رقم {0} بتاريخ {1}",[inv.invNum,fDate(inv.date)]),
+    tr("💰 الإجمالي: {0}",[fKWD(tot)]),
+    paid > 0 ? tr("✅ المدفوع: {0} — المتبقي: {1}",[fKWD(paid),fKWD(due)]) : tr("المبلغ المطلوب: {0}",[fKWD(due)]),
+    tr("📅 تاريخ الاستحقاق: {0}{1}",[fDate(inv.dueDate),od > 0 ? tr(" (متأخرة {0} يوم)",[od]) : ""]),
+    tr(`نرجو التكرم بتسوية المبلغ المتبقي في أقرب وقت 🙏`),
+    tr(`شكراً لتعاونكم 🌹`),
+    `${companyName(company)} — ${company.phone}`,
   ];
   return `https://wa.me/965${phone}?text=${encodeURIComponent(lines.join("\n"))}`;
 };
@@ -164,13 +166,13 @@ function buildPayLink(tpl, inv, amount){
 // ── WhatsApp payment-request message (used when no gateway link is configured) ──
 function payRequestMessage(inv, company, amount, link){
   const lines=[
-    `عميلنا العزيز ${inv.clientName||""}،`,
-    `طلب دفع من ${company.nameAr} 💳`,
-    `📄 الفاتورة رقم ${inv.invNum} بتاريخ ${fDate(inv.date)}`,
-    `💰 المبلغ المطلوب: ${fKWD(amount)}`,
-    link?`🔗 للسداد الإلكتروني (كي نت):\n${link}`:"",
-    `شكراً لتعاونكم 🌹`,
-    `${company.nameAr} — ${company.phone}`,
+    tr("عميلنا العزيز {0}،",[inv.clientName||""]),
+    tr("طلب دفع من {0} 💳",[companyName(company)]),
+    tr("📄 الفاتورة رقم {0} بتاريخ {1}",[inv.invNum,fDate(inv.date)]),
+    tr("💰 المبلغ المطلوب: {0}",[fKWD(amount)]),
+    link?tr("🔗 للسداد الإلكتروني (كي نت):\n{0}",[link]):"",
+    tr(`شكراً لتعاونكم 🌹`),
+    `${companyName(company)} — ${company.phone}`,
   ].filter(Boolean);
   return lines.join("\n");
 }
@@ -238,19 +240,19 @@ function groupInvoiceRows(rawHeaders, rows) {
 
 // Header mapping: file column → our field
 const colMap = {
-invNum:         ["invoice no","invoice number","رقم الفاتورة","inv no","رقم"],
-date:           ["date","تاريخ","invoice date","تاريخ الفاتورة"],
-dueDate:        ["due date","تاريخ الاستحقاق","expiry date"],
-clientName:     ["customer name","client name","اسم العميل","الاسم","name","customer"],
-clientPhone:    ["phone","telephone","mobile","هاتف","رقم الهاتف","customer phone","client phone","جوال"],
-clientAddress:  ["address","عنوان","customer address","client address","العنوان"],
-itemName:       ["item name","product name","item","product","المنتج","اسم المنتج","الصنف"],
-itemDesc:       ["description","item description","وصف","الوصف","desc"],
-qty:            ["qty","quantity","كمية","الكمية"],
-price:          ["unit price","price","سعر","سعر الوحدة","السعر"],
-shipping:       ["shipping","delivery","توصيل","شحن"],
-paid:           ["paid","مدفوع","paid amount","المدفوع"],
-notes:          ["notes","ملاحظات","note","remarks"],
+invNum:         ["invoice no","invoice number",tr("رقم الفاتورة"),"inv no",tr("رقم")],
+date:           ["date",tr("تاريخ"),"invoice date",tr("تاريخ الفاتورة")],
+dueDate:        ["due date",tr("تاريخ الاستحقاق"),"expiry date"],
+clientName:     ["customer name","client name",tr("اسم العميل"),tr("الاسم"),"name","customer"],
+clientPhone:    ["phone","telephone","mobile",tr("هاتف"),tr("رقم الهاتف"),"customer phone","client phone",tr("جوال")],
+clientAddress:  ["address",tr("عنوان"),"customer address","client address",tr("العنوان")],
+itemName:       ["item name","product name","item","product",tr("المنتج"),tr("اسم المنتج"),tr("الصنف")],
+itemDesc:       ["description","item description",tr("وصف"),tr("الوصف"),"desc"],
+qty:            ["qty","quantity",tr("كمية"),tr("الكمية")],
+price:          ["unit price","price",tr("سعر"),tr("سعر الوحدة"),tr("السعر")],
+shipping:       ["shipping","delivery",tr("توصيل"),tr("شحن")],
+paid:           ["paid",tr("مدفوع"),"paid amount",tr("المدفوع")],
+notes:          ["notes",tr("ملاحظات"),"note","remarks"],
 };
 
 // Find column index for each field
@@ -293,7 +295,7 @@ const itemName = get(row, "itemName");
 const itemDesc = get(row, "itemDesc");
 const qty = pN(get(row, "qty")) || 1;
 const price = pN(get(row, "price"));
-const item = { name: itemName || "منتج", desc: itemDesc, qty, price };
+const item = { name: itemName || tr("منتج"), desc: itemDesc, qty, price };
 
 if (invMap[key]) {
   // Add item to existing invoice
@@ -301,10 +303,10 @@ if (invMap[key]) {
 } else {
   invMap[key] = {
     invNum,
-    clientName: get(row, "clientName") || "عميل",
+    clientName: get(row, "clientName") || tr("عميل"),
     clientPhone: norm(get(row, "clientPhone")),
     clientAddress: get(row, "clientAddress"),
-    items: (itemName || price) ? [item] : [{ name: "منتج", desc: "", qty: 1, price: 0 }],
+    items: (itemName || price) ? [item] : [{ name: tr("منتج"), desc: "", qty: 1, price: 0 }],
     shipping: pN(get(row, "shipping")),
     date: parseDate(get(row, "date")),
     dueDate: parseDate(get(row, "dueDate")) || addD(today(), 30),
@@ -322,7 +324,7 @@ return { invoices, errors, detectedCols: rawHeaders };
 // Parse a CSV text → invoices (quoted fields supported)
 function parseInvoicesCSV(text) {
 const lines = text.trim().split(/\r?\n/);
-if (lines.length < 2) return { invoices: [], errors: ["الملف فارغ أو غير صحيح"] };
+if (lines.length < 2) return { invoices: [], errors: [tr("الملف فارغ أو غير صحيح")] };
 const rawHeaders = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, "").toLowerCase());
 const rows = lines.slice(1).map(line => {
 const cols = [];
@@ -343,11 +345,11 @@ return groupInvoiceRows(rawHeaders, rows);
 function parseInvoicesExcel(buffer) {
 let wb;
 try { wb = XLSX.read(buffer, { type: "array" }); }
-catch { return { invoices: [], errors: ["تعذر قراءة ملف Excel — تأكد أنه بصيغة .xlsx أو .xls"] }; }
+catch { return { invoices: [], errors: [tr("تعذر قراءة ملف Excel — تأكد أنه بصيغة .xlsx أو .xls")] }; }
 const sheetName = wb.SheetNames[0];
-if (!sheetName) return { invoices: [], errors: ["ملف Excel فارغ"] };
+if (!sheetName) return { invoices: [], errors: [tr("ملف Excel فارغ")] };
 const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, defval: "", raw: false });
-if (aoa.length < 2) return { invoices: [], errors: ["الملف فارغ أو غير صحيح"] };
+if (aoa.length < 2) return { invoices: [], errors: [tr("الملف فارغ أو غير صحيح")] };
 const rawHeaders = aoa[0].map(h => String(h ?? "").trim().replace(/^"|"$/g, "").toLowerCase());
 const rows = aoa.slice(1).filter(r => r.some(c => String(c ?? "").trim() !== ""));
 return groupInvoiceRows(rawHeaders, rows);
@@ -393,7 +395,7 @@ setStep(1);
 };
 reader.readAsArrayBuffer(file);
 } else {
-setErrors(["يرجى رفع ملف CSV أو Excel بصيغة .xlsx أو .xls"]);
+setErrors([tr("يرجى رفع ملف CSV أو Excel بصيغة .xlsx أو .xls")]);
 }
 };
 
@@ -449,15 +451,15 @@ boxShadow:"0 24px 64px rgba(0,0,0,.35)",animation:"fadeUp .25s"
     {/* Header */}
     <div style={{background:col,padding:"18px 22px",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
       <div>
-        <div style={{color:"#fff",fontWeight:900,fontSize:"16px"}}>📥 استيراد الفواتير (CSV / Excel)</div>
+        <div style={{color:"#fff",fontWeight:900,fontSize:"16px"}}>{tr("📥 استيراد الفواتير (CSV / Excel)")}</div>
         <div style={{color:"rgba(255,255,255,.7)",fontSize:"12px",marginTop:"2px"}}>{company.nameAr}</div>
       </div>
-      <button onClick={onClose} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"8px",padding:"6px 12px",color:"#fff",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>✕ إغلاق</button>
+      <button onClick={onClose} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"8px",padding:"6px 12px",color:"#fff",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>{tr("✕ إغلاق")}</button>
     </div>
 
     {/* Steps indicator */}
     <div style={{display:"flex",borderBottom:"1px solid #e5e7eb",background:"var(--ia-row-alt)",padding:"0 22px",flexShrink:0}}>
-      {["رفع الملف","معاينة البيانات","تم الاستيراد"].map((s,i) => (
+      {[tr("رفع الملف"),tr("معاينة البيانات"),tr("تم الاستيراد")].map((s,i) => (
         <div key={i} style={{padding:"10px 16px",fontSize:"12px",fontWeight:700,borderBottom:`2px solid ${step===i?col:"transparent"}`,color:step===i?col:step>i?"#16a34a":"#9ca3af",cursor:"pointer",transition:"all .2s"}} onClick={()=>i<step&&setStep(i)}>
           {step>i?"✓ ":""}{s}
         </div>
@@ -470,12 +472,12 @@ boxShadow:"0 24px 64px rgba(0,0,0,.35)",animation:"fadeUp .25s"
       {step===0&&(
         <div>
           <div style={{background:"var(--ia-sky-bg)",border:"1.5px solid var(--ia-sky-bd)",borderRadius:"10px",padding:"14px 16px",marginBottom:"18px"}}>
-            <div style={{fontWeight:700,color:"var(--ia-sky-tx)",marginBottom:"6px",fontSize:"13px"}}>📋 الصيغ المدعومة: Excel (.xlsx / .xls) و CSV</div>
-            <ul style={{fontSize:"12px",color:"var(--ia-sky-tx2)",paddingRight:"18px",lineHeight:"1.9",margin:0}}>
-              <li>أعدّ ملفك في <b>Excel</b> أو صدّره من أي نظام محاسبة</li>
-              <li>رؤوس الأعمدة تدعم <b>العربية والإنجليزية</b> معاً</li>
-              <li>تكرار رقم الفاتورة في أكثر من سطر يُدمج تلقائياً كبنود متعددة</li>
-              <li>الفواتير المكررة (بنفس الرقم) يمكن تخطيها اختيارياً</li>
+            <div style={{fontWeight:700,color:"var(--ia-sky-tx)",marginBottom:"6px",fontSize:"13px"}}>{tr("📋 الصيغ المدعومة: Excel (.xlsx / .xls) و CSV")}</div>
+            <ul style={{fontSize:"12px",color:"var(--ia-sky-tx2)",paddingInlineStart:"18px",lineHeight:"1.9",margin:0}}>
+              <li>{tr("أعدّ ملفك في")} <b>Excel</b> {tr("أو صدّره من أي نظام محاسبة")}</li>
+              <li>{tr("رؤوس الأعمدة تدعم")} <b>{tr("العربية والإنجليزية")}</b> {tr("معاً")}</li>
+              <li>{tr("تكرار رقم الفاتورة في أكثر من سطر يُدمج تلقائياً كبنود متعددة")}</li>
+              <li>{tr("الفواتير المكررة (بنفس الرقم) يمكن تخطيها اختيارياً")}</li>
             </ul>
           </div>
 
@@ -492,9 +494,9 @@ boxShadow:"0 24px 64px rgba(0,0,0,.35)",animation:"fadeUp .25s"
             onMouseLeave={e=>{e.currentTarget.style.background=`${col}07`;e.currentTarget.style.borderColor=`${col}66`;}}
           >
             <div style={{fontSize:"44px",marginBottom:"10px"}}>📂</div>
-            <div style={{fontWeight:700,fontSize:"15px",color:"var(--ia-text)",marginBottom:"5px"}}>اسحب ملف CSV أو Excel هنا</div>
-            <div style={{color:"var(--ia-sub)",fontSize:"12px",marginBottom:"14px"}}>أو اضغط للاختيار من جهازك</div>
-            <div style={{display:"inline-block",background:col,color:"#fff",padding:"9px 22px",borderRadius:"8px",fontWeight:700,fontSize:"13px"}}>اختر ملف CSV / Excel</div>
+            <div style={{fontWeight:700,fontSize:"15px",color:"var(--ia-text)",marginBottom:"5px"}}>{tr("اسحب ملف CSV أو Excel هنا")}</div>
+            <div style={{color:"var(--ia-sub)",fontSize:"12px",marginBottom:"14px"}}>{tr("أو اضغط للاختيار من جهازك")}</div>
+            <div style={{display:"inline-block",background:col,color:"#fff",padding:"9px 22px",borderRadius:"8px",fontWeight:700,fontSize:"13px"}}>{tr("اختر ملف CSV / Excel")}</div>
           </div>
           <input ref={fileRef} type="file" accept=".csv,.txt,.xlsx,.xls" style={{display:"none"}} onChange={e=>handleFile(e.target.files[0])}/>
 
@@ -505,7 +507,7 @@ boxShadow:"0 24px 64px rgba(0,0,0,.35)",animation:"fadeUp .25s"
           )}
 
           <div style={{background:"var(--ia-soft)",borderRadius:"8px",padding:"12px 16px",marginTop:"14px",fontSize:"11px",color:"var(--ia-sub)",lineHeight:"1.8"}}>
-            <b>الأعمدة المدعومة:</b> رقم الفاتورة، التاريخ، اسم العميل، الهاتف، العنوان، اسم المنتج، الكمية، السعر، التوصيل، المدفوع، الملاحظات
+            <b>{tr("الأعمدة المدعومة:")}</b> {tr("رقم الفاتورة، التاريخ، اسم العميل، الهاتف، العنوان، اسم المنتج، الكمية، السعر، التوصيل، المدفوع، الملاحظات")}
           </div>
         </div>
       )}
@@ -516,14 +518,14 @@ boxShadow:"0 24px 64px rgba(0,0,0,.35)",animation:"fadeUp .25s"
           <div style={{display:"flex",gap:"10px",marginBottom:"14px",flexWrap:"wrap",alignItems:"center"}}>
             <div style={{flex:1}}>
               <div style={{fontWeight:700,fontSize:"14px",color:"var(--ia-text)"}}>
-                تم تحليل <span style={{color:colTx}}>{parsed.length}</span> فاتورة
-                {dupCount>0&&<span style={{color:"var(--ia-warn-tx)",marginRight:"6px",fontSize:"12px"}}>({dupCount} مكررة)</span>}
+                {tr("تم تحليل")} <span style={{color:colTx}}>{parsed.length}</span> {tr("فاتورة")}
+                {dupCount>0&&<span style={{color:"var(--ia-warn-tx)",marginInlineStart:"6px",fontSize:"12px"}}>({dupCount} {tr("مكررة)")}</span>}
               </div>
-              <div style={{fontSize:"12px",color:"var(--ia-sub)",marginTop:"3px"}}>الأعمدة المكتشفة: {detectedCols.slice(0,6).join("، ")}{detectedCols.length>6?"...":""}</div>
+              <div style={{fontSize:"12px",color:"var(--ia-sub)",marginTop:"3px"}}>{tr("الأعمدة المكتشفة:")} {detectedCols.slice(0,6).join("، ")}{detectedCols.length>6?"...":""}</div>
             </div>
             <label style={{display:"flex",alignItems:"center",gap:"6px",cursor:"pointer",fontSize:"12px",fontWeight:700,color:"var(--ia-text2)",background:"var(--ia-chip)",padding:"7px 12px",borderRadius:"8px",border:"1px solid var(--ia-border)"}}>
               <input type="checkbox" checked={skipDup} onChange={e=>setSkipDup(e.target.checked)} style={{accentColor:col}}/>
-              تخطى المكررة
+              {tr("تخطى المكررة")}
             </label>
           </div>
 
@@ -538,8 +540,8 @@ boxShadow:"0 24px 64px rgba(0,0,0,.35)",animation:"fadeUp .25s"
             <table style={{width:"100%",borderCollapse:"collapse",fontSize:"12px"}}>
               <thead>
                 <tr style={{background:"var(--ia-soft)",borderBottom:"2px solid var(--ia-border2)",position:"sticky",top:0}}>
-                  {["#","العميل","الهاتف","المنتجات","المبلغ","التاريخ","حالة"].map(h=>(
-                    <th key={h} style={{padding:"9px 10px",fontWeight:700,color:"var(--ia-sub)",textAlign:"right",fontSize:"11px"}}>{h}</th>
+                  {["#",tr("العميل"),tr("الهاتف"),tr("المنتجات"),tr("المبلغ"),tr("التاريخ"),tr("حالة")].map(h=>(
+                    <th key={h} style={{padding:"9px 10px",fontWeight:700,color:"var(--ia-sub)",textAlign:"start",fontSize:"11px"}}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -551,14 +553,14 @@ boxShadow:"0 24px 64px rgba(0,0,0,.35)",animation:"fadeUp .25s"
                     <tr key={i} style={{borderBottom:"1px solid var(--ia-border3)",background:isDup?"var(--ia-warn-bg)":i%2===0?"var(--ia-card)":"var(--ia-row-alt)",opacity:isDup&&skipDup?.7:1}}>
                       <td style={{padding:"8px 10px",fontWeight:700,color:colTx}}>{inv.invNum}</td>
                       <td style={{padding:"8px 10px",fontWeight:600}}>{inv.clientName}</td>
-                      <td style={{padding:"8px 10px",direction:"ltr",textAlign:"right",color:"var(--ia-link)"}}>{inv.clientPhone||"—"}</td>
+                      <td style={{padding:"8px 10px",direction:"ltr",textAlign:"start",color:"var(--ia-link)"}}>{inv.clientPhone||"—"}</td>
                       <td style={{padding:"8px 10px",color:"var(--ia-sub)",maxWidth:"140px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{inv.items.map(it=>it.name).join("، ")}</td>
                       <td style={{padding:"8px 10px",fontWeight:700}}>{fKWD(tot)}</td>
                       <td style={{padding:"8px 10px",color:"var(--ia-sub)"}}>{fDate(inv.date)}</td>
                       <td style={{padding:"8px 10px"}}>
                         {isDup
-                          ? <span style={{background:"var(--ia-warn-bg)",color:"var(--ia-warn-tx)",borderRadius:"20px",padding:"2px 8px",fontSize:"10px",fontWeight:700}}>مكرر</span>
-                          : <span style={{background:"var(--ia-ok-bg)",color:"var(--ia-ok-tx)",borderRadius:"20px",padding:"2px 8px",fontSize:"10px",fontWeight:700}}>جديد</span>
+                          ? <span style={{background:"var(--ia-warn-bg)",color:"var(--ia-warn-tx)",borderRadius:"20px",padding:"2px 8px",fontSize:"10px",fontWeight:700}}>{tr("مكرر")}</span>
+                          : <span style={{background:"var(--ia-ok-bg)",color:"var(--ia-ok-tx)",borderRadius:"20px",padding:"2px 8px",fontSize:"10px",fontWeight:700}}>{tr("جديد")}</span>
                         }
                       </td>
                     </tr>
@@ -574,9 +576,9 @@ boxShadow:"0 24px 64px rgba(0,0,0,.35)",animation:"fadeUp .25s"
               onClick={doImport}
               disabled={importing||toImport.length===0}
             >
-              {importing?"⏳ جارٍ الاستيراد...":`💾 استيراد ${toImport.length} فاتورة`}
+              {importing?tr("⏳ جارٍ الاستيراد..."):tr("💾 استيراد {0} فاتورة",[toImport.length])}
             </button>
-            <button style={{background:"var(--ia-ghost-bg)",color:"var(--ia-ghost-tx)",border:"none",borderRadius:"9px",padding:"12px 18px",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}} onClick={()=>setStep(0)}>← رجوع</button>
+            <button style={{background:"var(--ia-ghost-bg)",color:"var(--ia-ghost-tx)",border:"none",borderRadius:"9px",padding:"12px 18px",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}} onClick={()=>setStep(0)}>{tr("← رجوع")}</button>
           </div>
         </div>
       )}
@@ -585,13 +587,13 @@ boxShadow:"0 24px 64px rgba(0,0,0,.35)",animation:"fadeUp .25s"
       {step===2&&(
         <div style={{textAlign:"center",padding:"32px 20px"}}>
           <div style={{fontSize:"64px",marginBottom:"12px"}}>✅</div>
-          <div style={{fontSize:"20px",fontWeight:900,color:"var(--ia-text)",marginBottom:"8px"}}>تم الاستيراد بنجاح!</div>
+          <div style={{fontSize:"20px",fontWeight:900,color:"var(--ia-text)",marginBottom:"8px"}}>{tr("تم الاستيراد بنجاح!")}</div>
           <div style={{fontSize:"14px",color:"var(--ia-sub)",marginBottom:"24px"}}>
-            تم إضافة <span style={{fontWeight:900,color:colTx,fontSize:"18px"}}>{importedCount}</span> فاتورة من الملف
-            {dupCount>0&&skipDup&&<div style={{marginTop:"4px",color:"var(--ia-warn-tx)",fontSize:"12px"}}>تم تخطى {dupCount} فاتورة مكررة</div>}
+            {tr("تم إضافة")} <span style={{fontWeight:900,color:colTx,fontSize:"18px"}}>{importedCount}</span> {tr("فاتورة من الملف")}
+            {dupCount>0&&skipDup&&<div style={{marginTop:"4px",color:"var(--ia-warn-tx)",fontSize:"12px"}}>{tr("تم تخطى")} {dupCount} {tr("فاتورة مكررة")}</div>}
           </div>
           <button style={{background:col,color:"#fff",border:"none",borderRadius:"9px",padding:"12px 32px",fontFamily:"inherit",fontSize:"14px",fontWeight:700,cursor:"pointer"}} onClick={onClose}>
-            عرض الفواتير ←
+            {tr("عرض الفواتير ←")}
           </button>
         </div>
       )}
@@ -669,7 +671,7 @@ const ship=pN(inv.shipping||0);const tot=sub+tax+ship;const paid=pN(inv.paid||0)
 const due=tot-paid;
 const isCancelled=inv.status==='cancelled';
 const stC=isCancelled?"#6b7280":due<=0?"#16a34a":paid>0?"#b45309":"#dc2626";
-const stT=isCancelled?"ملغية":due<=0?"مدفوعة":paid>0?"مدفوعة جزئياً":"غير مدفوعة";
+const stT=isCancelled?tr("ملغية"):due<=0?tr("مدفوعة"):paid>0?tr("مدفوعة جزئياً"):tr("غير مدفوعة");
 const empty=Math.max(0,5-inv.items.length);
 const itemRows=inv.items.map((it,i)=>`
 <tr style="background:${zebraOf(i)};border-bottom:1px solid ${rowBorder};">
@@ -681,100 +683,15 @@ const itemRows=inv.items.map((it,i)=>`
   <td style="padding:9px 12px;text-align:left;font-weight:700;direction:ltr;">${fKWD(pN(it.qty)*pN(it.price))}</td>
 </tr>`).join("");
 const emptyRows=Array.from({length:empty}).map(()=>`<tr style="border-bottom:1px solid #f0f0f0;"><td colspan="6" style="height:32px;"></td></tr>`).join("");
-return `<div class="page">
-${isCancelled?`<div class="watermark">ملغية</div>`:""}
-${S.topBar?`<div style="height:7px;background:linear-gradient(90deg,${acc},${lightenHex(acc,.25)});border-radius:4px;margin-bottom:12px;"></div>`:""}
-<div style="position:relative;z-index:1;">
-
-<div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:${S.id==="modern"?"0":"14px"};border-bottom:${S.headerBorder};${S.id==="modern"?"border-bottom:none;":""}margin-bottom:16px;${S.id==="modern"?"border-bottom:2px solid "+acc+";padding-bottom:12px;":""}">
-  <div style="display:flex;align-items:flex-start;gap:14px;">
-    ${logoBlock}
-    <div>
-      <div style="font-size:18px;font-weight:900;color:${titleColor};margin-bottom:4px;letter-spacing:-.3px;">${c.name}</div>
-      <div style="font-size:10px;color:#6b7280;line-height:2.1;">${c.nameAr}<br/>${c.address} — ${c.city}<br/><span style="direction:ltr;display:inline-block;">${c.phone}</span> &nbsp;|&nbsp; ${c.email}</div>
-    </div>
-  </div>
-  <div style="text-align:left;">
-    <div style="font-size:32px;font-weight:${S.titleWeight};color:${titleColor};letter-spacing:-2px;line-height:1;margin-bottom:4px;">فـاتـورة</div>
-    <div style="font-size:11px;color:#6b7280;font-weight:600;direction:ltr;margin-bottom:8px;"># ${inv.invNum}</div>
-    <div style="display:inline-block;${S.statusBadge(stC,stT)};border-radius:${S.id==="modern"?"20px":"4px"};padding:3px 14px;font-size:11px;font-weight:800;letter-spacing:.5px;">${stT}</div>
-  </div>
-</div>
-
-<div style="display:grid;grid-template-columns:1.9fr 1fr 1fr;border:${boxBorder};border-radius:${S.radius};overflow:hidden;margin-bottom:16px;">
-  <div style="padding:12px 16px;border-left:${S.id==="minimal"?"1px solid #999":S.id==="modern"?`1.5px solid ${acc}30`:"1.5px solid #d1d5db"};">
-    <div style="font-size:8.5px;font-weight:800;color:#9ca3af;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;">صادرة إلى</div>
-    <div style="font-size:15px;font-weight:800;color:#111;margin-bottom:3px;">${inv.clientName||"—"}</div>
-    <div style="font-size:12.5px;font-weight:700;direction:ltr;text-align:right;color:#374151;margin-bottom:2px;">${inv.clientPhone||""}</div>
-    ${inv.clientAddress?`<div style="font-size:11px;color:#6b7280;margin-top:2px;">${inv.clientAddress}</div>`:""}
-  </div>
-  <div style="padding:12px 14px;border-left:${S.id==="minimal"?"1px solid #999":S.id==="modern"?`1.5px solid ${acc}30`:"1.5px solid #d1d5db"};">
-    <div style="font-size:8.5px;font-weight:800;color:#9ca3af;letter-spacing:2px;text-transform:uppercase;margin-bottom:5px;">تاريخ الإصدار</div>
-    <div style="font-size:13px;font-weight:700;color:#111;margin-bottom:10px;">${fDate(inv.date)}</div>
-    <div style="font-size:8.5px;font-weight:800;color:#9ca3af;letter-spacing:2px;text-transform:uppercase;margin-bottom:5px;">تاريخ الاستحقاق</div>
-    <div style="font-size:13px;font-weight:700;color:#111;">${fDate(inv.dueDate)}</div>
-  </div>
-  <div style="padding:12px 14px;background:${amountBg};">
-    <div style="font-size:8.5px;font-weight:800;color:#9ca3af;letter-spacing:2px;text-transform:uppercase;margin-bottom:5px;">المبلغ المستحق</div>
-    <div style="font-size:21px;font-weight:900;color:${S.amountColor===true?(due<=0?"#16a34a":acc):(S.amountColor===false?"#111":stC)};direction:ltr;text-align:right;line-height:1.1;margin-bottom:10px;">${isCancelled?"—":fKWD(due)}</div>
-    <div style="font-size:8.5px;font-weight:800;color:#9ca3af;letter-spacing:2px;text-transform:uppercase;margin-bottom:5px;">المسؤول</div>
-    <div style="font-size:12px;font-weight:700;color:#374151;">${c.manager}</div>
-  </div>
-</div>
-
-<table style="width:100%;border-collapse:collapse;border:${boxBorder};border-radius:${S.radius};overflow:hidden;margin-bottom:14px;">
-  <thead>
-    <tr style="${theadBgStyle};color:${S.theadColor};${S.id==="minimal"?"border-bottom:2px solid #000;":""}">
-      <th style="padding:10px 8px;width:30px;text-align:center;font-size:10.5px;font-weight:700;border-left:${S.id==="minimal"?"1px solid #ddd":"1px solid "+S.theadBorder};">#</th>
-      <th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:700;">المنتج / الخدمة</th>
-      <th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;">الوصف</th>
-      <th style="padding:10px 10px;text-align:center;font-size:11px;font-weight:700;width:52px;border-left:${S.id==="minimal"?"1px solid #ddd":"1px solid "+S.theadBorder};border-right:${S.id==="minimal"?"1px solid #ddd":"1px solid "+S.theadBorder};">الكمية</th>
-      <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;width:94px;border-left:${S.id==="minimal"?"1px solid #ddd":"1px solid "+S.theadBorder};">سعر الوحدة</th>
-      <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;width:94px;">الإجمالي</th>
-    </tr>
-  </thead>
-  <tbody>${itemRows}${emptyRows}</tbody>
-</table>
-
-<div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
-  <table style="min-width:260px;border-collapse:collapse;border:${boxBorder};border-radius:${S.id==="minimal"?"0px":"6px"};overflow:hidden;">
-    <tr style="border-bottom:1px solid ${rowBorder};"><td style="padding:7px 16px;color:#6b7280;font-size:12.5px;">المجموع الجزئي</td><td style="padding:7px 16px;text-align:left;font-size:12.5px;font-weight:600;direction:ltr;">${fKWD(sub)}</td></tr>
-    ${tax>0?`<tr style="border-bottom:1px solid ${rowBorder};"><td style="padding:7px 16px;color:#6b7280;font-size:12.5px;">الضريبة (${taxR}%)</td><td style="padding:7px 16px;text-align:left;font-size:12.5px;font-weight:600;direction:ltr;">${fKWD(tax)}</td></tr>`:""}
-    ${ship>0?`<tr style="border-bottom:1px solid ${rowBorder};"><td style="padding:7px 16px;color:#6b7280;font-size:12.5px;">التوصيل</td><td style="padding:7px 16px;text-align:left;font-size:12.5px;font-weight:600;direction:ltr;">${fKWD(ship)}</td></tr>`:""}
-    <tr style="${totalBgStyle};color:${S.totalColor};"><td style="padding:10px 16px;font-size:13.5px;font-weight:800;">إجمالي الفاتورة</td><td style="padding:10px 16px;text-align:left;font-size:13.5px;font-weight:900;direction:ltr;">${fKWD(tot)}</td></tr>
-    <tr style="border-bottom:1px solid ${rowBorder};"><td style="padding:7px 16px;font-size:12.5px;color:#374151;">المدفوع</td><td style="padding:7px 16px;text-align:left;font-size:12.5px;font-weight:700;direction:ltr;">${fKWD(paid)}</td></tr>
-    <tr style="border-top:${totalTopBorder};"><td style="padding:10px 16px;font-size:13.5px;font-weight:800;color:${stC};">${isCancelled?"الحالة":"المبلغ المستحق"}</td><td style="padding:10px 16px;text-align:left;font-size:14px;font-weight:900;color:${stC};direction:ltr;">${isCancelled?stT:fKWD(due)}</td></tr>
-  </table>
-</div>
-
-${(inv._pays&&inv._pays.length)?`
-<div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
-  <table style="min-width:320px;border-collapse:collapse;border:${boxBorder};border-radius:${S.id==="minimal"?"0px":"6px"};overflow:hidden;">
-    <thead><tr style="background:${S.id==="minimal"?"#fff":S.id==="modern"?`${acc}12`:"#f3f4f6"};border-bottom:${S.id==="minimal"?"2px solid #000":"1.5px solid "+(S.id==="modern"?acc+"40":"#d1d5db")};">
-      <th colspan="4" style="padding:8px 14px;text-align:right;font-size:10.5px;font-weight:800;color:${S.id==="modern"?acc:"#374151"};letter-spacing:.5px;">💳 سجل الدفعات (${inv._pays.length})</th>
-    </tr></thead>
-    <tbody>
-      ${inv._pays.map(p=>`<tr style="border-bottom:1px solid ${S.id==="minimal"?"#eee":"#f0f0f0"};">
+return tr("<div class=\"page\">\n{0}\n{1}\n<div style=\"position:relative;z-index:1;\">\n\n<div style=\"display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:{2};border-bottom:{3};{4}margin-bottom:16px;{5}\">\n  <div style=\"display:flex;align-items:flex-start;gap:14px;\">\n    {6}\n    <div>\n      <div style=\"font-size:18px;font-weight:900;color:{7};margin-bottom:4px;letter-spacing:-.3px;\">{8}</div>\n      <div style=\"font-size:10px;color:#6b7280;line-height:2.1;\">{9}<br/>{10} — {11}<br/><span style=\"direction:ltr;display:inline-block;\">{12}</span> &nbsp;|&nbsp; {13}</div>\n    </div>\n  </div>\n  <div style=\"text-align:left;\">\n    <div style=\"font-size:32px;font-weight:{14};color:{15};letter-spacing:-2px;line-height:1;margin-bottom:4px;\">فـاتـورة</div>\n    <div style=\"font-size:11px;color:#6b7280;font-weight:600;direction:ltr;margin-bottom:8px;\"># {16}</div>\n    <div style=\"display:inline-block;{17};border-radius:{18};padding:3px 14px;font-size:11px;font-weight:800;letter-spacing:.5px;\">{19}</div>\n  </div>\n</div>\n\n<div style=\"display:grid;grid-template-columns:1.9fr 1fr 1fr;border:{20};border-radius:{21};overflow:hidden;margin-bottom:16px;\">\n  <div style=\"padding:12px 16px;border-left:{22};\">\n    <div style=\"font-size:8.5px;font-weight:800;color:#9ca3af;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;\">صادرة إلى</div>\n    <div style=\"font-size:15px;font-weight:800;color:#111;margin-bottom:3px;\">{23}</div>\n    <div style=\"font-size:12.5px;font-weight:700;direction:ltr;text-align:start;color:#374151;margin-bottom:2px;\">{24}</div>\n    {25}\n  </div>\n  <div style=\"padding:12px 14px;border-left:{26};\">\n    <div style=\"font-size:8.5px;font-weight:800;color:#9ca3af;letter-spacing:2px;text-transform:uppercase;margin-bottom:5px;\">تاريخ الإصدار</div>\n    <div style=\"font-size:13px;font-weight:700;color:#111;margin-bottom:10px;\">{27}</div>\n    <div style=\"font-size:8.5px;font-weight:800;color:#9ca3af;letter-spacing:2px;text-transform:uppercase;margin-bottom:5px;\">تاريخ الاستحقاق</div>\n    <div style=\"font-size:13px;font-weight:700;color:#111;\">{28}</div>\n  </div>\n  <div style=\"padding:12px 14px;background:{29};\">\n    <div style=\"font-size:8.5px;font-weight:800;color:#9ca3af;letter-spacing:2px;text-transform:uppercase;margin-bottom:5px;\">المبلغ المستحق</div>\n    <div style=\"font-size:21px;font-weight:900;color:{30};direction:ltr;text-align:start;line-height:1.1;margin-bottom:10px;\">{31}</div>\n    <div style=\"font-size:8.5px;font-weight:800;color:#9ca3af;letter-spacing:2px;text-transform:uppercase;margin-bottom:5px;\">المسؤول</div>\n    <div style=\"font-size:12px;font-weight:700;color:#374151;\">{32}</div>\n  </div>\n</div>\n\n<table style=\"width:100%;border-collapse:collapse;border:{33};border-radius:{34};overflow:hidden;margin-bottom:14px;\">\n  <thead>\n    <tr style=\"{35};color:{36};{37}\">\n      <th style=\"padding:10px 8px;width:30px;text-align:center;font-size:10.5px;font-weight:700;border-left:{38};\">#</th>\n      <th style=\"padding:10px 14px;text-align:start;font-size:11px;font-weight:700;\">المنتج / الخدمة</th>\n      <th style=\"padding:10px 12px;text-align:start;font-size:11px;font-weight:700;\">الوصف</th>\n      <th style=\"padding:10px 10px;text-align:center;font-size:11px;font-weight:700;width:52px;border-left:{39};border-right:{40};\">الكمية</th>\n      <th style=\"padding:10px 12px;text-align:left;font-size:11px;font-weight:700;width:94px;border-left:{41};\">سعر الوحدة</th>\n      <th style=\"padding:10px 12px;text-align:left;font-size:11px;font-weight:700;width:94px;\">الإجمالي</th>\n    </tr>\n  </thead>\n  <tbody>{42}{43}</tbody>\n</table>\n\n<div style=\"display:flex;justify-content:flex-end;margin-bottom:14px;\">\n  <table style=\"min-width:260px;border-collapse:collapse;border:{44};border-radius:{45};overflow:hidden;\">\n    <tr style=\"border-bottom:1px solid {46};\"><td style=\"padding:7px 16px;color:#6b7280;font-size:12.5px;\">المجموع الجزئي</td><td style=\"padding:7px 16px;text-align:left;font-size:12.5px;font-weight:600;direction:ltr;\">{47}</td></tr>\n    {48}\n    {49}\n    <tr style=\"{50};color:{51};\"><td style=\"padding:10px 16px;font-size:13.5px;font-weight:800;\">إجمالي الفاتورة</td><td style=\"padding:10px 16px;text-align:left;font-size:13.5px;font-weight:900;direction:ltr;\">{52}</td></tr>\n    <tr style=\"border-bottom:1px solid {53};\"><td style=\"padding:7px 16px;font-size:12.5px;color:#374151;\">المدفوع</td><td style=\"padding:7px 16px;text-align:left;font-size:12.5px;font-weight:700;direction:ltr;\">{54}</td></tr>\n    <tr style=\"border-top:{55};\"><td style=\"padding:10px 16px;font-size:13.5px;font-weight:800;color:{56};\">{57}</td><td style=\"padding:10px 16px;text-align:left;font-size:14px;font-weight:900;color:{58};direction:ltr;\">{59}</td></tr>\n  </table>\n</div>\n\n{60}\n\n{61}\n\n<div style=\"padding-top:10px;border-top:{62};display:flex;justify-content:space-between;align-items:center;\">\n  <div style=\"font-size:9.5px;color:#9ca3af;font-weight:600;\">الشركة القابضة المتحدة ذ.م.م &nbsp;—&nbsp; United Holding Group LLC</div>\n  <div style=\"font-size:10.5px;font-weight:800;color:{63};\">{64} &nbsp;|&nbsp; {65}</div>\n</div>\n\n</div></div>",[isCancelled?tr(`<div class="watermark">ملغية</div>`):"",S.topBar?`<div style="height:7px;background:linear-gradient(90deg,${acc},${lightenHex(acc,.25)});border-radius:4px;margin-bottom:12px;"></div>`:"",S.id==="modern"?"0":"14px",S.headerBorder,S.id==="modern"?"border-bottom:none;":"",S.id==="modern"?"border-bottom:2px solid "+acc+";padding-bottom:12px;":"",logoBlock,titleColor,c.name,companyName(c),c.address,c.city,c.phone,c.email,S.titleWeight,titleColor,inv.invNum,S.statusBadge(stC,stT),S.id==="modern"?"20px":"4px",stT,boxBorder,S.radius,S.id==="minimal"?"1px solid #999":S.id==="modern"?`1.5px solid ${acc}30`:"1.5px solid #d1d5db",inv.clientName||"—",inv.clientPhone||"",inv.clientAddress?`<div style="font-size:11px;color:#6b7280;margin-top:2px;">${inv.clientAddress}</div>`:"",S.id==="minimal"?"1px solid #999":S.id==="modern"?`1.5px solid ${acc}30`:"1.5px solid #d1d5db",fDate(inv.date),fDate(inv.dueDate),amountBg,S.amountColor===true?(due<=0?"#16a34a":acc):(S.amountColor===false?"#111":stC),isCancelled?"—":fKWD(due),c.manager,boxBorder,S.radius,theadBgStyle,S.theadColor,S.id==="minimal"?"border-bottom:2px solid #000;":"",S.id==="minimal"?"1px solid #ddd":"1px solid "+S.theadBorder,S.id==="minimal"?"1px solid #ddd":"1px solid "+S.theadBorder,S.id==="minimal"?"1px solid #ddd":"1px solid "+S.theadBorder,S.id==="minimal"?"1px solid #ddd":"1px solid "+S.theadBorder,itemRows,emptyRows,boxBorder,S.id==="minimal"?"0px":"6px",rowBorder,fKWD(sub),tax>0?tr("<tr style=\"border-bottom:1px solid {0};\"><td style=\"padding:7px 16px;color:#6b7280;font-size:12.5px;\">الضريبة ({1}%)</td><td style=\"padding:7px 16px;text-align:left;font-size:12.5px;font-weight:600;direction:ltr;\">{2}</td></tr>",[rowBorder,taxR,fKWD(tax)]):"",ship>0?tr("<tr style=\"border-bottom:1px solid {0};\"><td style=\"padding:7px 16px;color:#6b7280;font-size:12.5px;\">التوصيل</td><td style=\"padding:7px 16px;text-align:left;font-size:12.5px;font-weight:600;direction:ltr;\">{1}</td></tr>",[rowBorder,fKWD(ship)]):"",totalBgStyle,S.totalColor,fKWD(tot),rowBorder,fKWD(paid),totalTopBorder,stC,isCancelled?tr("الحالة"):tr("المبلغ المستحق"),stC,isCancelled?stT:fKWD(due),(inv._pays&&inv._pays.length)?tr("\n<div style=\"display:flex;justify-content:flex-end;margin-bottom:14px;\">\n  <table style=\"min-width:320px;border-collapse:collapse;border:{0};border-radius:{1};overflow:hidden;\">\n    <thead><tr style=\"background:{2};border-bottom:{3};\">\n      <th colspan=\"4\" style=\"padding:8px 14px;text-align:start;font-size:10.5px;font-weight:800;color:{4};letter-spacing:.5px;\">💳 سجل الدفعات ({5})</th>\n    </tr></thead>\n    <tbody>\n      {6}\n    </tbody>\n  </table>\n</div>",[boxBorder,S.id==="minimal"?"0px":"6px",S.id==="minimal"?"#fff":S.id==="modern"?`${acc}12`:"#f3f4f6",S.id==="minimal"?"2px solid #000":"1.5px solid "+(S.id==="modern"?acc+"40":"#d1d5db"),S.id==="modern"?acc:"#374151",inv._pays.length,inv._pays.map(p=>`<tr style="border-bottom:1px solid ${S.id==="minimal"?"#eee":"#f0f0f0"};">
         <td style="padding:6px 14px;color:#6b7280;font-size:11.5px;">${fDate(p.date)}</td>
         <td style="padding:6px 14px;font-weight:700;color:#16a34a;font-size:11.5px;direction:ltr;text-align:left;">${fKWD(p.amount)}</td>
-        <td style="padding:6px 14px;"><span style="background:${S.id==="minimal"?"transparent":"#dcfce7"};color:${S.id==="minimal"?"#15803d":"#15803d"};${S.id==="minimal"?"border:1px solid #999;":""}border-radius:4px;padding:1px 8px;font-size:10.5px;font-weight:700;">${payMethodLabel[p.method]||p.method||"—"}</span></td>
+        <td style="padding:6px 14px;"><span style="background:${S.id==="minimal"?"transparent":"#dcfce7"};color:${S.id==="minimal"?"#15803d":"#15803d"};${S.id==="minimal"?"border:1px solid #999;":""}border-radius:4px;padding:1px 8px;font-size:10.5px;font-weight:700;">${tr(payMethodLabel[p.method]||p.method||"—")}</span></td>
         <td style="padding:6px 14px;color:#9ca3af;font-size:10.5px;">${p.note||""}</td>
-      </tr>`).join("")}
-    </tbody>
-  </table>
-</div>`:""}
-
-${inv.notes?`<div style="border:${boxBorder};border-radius:${S.id==="minimal"?"0px":"6px"};padding:10px 14px;margin-bottom:12px;background:${S.id==="modern"?`${acc}08`:"#f9fafb"};${S.id==="minimal"?"background:#fff;":""}"><div style="font-size:8.5px;font-weight:800;color:#9ca3af;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;">ملاحظات</div><div style="font-size:12px;color:#374151;line-height:1.75;">${inv.notes}</div></div>`:""}
-
-<div style="padding-top:10px;border-top:${S.id==="minimal"?"1px solid #999":"1.5px solid #d1d5db"};display:flex;justify-content:space-between;align-items:center;">
-  <div style="font-size:9.5px;color:#9ca3af;font-weight:600;">الشركة القابضة المتحدة ذ.م.م &nbsp;—&nbsp; United Holding Group LLC</div>
-  <div style="font-size:10.5px;font-weight:800;color:${S.id==="modern"?acc:"#374151"};">${c.nameAr} &nbsp;|&nbsp; ${c.phone}</div>
-</div>
-
-</div></div>`;
+      </tr>`).join("")]):"",inv.notes?tr("<div style=\"border:{0};border-radius:{1};padding:10px 14px;margin-bottom:12px;background:{2};{3}\"><div style=\"font-size:8.5px;font-weight:800;color:#9ca3af;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;\">ملاحظات</div><div style=\"font-size:12px;color:#374151;line-height:1.75;\">{4}</div></div>",[boxBorder,S.id==="minimal"?"0px":"6px",S.id==="modern"?`${acc}08`:"#f9fafb",S.id==="minimal"?"background:#fff;":"",inv.notes]):"",S.id==="minimal"?"1px solid #999":"1.5px solid #d1d5db",S.id==="modern"?acc:"#374151",c.nameAr,c.phone]);
 });
-const printDocTitle=invList.length===1?`فاتورة ${invList[0].invNum||invList[0].invoiceNumber||invList[0].id} — ${c.nameAr}`:`فواتير (${invList.length}) — ${c.nameAr}`;
-return `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>${printDocTitle}</title>
+const printDocTitle=invList.length===1?tr("فاتورة {0} — {1}",[invList[0].invNum||invList[0].invoiceNumber||invList[0].id,companyName(c)]):tr("فواتير ({0}) — {1}",[invList.length,companyName(c)]);
+return `<!DOCTYPE html><html lang="${appLang()}" dir="${appDir()}"><head><meta charset="utf-8"><title>${printDocTitle}</title>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -806,7 +723,7 @@ return "#"+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
 async function doPrint(list, company, styleId){
 if(!list.length)return;
 const w=window.open("","_blank","width=900,height=700");
-if(!w){alert("يرجى السماح بالـ Popups");return;}
+if(!w){alert(tr("يرجى السماح بالـ Popups"));return;}
 // Enrich each invoice with its payment records so the print view can show them
 const enriched=await Promise.all(list.map(async inv=>{
   let pays=[];
@@ -831,16 +748,16 @@ try{
     return {...inv,_pays:pays};
   }));
   const html=buildHTML(enriched, company, styleId);
-  const base=list.length===1?`فاتورة_${(list[0].invNum||list[0].id)}`:`فواتير_${list.length}`;
+  const base=list.length===1?tr("فاتورة_{0}",[(list[0].invNum||list[0].id)]):tr("فواتير_{0}",[list.length]);
   const blob=await api.exportPdf(html, base);
   const url=URL.createObjectURL(blob);
   const a=document.createElement("a");
   a.href=url; a.download=`${base}.pdf`;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),5000);
-  t(list.length===1?"✅ تم تصدير الفاتورة إلى PDF":"✅ تم تصدير "+list.length+" فواتير إلى PDF");
+  t(list.length===1?tr("✅ تم تصدير الفاتورة إلى PDF"):tr("✅ تم تصدير ")+list.length+tr(" فواتير إلى PDF"));
 }catch(e){
-  t((e&&e.message)||"فشل تصدير PDF","err");
+  t((e&&e.message)||tr("فشل تصدير PDF"),"err");
 }finally{
   if(setBusy)setBusy(false);
 }
@@ -857,9 +774,9 @@ const prod=g([/🛠️[^:\n]*[: ]\s*([^\n]+)/,/الطلب[^:\n]*[:]\s*([^\n]+)/]
 const priceR=g([/💰[^:\n]*[: ]\s*([^\n]+)/,/السعر[^:\n]*[:]\s*([^\n]+)/]);
 const delR=g([/🚚[^:\n]*[: ]\s*([^\n]+)/,/التوصيل[^:\n]*[:]\s*([^\n]+)/]);
 const phone=norm(phoneR);
-const free=delR.includes("مجاني")||delR.toLowerCase().includes("free");
-return{clientName:nameR||phone||"عميل",clientPhone:phone,clientAddress:addr,
-items:[{name:prod||"منتج",desc:"",qty:1,price:pN(priceR)}],
+const free=delR.includes(tr("مجاني"))||delR.toLowerCase().includes("free");
+return{clientName:nameR||phone||tr("عميل"),clientPhone:phone,clientAddress:addr,
+items:[{name:prod||tr("منتج"),desc:"",qty:1,price:pN(priceR)}],
 shipping:free?0:pN(delR),date:today(),dueDate:addD(today(),30),paid:0,notes:""};
 });
 }
@@ -896,17 +813,17 @@ function parseCSVLine(line) {
 // Build client rows from a header array + data-row arrays (shared by CSV + Excel import)
 function buildClientsRows(headers, dataRows) {
   const find = (...names) => headers.findIndex(h => names.some(n => h === n || h.includes(n)));
-  const iName = find("الاسم", "name");
-  const iPhone = find("التلفون", "الهاتف", "الجوال", "phone", "mobile");
-  const iEmail = find("الايميل", "البريد", "email");
-  const iAddr = find("العنوان", "address", "المنطقة");
-  if (iName < 0 || iPhone < 0) return { rows: [], errors: ["الأعمدة المطلوبة: الاسم + التلفون"] };
+  const iName = find(tr("الاسم"), "name");
+  const iPhone = find(tr("التلفون"), tr("الهاتف"), tr("الجوال"), "phone", "mobile");
+  const iEmail = find(tr("الايميل"), tr("البريد"), "email");
+  const iAddr = find(tr("العنوان"), "address", tr("المنطقة"));
+  if (iName < 0 || iPhone < 0) return { rows: [], errors: [tr("الأعمدة المطلوبة: الاسم + التلفون")] };
   const rows = [], errors = [];
   dataRows.forEach((cells, i) => {
     const name = String(cells[iName] ?? "").trim();
     const phone = norm(String(cells[iPhone] ?? ""));
     if (!name && !phone) return;
-    if (!phone) { errors.push(`سطر ${i + 2}: بدون تلفون — تم تخطيه`); return; }
+    if (!phone) { errors.push(tr("سطر {0}: بدون تلفون — تم تخطيه",[i + 2])); return; }
     rows.push({
       name: name || phone,
       phone,
@@ -919,7 +836,7 @@ function buildClientsRows(headers, dataRows) {
 // Parse a clients CSV: flexible Arabic/English headers, returns {rows, errors}
 function parseClientsCSV(text) {
   const lines = text.trim().split(/\r?\n/);
-  if (lines.length < 2) return { rows: [], errors: ["الملف فارغ أو غير صحيح"] };
+  if (lines.length < 2) return { rows: [], errors: [tr("الملف فارغ أو غير صحيح")] };
   const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase());
   const dataRows = lines.slice(1).filter(l => l.trim()).map(l => parseCSVLine(l));
   return buildClientsRows(headers, dataRows);
@@ -928,11 +845,11 @@ function parseClientsCSV(text) {
 function parseClientsExcel(buffer) {
   let wb;
   try { wb = XLSX.read(buffer, { type: "array" }); }
-  catch { return { rows: [], errors: ["تعذر قراءة ملف Excel — تأكد أنه بصيغة .xlsx أو .xls"] }; }
+  catch { return { rows: [], errors: [tr("تعذر قراءة ملف Excel — تأكد أنه بصيغة .xlsx أو .xls")] }; }
   const sheetName = wb.SheetNames[0];
-  if (!sheetName) return { rows: [], errors: ["ملف Excel فارغ"] };
+  if (!sheetName) return { rows: [], errors: [tr("ملف Excel فارغ")] };
   const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, defval: "", raw: false });
-  if (aoa.length < 2) return { rows: [], errors: ["الملف فارغ أو غير صحيح"] };
+  if (aoa.length < 2) return { rows: [], errors: [tr("الملف فارغ أو غير صحيح")] };
   const headers = aoa[0].map(h => String(h ?? "").toLowerCase());
   const dataRows = aoa.slice(1).filter(r => r.some(c => String(c ?? "").trim() !== ""));
   return buildClientsRows(headers, dataRows);
@@ -954,7 +871,7 @@ const metaRows=rows.map(r=>({
   country:"KW",ct:"Kuwait",
 }));
 // Sheet 2 – Full customer data
-const fullHeaders=["رقم الهاتف","الاسم","العنوان","إجمالي المشتريات","عدد الفواتير","آخر شراء","للميتا (هاتف)"];
+const fullHeaders=[tr("رقم الهاتف"),tr("الاسم"),tr("العنوان"),tr("إجمالي المشتريات"),tr("عدد الفواتير"),tr("آخر شراء"),tr("للميتا (هاتف)")];
 const fullRows=rows.map(r=>({
   "رقم الهاتف":r.phone,"الاسم":r.name,"العنوان":r.address,
   "إجمالي المشتريات":r.totalSpent.toFixed(3),"عدد الفواتير":r.invoiceCount,
@@ -977,42 +894,42 @@ return (
 <div style={{minHeight:"100vh",background:"#0a0a0f",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Cairo','Tajawal',sans-serif",direction:"rtl",padding:"20px",position:"relative",overflow:"hidden"}}>
 <style>{`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap'); *{box-sizing:border-box} @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}} @keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}} .co-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:28px 20px;cursor:pointer;transition:all .3s cubic-bezier(.4,0,.2,1);text-align:center;animation:fadeUp .5s ease both;position:relative;overflow:hidden;} .co-card::before{content:"";position:absolute;inset:0;opacity:0;transition:opacity .3s;background:radial-gradient(circle at 50% 0%,var(--co-color) 0%,transparent 70%);} .co-card:hover,.co-card:active{transform:translateY(-4px) scale(1.02);border-color:var(--co-color);box-shadow:0 20px 60px rgba(0,0,0,.5),0 0 0 1px var(--co-color)} .co-card:hover::before,.co-card:active::before{opacity:.15} .co-icon{font-size:40px;margin-bottom:12px;display:block;animation:float 3s ease-in-out infinite} .co-grid{display:grid;gap:14px} .co-edit{position:absolute;top:10px;insetInlineEnd:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:rgba(255,255,255,.75);padding:4px 9px;font-size:12px;cursor:pointer;font-family:inherit;opacity:0;transition:all .2s;z-index:2} .co-card:hover .co-edit{opacity:1} .co-edit:hover{background:rgba(255,255,255,.18);color:#fff} .co-add{border:2px dashed rgba(255,255,255,.15);background:rgba(255,255,255,.02);border-radius:20px;padding:28px 20px;cursor:pointer;text-align:center;animation:fadeUp .5s ease both;transition:all .25s;color:rgba(255,255,255,.4)} .co-add:hover{border-color:#10b981;color:#10b981;background:rgba(16,185,129,.06);transform:translateY(-4px)} @media(min-width:600px){.co-grid{grid-template-columns:repeat(4,1fr)}}`}</style>
 <div style={{position:"fixed",inset:0,backgroundImage:"linear-gradient(rgba(255,255,255,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px)",backgroundSize:"60px 60px",pointerEvents:"none"}}/>
-<button onClick={toggle} title={dark?"التبديل إلى الوضع النهاري":"التبديل إلى الوضع الليلي"} aria-label="تبديل السمة" style={{position:"fixed",top:"16px",insetInlineEnd:"16px",background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.15)",borderRadius:"8px",padding:"7px 12px",fontSize:"14px",cursor:"pointer",zIndex:10,transition:"all .2s"}}>{dark?"☀️":"🌙"}</button>
+<button onClick={toggle} title={dark?tr("التبديل إلى الوضع النهاري"):tr("التبديل إلى الوضع الليلي")} aria-label={tr("تبديل السمة")} style={{position:"fixed",top:"16px",insetInlineEnd:"16px",background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.15)",borderRadius:"8px",padding:"7px 12px",fontSize:"14px",cursor:"pointer",zIndex:10,transition:"all .2s"}}>{dark?"☀️":"🌙"}</button>
 <div style={{width:"100%",maxWidth:"900px",animation:"fadeUp .4s"}}>
 <div style={{textAlign:"center",marginBottom:"36px"}}>
-<div style={{fontSize:"12px",fontWeight:700,letterSpacing:"3px",textTransform:"uppercase",color:"rgba(255,255,255,.3)",marginBottom:"12px"}}>نظام إدارة الفواتير</div>
-<div style={{fontSize:"28px",fontWeight:900,color:"#fff",lineHeight:1.2,marginBottom:"8px",background:"linear-gradient(135deg,#fff 0%,rgba(255,255,255,.6) 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>اختر الشركة</div>
+<div style={{fontSize:"12px",fontWeight:700,letterSpacing:"3px",textTransform:"uppercase",color:"rgba(255,255,255,.3)",marginBottom:"12px"}}>{tr("نظام إدارة الفواتير")}</div>
+<div style={{fontSize:"28px",fontWeight:900,color:"#fff",lineHeight:1.2,marginBottom:"8px",background:"linear-gradient(135deg,#fff 0%,rgba(255,255,255,.6) 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>{tr("اختر الشركة")}</div>
 <div style={{color:"rgba(255,255,255,.35)",fontSize:"12px"}}>
-  {profile?.displayName ? `مرحباً ${profile.displayName} — ` : ""}
-  {cols.length} شركة متاحة لك
+  {profile?.displayName ? tr("مرحباً {0} — ",[profile.displayName]) : ""}
+  {cols.length} {tr("شركة متاحة لك")}
 </div>
 </div>
 {cols.length === 0 ? (
   canAdd ? (
     <div style={{textAlign:"center",padding:"40px 20px",color:"rgba(255,255,255,.55)",animation:"fadeUp .5s ease"}}>
       <div style={{fontSize:"44px",marginBottom:"14px"}}>🚀</div>
-      <div style={{fontSize:"19px",fontWeight:900,color:"#fff",marginBottom:"8px"}}>{isSubscriber?"أنشئ شركتك الأولى وابدإ الفواتير":"أضف شركتك الأولى"}</div>
+      <div style={{fontSize:"19px",fontWeight:900,color:"#fff",marginBottom:"8px"}}>{isSubscriber?tr("أنشئ شركتك الأولى وابدإ الفواتير"):tr("أضف شركتك الأولى")}</div>
       <div style={{fontSize:"12.5px",lineHeight:1.9,marginBottom:"22px",maxWidth:380,marginInline:"auto"}}>
         {isSubscriber
-          ? "شركة واحدة خاصة بك: فواتير وعملاء وتقارير ومساعد ذكي — كاملة مجاناً ضمن أول 100 مشترك."
-          : "بيانات كاملة + العملة من شاشة واحدة."}
+          ? tr("شركة واحدة خاصة بك: فواتير وعملاء وتقارير ومساعد ذكي — كاملة مجاناً ضمن أول 100 مشترك.")
+          : tr("بيانات كاملة + العملة من شاشة واحدة.")}
       </div>
-      <button onClick={()=>onAdd&&onAdd()} style={{background:"linear-gradient(135deg,#10b981,#059669)",border:"none",borderRadius:"12px",padding:"14px 34px",color:"#fff",fontFamily:"inherit",fontSize:"15px",fontWeight:800,cursor:"pointer",boxShadow:"0 8px 26px rgba(16,185,129,.35)"}}>＋ إنشاء شركتي الآن</button>
+      <button onClick={()=>onAdd&&onAdd()} style={{background:"linear-gradient(135deg,#10b981,#059669)",border:"none",borderRadius:"12px",padding:"14px 34px",color:"#fff",fontFamily:"inherit",fontSize:"15px",fontWeight:800,cursor:"pointer",boxShadow:"0 8px 26px rgba(16,185,129,.35)"}}>{tr("＋ إنشاء شركتي الآن")}</button>
     </div>
   ) : (
   <div style={{textAlign:"center",padding:"48px",color:"rgba(255,255,255,.4)"}}>
     <div style={{fontSize:"40px",marginBottom:"12px"}}>🔒</div>
-    <div style={{fontSize:"16px",fontWeight:700}}>لا توجد شركات مخصصة لحسابك</div>
-    <div style={{fontSize:"12px",marginTop:"8px"}}>تواصل مع المدير لإضافة صلاحيات</div>
+    <div style={{fontSize:"16px",fontWeight:700}}>{tr("لا توجد شركات مخصصة لحسابك")}</div>
+    <div style={{fontSize:"12px",marginTop:"8px"}}>{tr("تواصل مع المدير لإضافة صلاحيات")}</div>
   </div>
   )
 ) : (
   <div className="co-grid" style={{gridTemplateColumns:gridCols}}>
   {cols.map((co, i) => (
   <div key={co.id} className="co-card" style={{"--co-color":co.color,animationDelay:`${i*0.1}s`}} onClick={() => onSelect(co)}>
-  {isAdmin&&onEdit&&<button className="co-edit" title="تعديل بيانات الشركة" onClick={e=>{e.stopPropagation();onEdit(co);}}>✏️ تعديل</button>}
+  {isAdmin&&onEdit&&<button className="co-edit" title={tr("تعديل بيانات الشركة")} onClick={e=>{e.stopPropagation();onEdit(co);}}>{tr("✏️ تعديل")}</button>}
   <span className="co-icon" style={{animationDelay:`${i*0.5}s`}}>{co.logo}</span>
-  <div style={{fontSize:"16px",fontWeight:900,color:"#fff",marginBottom:"6px"}}>{co.nameAr}</div>
+  <div style={{fontSize:"16px",fontWeight:900,color:"#fff",marginBottom:"6px"}}>{companyName(co)}</div>
   <div style={{fontSize:"11px",color:"rgba(255,255,255,.4)",marginBottom:"12px",direction:"ltr"}}>{co.name}</div>
   <div style={{display:"inline-flex",alignItems:"center",gap:"6px",background:`${co.color}22`,border:`1px solid ${co.color}44`,borderRadius:"20px",padding:"5px 14px"}}>
   <div style={{width:"6px",height:"6px",borderRadius:"50%",background:co.color,flexShrink:0}}/>
@@ -1025,10 +942,10 @@ return (
   </div>
   ))}
   {canAdd&&onAdd&&(
-  <div className="co-add" style={{animationDelay:`${cols.length*0.1}s`}} onClick={()=>onAdd()} role="button" aria-label="إضافة شركة جديدة">
+  <div className="co-add" style={{animationDelay:`${cols.length*0.1}s`}} onClick={()=>onAdd()} role="button" aria-label={tr("إضافة شركة جديدة")}>
   <div style={{fontSize:34,marginBottom:10,lineHeight:1}}>＋</div>
-  <div style={{fontSize:14,fontWeight:900,marginBottom:4,color:"inherit"}}>إضافة شركة جديدة</div>
-  <div style={{fontSize:11,lineHeight:1.6}}>بيانات كاملة + العملة<br/>من شاشة واحدة</div>
+  <div style={{fontSize:14,fontWeight:900,marginBottom:4,color:"inherit"}}>{tr("إضافة شركة جديدة")}</div>
+  <div style={{fontSize:11,lineHeight:1.6}}>{tr("بيانات كاملة + العملة")}<br/>{tr("من شاشة واحدة")}</div>
   </div>
   )}
   </div>
@@ -1036,7 +953,7 @@ return (
 <div style={{textAlign:"center",marginTop:"32px",display:"flex",alignItems:"center",justifyContent:"center",gap:"12px"}}>
   <span style={{color:"rgba(255,255,255,.15)",fontSize:"11px"}}>Invoice System v3.0 • Multi-Company</span>
   {isAdmin && (
-    <button onClick={async()=>{await logoutUser();}} style={{background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.15)",borderRadius:"6px",padding:"4px 12px",color:"rgba(255,255,255,.4)",fontFamily:"inherit",fontSize:"11px",cursor:"pointer"}}>خروج</button>
+    <button onClick={async()=>{await logoutUser();}} style={{background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.15)",borderRadius:"6px",padding:"4px 12px",color:"rgba(255,255,255,.4)",fontFamily:"inherit",fontSize:"11px",cursor:"pointer"}}>{tr("خروج")}</button>
   )}
 </div>
 </div>
@@ -1048,7 +965,7 @@ return (
 function DashboardSkeleton({company}){
 const col=company.color;
 return(
-<div aria-busy="true" aria-label="جارٍ تحميل لوحة التحكم">
+<div aria-busy="true" aria-label={tr("جارٍ تحميل لوحة التحكم")}>
   <div className="kpi-grid">
     {[0,1,2,3].map(i=>(
       <div key={i} className="card" style={{padding:"16px"}}>
@@ -1107,12 +1024,12 @@ const display=numeric
 return(
 <div key={k.label} style={{background:k.bg,borderRadius:"14px",padding:"14px 16px",border:`1.5px solid ${k.c}22`,...(k.go&&onNavigate?{cursor:"pointer"}:{})}}
   onClick={k.go&&onNavigate?()=>onNavigate(k.go):undefined}
-  title={k.go?"اضغط للعرض":""}
+  title={k.go?tr("اضغط للعرض"):""}
   role={k.go&&onNavigate?"button":undefined}
   aria-label={`${k.label}: ${display}`}>
 <div style={{fontSize:"22px",marginBottom:"6px"}}>{k.icon}</div>
 <div style={{fontSize:"10px",color:"var(--ia-sub)",fontWeight:700,textTransform:"uppercase",letterSpacing:".4px",marginBottom:"3px",display:"flex",alignItems:"center",gap:"5px"}}>{k.label}{k.go&&onNavigate&&<span style={{fontSize:"9px",opacity:.55,fontWeight:900,transform:"scaleX(-1)",display:"inline-block"}}>↩</span>}</div>
-<div style={{fontSize:"17px",fontWeight:900,color:k.c,direction:"ltr",textAlign:"right"}}>{display}</div>
+<div style={{fontSize:"17px",fontWeight:900,color:k.c,direction:"ltr",textAlign:"start"}}>{display}</div>
 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"5px"}}>
 <span style={{fontSize:"11px",color:"var(--ia-sub)"}}>{k.sub}</span>
 {k.badge&&<span style={{fontSize:"11px",fontWeight:700,color:k.badgeC,background:k.badgeC+"1a",padding:"1px 8px",borderRadius:"20px"}}>{k.badge}</span>}
@@ -1143,16 +1060,16 @@ const gUp=gPct>=0;
 const uniqueC=new Set(invoices.map(i=>i.clientPhone).filter(Boolean)).size;
 const months6=Array.from({length:6}).map((_,i)=>{
 const d=new Date(now);d.setMonth(d.getMonth()-5+i);
-const key=mk(d);const label=d.toLocaleDateString("ar",{month:"short"});
+const key=mk(d);const label=d.toLocaleDateString(dateLocale(),{month:"short"});
 const rev=invoices.filter(x=>x.date?.startsWith(key)).reduce((s,x)=>s+iT(x),0);
 const cnt=invoices.filter(x=>x.date?.startsWith(key)).length;
 return{label,rev,cnt};
 });
 const kpis=[
-{icon:"💰",label:"إجمالي الإيرادات",val:fKWD(totR),num:totR,money:true,sub:`${invoices.length} فاتورة`,c:colTx,bg:cardBg,go:{view:"list",status:"all"}},
-{icon:"📅",label:"إيرادات هذا الشهر",val:fKWD(tR),num:tR,money:true,sub:`${tInvs.length} فاتورة`,c:txAdapt("#16a34a",dark),bg:softAdapt("#dcfce7",dark),badge:`${gUp?"▲":"▼"} ${Math.abs(gPct).toFixed(1)}%`,badgeC:txAdapt(gUp?"#16a34a":"#dc2626",dark)},
-{icon:"⏳",label:"مستحقات غير مدفوعة",val:fKWD(unpaidA),num:unpaidA,money:true,sub:`${unpaid.length} فاتورة`,c:txAdapt("#b45309",dark),bg:softAdapt("#fef3c7",dark),go:{view:"list",status:"unp"}},
-{icon:"👥",label:"إجمالي العملاء",val:uniqueC+" عميل",num:uniqueC,suffix:" عميل",sub:`متوسط ${fKWD(avg)}`,c:txAdapt("#7c3aed",dark),bg:softAdapt("#ede9fe",dark),go:{view:"customers"}},
+{icon:"💰",label:tr("إجمالي الإيرادات"),val:fKWD(totR),num:totR,money:true,sub:tr("{0} فاتورة",[invoices.length]),c:colTx,bg:cardBg,go:{view:"list",status:"all"}},
+{icon:"📅",label:tr("إيرادات هذا الشهر"),val:fKWD(tR),num:tR,money:true,sub:tr("{0} فاتورة",[tInvs.length]),c:txAdapt("#16a34a",dark),bg:softAdapt("#dcfce7",dark),badge:`${gUp?"▲":"▼"} ${Math.abs(gPct).toFixed(1)}%`,badgeC:txAdapt(gUp?"#16a34a":"#dc2626",dark)},
+{icon:"⏳",label:tr("مستحقات غير مدفوعة"),val:fKWD(unpaidA),num:unpaidA,money:true,sub:tr("{0} فاتورة",[unpaid.length]),c:txAdapt("#b45309",dark),bg:softAdapt("#fef3c7",dark),go:{view:"list",status:"unp"}},
+{icon:"👥",label:tr("إجمالي العملاء"),val:uniqueC+tr(" عميل"),num:uniqueC,suffix:tr(" عميل"),sub:tr("متوسط {0}",[fKWD(avg)]),c:txAdapt("#7c3aed",dark),bg:softAdapt("#ede9fe",dark),go:{view:"customers"}},
 ];
 return(
 <div>
@@ -1163,31 +1080,31 @@ return(
 </div>
 <div className="chart-grid">
 <div style={{background:"var(--ia-card)",borderRadius:"14px",padding:"18px 20px",border:"1.5px solid var(--ia-border)"}}>
-<div style={{fontSize:"13px",fontWeight:700,color:colTx,marginBottom:"14px"}}>📈 الإيرادات الشهرية</div>
+<div style={{fontSize:"13px",fontWeight:700,color:colTx,marginBottom:"14px"}}>{tr("📈 الإيرادات الشهرية")}</div>
 <ResponsiveContainer width="100%" height={170}>
 <BarChart data={months6} margin={{top:0,right:4,bottom:0,left:0}}>
 <CartesianGrid strokeDasharray="3 3" stroke={ch.grid} vertical={false}/>
 <XAxis dataKey="label" tick={{fontSize:11,fill:ch.axis,fontFamily:"Cairo"}} axisLine={false} tickLine={false}/>
 <YAxis tick={{fontSize:10,fill:ch.axis2}} axisLine={false} tickLine={false}/>
-<Tooltip formatter={v=>[fKWD(v),"الإيرادات"]} contentStyle={{fontFamily:"Cairo",fontSize:12,borderRadius:8,direction:"rtl",background:"var(--ia-card)",border:"1px solid var(--ia-border)",color:"var(--ia-text)"}}/>
+<Tooltip formatter={v=>[fKWD(v),tr("الإيرادات")]} contentStyle={{fontFamily:"Cairo",fontSize:12,borderRadius:8,direction:"rtl",background:"var(--ia-card)",border:"1px solid var(--ia-border)",color:"var(--ia-text)"}}/>
 <Bar dataKey="rev" fill={dark?lighten(col,0.65):col} radius={[5,5,0,0]}/>
 </BarChart>
 </ResponsiveContainer>
 </div>
 <div style={{background:"var(--ia-card)",borderRadius:"14px",padding:"18px 20px",border:"1.5px solid var(--ia-border)",display:"flex",flexDirection:"column"}}>
-<div style={{fontSize:"13px",fontWeight:700,color:colTx,marginBottom:"14px"}}>🧾 عدد الفواتير شهرياً</div>
+<div style={{fontSize:"13px",fontWeight:700,color:colTx,marginBottom:"14px"}}>{tr("🧾 عدد الفواتير شهرياً")}</div>
 <ResponsiveContainer width="100%" height={130}>
 <LineChart data={months6} margin={{top:4,right:8,bottom:0,left:0}}>
 <CartesianGrid strokeDasharray="3 3" stroke={ch.grid} vertical={false}/>
 <XAxis dataKey="label" tick={{fontSize:11,fill:ch.axis,fontFamily:"Cairo"}} axisLine={false} tickLine={false}/>
 <YAxis tick={{fontSize:10,fill:ch.axis2}} axisLine={false} tickLine={false} allowDecimals={false}/>
-<Tooltip formatter={v=>[v+" فاتورة","عدد"]} contentStyle={{fontFamily:"Cairo",fontSize:12,borderRadius:8,background:"var(--ia-card)",border:"1px solid var(--ia-border)",color:"var(--ia-text)"}}/>
+<Tooltip formatter={v=>[v+tr(" فاتورة"),tr("عدد")]} contentStyle={{fontFamily:"Cairo",fontSize:12,borderRadius:8,background:"var(--ia-card)",border:"1px solid var(--ia-border)",color:"var(--ia-text)"}}/>
 <Line type="monotone" dataKey="cnt" stroke={ch.green} strokeWidth={3} dot={{r:4,fill:ch.green}} activeDot={{r:6}}/>
 </LineChart>
 </ResponsiveContainer>
 <div style={{marginTop:"auto",paddingTop:"10px"}}>
 <div style={{textAlign:"center",background:gUp?softAdapt("#dcfce7",dark):softAdapt("#fee2e2",dark),borderRadius:"8px",padding:"7px"}}>
-<span style={{fontWeight:900,fontSize:"13px",color:txAdapt(gUp?"#16a34a":"#dc2626",dark)}}>{gUp?"▲":"▼"} نمو {Math.abs(gPct).toFixed(1)}% عن الشهر الماضي</span>
+<span style={{fontWeight:900,fontSize:"13px",color:txAdapt(gUp?"#16a34a":"#dc2626",dark)}}>{gUp?"▲":"▼"} {tr("نمو")} {Math.abs(gPct).toFixed(1)}{tr("% عن الشهر الماضي")}</span>
 </div>
 </div>
 </div>
@@ -1205,10 +1122,10 @@ const ship=pN(inv.shipping||0);const tot=sub+tax+ship;const paid=pN(inv.paid||0)
 const due=tot-paid;
 const isCancelled=inv.status==='cancelled';
 const stC=stColor[getStatus(inv)];
-const stT=stLabel[getStatus(inv)];
+const stT=tr(stLabel[getStatus(inv)]);
 const empty=Math.max(0,5-inv.items.length);
 const logoImg=getLogoImg(c.id);
-const TH={background:c.color,color:"#fff",padding:"9px 10px",fontSize:"11.5px",fontWeight:700,textAlign:"right"};
+const TH={background:c.color,color:"#fff",padding:"9px 10px",fontSize:"11.5px",fontWeight:700,textAlign:"start"};
 const TD={padding:"9px 10px",fontSize:"12px",borderBottom:"1px solid #f0f0f0"};
 return(
 <div style={{background:"#fff",padding:"20px",direction:"rtl",fontFamily:"'Tajawal','Cairo',sans-serif",fontSize:"13px",color:"#1a1a2e"}}>
@@ -1223,8 +1140,8 @@ return(
       <div style={{fontSize:"11px",color:"#777",lineHeight:"1.85"}}>{c.address}<br/>{c.city}<br/>📞 {c.phone}</div>
     </div>
   </div>
-  <div style={{textAlign:"left"}}>
-    <div style={{fontSize:"28px",fontWeight:900,color:c.color,letterSpacing:"-1px",lineHeight:1}}>فـاتـورة</div>
+  <div style={{textAlign:"end"}}>
+    <div style={{fontSize:"28px",fontWeight:900,color:c.color,letterSpacing:"-1px",lineHeight:1}}>{tr("فـاتـورة")}</div>
     <div style={{fontSize:"12px",color:"#999",marginTop:"5px",direction:"ltr"}}>{inv.invNum}</div>
     <div style={{marginTop:"8px",display:"inline-block",background:stC,color:"#fff",borderRadius:"6px",padding:"3px 12px",fontSize:"11px",fontWeight:700}}>{stT}</div>
   </div>
@@ -1232,28 +1149,28 @@ return(
 <div style={{height:"3px",background:`linear-gradient(to left,${c.color},${c.color}22)`,borderRadius:"3px",marginBottom:"14px"}}/>
 <div style={{display:"flex",border:"1px solid #ebebeb",borderRadius:"9px",overflow:"hidden",marginBottom:"16px"}}>
   <div style={{flex:"1.7",padding:"12px 14px",borderLeft:"1px solid #ebebeb"}}>
-    <div style={{fontSize:"9px",fontWeight:700,color:c.color,letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:"6px"}}>صادرة إلى</div>
+    <div style={{fontSize:"9px",fontWeight:700,color:c.color,letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:"6px"}}>{tr("صادرة إلى")}</div>
     <div style={{fontSize:"15px",fontWeight:800,color:"#111",marginBottom:"3px"}}>{inv.clientName||""}</div>
-    <div style={{fontSize:"12px",fontWeight:700,color:c.color,direction:"ltr",textAlign:"right",marginBottom:"3px"}}>{inv.clientPhone||""}</div>
+    <div style={{fontSize:"12px",fontWeight:700,color:c.color,direction:"ltr",textAlign:"start",marginBottom:"3px"}}>{inv.clientPhone||""}</div>
     {inv.clientAddress&&<div style={{fontSize:"11px",color:"#777"}}>{inv.clientAddress}</div>}
   </div>
   <div style={{flex:"1",padding:"12px 14px",borderLeft:"1px solid #ebebeb"}}>
-    <div style={{fontSize:"9px",fontWeight:700,color:c.color,letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:"5px"}}>تاريخ الفاتورة</div>
+    <div style={{fontSize:"9px",fontWeight:700,color:c.color,letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:"5px"}}>{tr("تاريخ الفاتورة")}</div>
     <div style={{fontSize:"12px",fontWeight:700,marginBottom:"10px"}}>{fDate(inv.date)}</div>
-    <div style={{fontSize:"9px",fontWeight:700,color:c.color,letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:"5px"}}>تاريخ الاستحقاق</div>
+    <div style={{fontSize:"9px",fontWeight:700,color:c.color,letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:"5px"}}>{tr("تاريخ الاستحقاق")}</div>
     <div style={{fontSize:"12px",fontWeight:700}}>{fDate(inv.dueDate)}</div>
   </div>
   <div style={{flex:"1",padding:"12px 14px"}}>
-    <div style={{fontSize:"9px",fontWeight:700,color:c.color,letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:"5px"}}>المبلغ المستحق</div>
-    <div style={{fontSize:"20px",fontWeight:900,color:stC,direction:"ltr",textAlign:"right",lineHeight:1}}>{fKWD(due)}</div>
-    <div style={{marginTop:"10px",fontSize:"9px",fontWeight:700,color:c.color,letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:"5px"}}>المسؤول</div>
+    <div style={{fontSize:"9px",fontWeight:700,color:c.color,letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:"5px"}}>{tr("المبلغ المستحق")}</div>
+    <div style={{fontSize:"20px",fontWeight:900,color:stC,direction:"ltr",textAlign:"start",lineHeight:1}}>{fKWD(due)}</div>
+    <div style={{marginTop:"10px",fontSize:"9px",fontWeight:700,color:c.color,letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:"5px"}}>{tr("المسؤول")}</div>
     <div style={{fontSize:"11px",fontWeight:600}}>{c.manager}</div>
   </div>
 </div>
 <table style={{width:"100%",borderCollapse:"collapse",marginBottom:"14px"}}>
 <thead><tr style={{background:c.color}}>
   <th style={{...TH,width:"28px",textAlign:"center"}}>#</th>
-  {["المنتج / الخدمة","الوصف","الكمية","سعر الوحدة","الإجمالي"].map(h=><th key={h} style={TH}>{h}</th>)}
+  {[tr("المنتج / الخدمة"),tr("الوصف"),tr("الكمية"),tr("سعر الوحدة"),tr("الإجمالي")].map(h=><th key={h} style={TH}>{h}</th>)}
 </tr></thead>
 <tbody>
 {inv.items.map((it,i)=>(
@@ -1262,8 +1179,8 @@ return(
 <td style={{...TD,fontWeight:600}}>{it.name||""}</td>
 <td style={{...TD,color:"#666",fontSize:"11.5px"}}>{it.desc||""}</td>
 <td style={{...TD,textAlign:"center"}}>{it.qty}</td>
-<td style={{...TD,textAlign:"left",direction:"ltr"}}>{fKWD(it.price)}</td>
-<td style={{...TD,textAlign:"left",fontWeight:700,direction:"ltr"}}>{fKWD(pN(it.qty)*pN(it.price))}</td>
+<td style={{...TD,textAlign:"end",direction:"ltr"}}>{fKWD(it.price)}</td>
+<td style={{...TD,textAlign:"end",fontWeight:700,direction:"ltr"}}>{fKWD(pN(it.qty)*pN(it.price))}</td>
 </tr>
 ))}
 {Array.from({length:empty}).map((_,i)=>(
@@ -1274,15 +1191,15 @@ return(
 <div style={{display:"flex",justifyContent:"flex-end",marginBottom:"14px"}}>
 <table style={{minWidth:"245px",borderCollapse:"collapse"}}>
 <tbody>
-<tr><td style={{padding:"6px 14px",borderBottom:"1px solid #f0f0f0",color:"#666",fontSize:"12.5px"}}>المجموع الجزئي</td><td style={{padding:"6px 14px",borderBottom:"1px solid #f0f0f0",textAlign:"left",fontWeight:600,fontSize:"12.5px",direction:"ltr"}}>{fKWD(sub)}</td></tr>
-{tax>0&&<tr><td style={{padding:"6px 14px",borderBottom:"1px solid #f0f0f0",color:"#666",fontSize:"12.5px"}}>الضريبة ({taxR}%)</td><td style={{padding:"6px 14px",borderBottom:"1px solid #f0f0f0",textAlign:"left",fontWeight:600,fontSize:"12.5px",direction:"ltr"}}>{fKWD(tax)}</td></tr>}
-{ship>0&&<tr><td style={{padding:"6px 14px",borderBottom:"1px solid #f0f0f0",color:"#666",fontSize:"12.5px"}}>التوصيل</td><td style={{padding:"6px 14px",borderBottom:"1px solid #f0f0f0",textAlign:"left",fontWeight:600,fontSize:"12.5px",direction:"ltr"}}>{fKWD(ship)}</td></tr>}
-<tr style={{background:c.color}}><td style={{padding:"9px 14px",color:"#fff",fontWeight:800,fontSize:"13px"}}>إجمالي الفاتورة</td><td style={{padding:"9px 14px",color:"#fff",fontWeight:900,fontSize:"13px",textAlign:"left",direction:"ltr"}}>{fKWD(tot)}</td></tr>
-<tr><td style={{padding:"6px 14px",borderBottom:"1px solid #f0f0f0",color:"#16a34a",fontSize:"12.5px"}}>المدفوع</td><td style={{padding:"6px 14px",borderBottom:"1px solid #f0f0f0",textAlign:"left",fontWeight:600,color:"#16a34a",fontSize:"12.5px",direction:"ltr"}}>{fKWD(paid)}</td></tr>
-<tr style={{background:"#111827"}}><td style={{padding:"9px 14px",color:"#fff",fontWeight:800,fontSize:"13px"}}>المبلغ المستحق</td><td style={{padding:"9px 14px",color:stC,fontWeight:900,fontSize:"14px",textAlign:"left",direction:"ltr"}}>{fKWD(due)}</td></tr>
+<tr><td style={{padding:"6px 14px",borderBottom:"1px solid #f0f0f0",color:"#666",fontSize:"12.5px"}}>{tr("المجموع الجزئي")}</td><td style={{padding:"6px 14px",borderBottom:"1px solid #f0f0f0",textAlign:"end",fontWeight:600,fontSize:"12.5px",direction:"ltr"}}>{fKWD(sub)}</td></tr>
+{tax>0&&<tr><td style={{padding:"6px 14px",borderBottom:"1px solid #f0f0f0",color:"#666",fontSize:"12.5px"}}>{tr("الضريبة (")}{taxR}%)</td><td style={{padding:"6px 14px",borderBottom:"1px solid #f0f0f0",textAlign:"end",fontWeight:600,fontSize:"12.5px",direction:"ltr"}}>{fKWD(tax)}</td></tr>}
+{ship>0&&<tr><td style={{padding:"6px 14px",borderBottom:"1px solid #f0f0f0",color:"#666",fontSize:"12.5px"}}>{tr("التوصيل")}</td><td style={{padding:"6px 14px",borderBottom:"1px solid #f0f0f0",textAlign:"end",fontWeight:600,fontSize:"12.5px",direction:"ltr"}}>{fKWD(ship)}</td></tr>}
+<tr style={{background:c.color}}><td style={{padding:"9px 14px",color:"#fff",fontWeight:800,fontSize:"13px"}}>{tr("إجمالي الفاتورة")}</td><td style={{padding:"9px 14px",color:"#fff",fontWeight:900,fontSize:"13px",textAlign:"end",direction:"ltr"}}>{fKWD(tot)}</td></tr>
+<tr><td style={{padding:"6px 14px",borderBottom:"1px solid #f0f0f0",color:"#16a34a",fontSize:"12.5px"}}>{tr("المدفوع")}</td><td style={{padding:"6px 14px",borderBottom:"1px solid #f0f0f0",textAlign:"end",fontWeight:600,color:"#16a34a",fontSize:"12.5px",direction:"ltr"}}>{fKWD(paid)}</td></tr>
+<tr style={{background:"#111827"}}><td style={{padding:"9px 14px",color:"#fff",fontWeight:800,fontSize:"13px"}}>{tr("المبلغ المستحق")}</td><td style={{padding:"9px 14px",color:stC,fontWeight:900,fontSize:"14px",textAlign:"end",direction:"ltr"}}>{fKWD(due)}</td></tr>
 </tbody>
 </table>
-{inv.notes&&<div style={{marginTop:"14px",color:"#666",fontSize:"12px",borderTop:"1px solid #eee",paddingTop:"10px"}}>ملاحظات: {inv.notes}</div>}
+{inv.notes&&<div style={{marginTop:"14px",color:"#666",fontSize:"12px",borderTop:"1px solid #eee",paddingTop:"10px"}}>{tr("ملاحظات:")} {inv.notes}</div>}
 </div>
 </div>
 );
@@ -1308,26 +1225,26 @@ return(
         {isEdit?"✏️":"📇"}
       </div>
       <div style={{flex:1,color:"#fff"}}>
-        <div style={{fontWeight:900,fontSize:"15px"}}>{isEdit?"تعديل بيانات العميل":"إضافة عميل جديد"}</div>
-        <div style={{fontSize:"11.5px",opacity:.75}}>سيتم حفظه في دليل {company.nameAr}</div>
+        <div style={{fontWeight:900,fontSize:"15px"}}>{isEdit?tr("تعديل بيانات العميل"):tr("إضافة عميل جديد")}</div>
+        <div style={{fontSize:"11.5px",opacity:.75}}>{tr("سيتم حفظه في دليل")} {companyName(company)}</div>
       </div>
       <button onClick={onClose} disabled={busy} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"8px",padding:"6px 12px",color:"#fff",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer",flexShrink:0}}>✕</button>
     </div>
 
     <div style={{padding:"18px 20px"}}>
       <div className="form-2col" style={{marginBottom:"10px"}}>
-        <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>الاسم *</label>
-          <input className="inp" placeholder="مثال: عبدالله حسن" value={name} onChange={e=>setName(e.target.value)} autoFocus/></div>
-        <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>التلفون *</label>
-          <input className="inp" style={{direction:"ltr",textAlign:"right"}} placeholder="9xxxxxxx" value={phone} onChange={e=>setPhone(e.target.value)}/></div>
+        <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("الاسم *")}</label>
+          <input className="inp" placeholder={tr("مثال: عبدالله حسن")} value={name} onChange={e=>setName(e.target.value)} autoFocus/></div>
+        <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("التلفون *")}</label>
+          <input className="inp" style={{direction:"ltr",textAlign:"start"}} placeholder="9xxxxxxx" value={phone} onChange={e=>setPhone(e.target.value)}/></div>
       </div>
       <div style={{marginBottom:"10px"}}>
-        <label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>البريد الإلكتروني (اختياري)</label>
-        <input className="inp" style={{direction:"ltr",textAlign:"right"}} placeholder="name@example.com" value={email} onChange={e=>setEmail(e.target.value)}/>
+        <label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("البريد الإلكتروني (اختياري)")}</label>
+        <input className="inp" style={{direction:"ltr",textAlign:"start"}} placeholder="name@example.com" value={email} onChange={e=>setEmail(e.target.value)}/>
       </div>
       <div style={{marginBottom:"14px"}}>
-        <label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>العنوان (اختياري)</label>
-        <input className="inp" placeholder="المنطقة / العنوان" value={address} onChange={e=>setAddress(e.target.value)}/>
+        <label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("العنوان (اختياري)")}</label>
+        <input className="inp" placeholder={tr("المنطقة / العنوان")} value={address} onChange={e=>setAddress(e.target.value)}/>
       </div>
 
       {err&&<div style={{background:"var(--ia-red-bg)",border:"1px solid var(--ia-red-bd)",color:"var(--ia-red-tx)",borderRadius:"8px",padding:"8px 12px",fontSize:"12px",fontWeight:700,marginBottom:"12px"}}>⚠️ {err}</div>}
@@ -1335,19 +1252,19 @@ return(
       <div style={{display:"flex",gap:"8px"}}>
         <button className="btn" disabled={busy} style={{background:isEdit?"#f59e0b":col,color:"#fff",flex:1,fontSize:"14px",padding:"10px",opacity:busy?.7:1}} 
           onClick={async()=>{
-            if(!name.trim()){setErr("اسم العميل مطلوب");return;}
-            if(!norm(phone)){setErr("رقم التلفون مطلوب");return;}
+            if(!name.trim()){setErr(tr("اسم العميل مطلوب"));return;}
+            if(!norm(phone)){setErr(tr("رقم التلفون مطلوب"));return;}
             setBusy(true);
             try{
               await onSave({name:name.trim(),phone:norm(phone),email:email.trim()||null,address:address.trim()||null});
             }catch(e){
               setBusy(false);
-              setErr("تعذّر الحفظ — تحقق من الاتصال ثم أعد المحاولة");
+              setErr(tr("تعذّر الحفظ — تحقق من الاتصال ثم أعد المحاولة"));
             }
           }}>
-          {busy?"⏳ جارٍ الحفظ...":isEdit?"💾 حفظ التعديلات":"➕ إضافة العميل"}
+          {busy?tr("⏳ جارٍ الحفظ..."):isEdit?tr("💾 حفظ التعديلات"):tr("➕ إضافة العميل")}
         </button>
-        <button className="btn btn-ghost" disabled={busy} onClick={onClose}>إلغاء</button>
+        <button className="btn btn-ghost" disabled={busy} onClick={onClose}>{tr("إلغاء")}</button>
       </div>
     </div>
   </div>
@@ -1369,19 +1286,19 @@ const impFileRef=useRef();
 
 // ── CSV export of the saved-client directory ──
 const exportClientsCSV = () => {
-  if (!clients.length) { toast_("لا يوجد عملاء محفوظون للتصدير","warn"); return; }
-  const headers = ["الاسم","التلفون","البريد","العنوان"];
+  if (!clients.length) { toast_(tr("لا يوجد عملاء محفوظون للتصدير"),"warn"); return; }
+  const headers = [tr("الاسم"),tr("التلفون"),tr("البريد"),tr("العنوان")];
   const rows = clients.map(c => ({
     "الاسم": c.name || "", "التلفون": c.phone || "",
     "البريد": c.email || "", "العنوان": c.address || "",
   }));
   downloadCSV(toCSV(headers, rows), `Clients_${company.id}_${today()}.csv`);
-  toast_("⬇️ تم تنزيل دليل العملاء (" + clients.length + " عميل)");
+  toast_(tr("⬇️ تم تنزيل دليل العملاء (") + clients.length + tr(" عميل)"));
 };
 
 // r20: Excel export of the saved-client directory (.xlsx, RTL)
 const exportClientsExcel = () => {
-  if (!clients.length) { toast_("لا يوجد عملاء محفوظون للتصدير","warn"); return; }
+  if (!clients.length) { toast_(tr("لا يوجد عملاء محفوظون للتصدير"),"warn"); return; }
   const rows = clients.map(c => ({
     "الاسم": c.name || "", "التلفون": c.phone || "",
     "البريد": c.email || "", "العنوان": c.address || "",
@@ -1390,9 +1307,9 @@ const exportClientsExcel = () => {
   ws["!cols"] = [{wch:24},{wch:16},{wch:26},{wch:30}];
   const wb = XLSX.utils.book_new();
   wb.Workbook = { Views: [{ RTL: true }] };
-  XLSX.utils.book_append_sheet(wb, ws, "العملاء");
+  XLSX.utils.book_append_sheet(wb, ws, tr("العملاء"));
   XLSX.writeFile(wb, `Clients_${company.id}_${today()}.xlsx`);
-  toast_("📊 تم تنزيل دليل العملاء Excel (" + clients.length + " عميل)");
+  toast_(tr("📊 تم تنزيل دليل العملاء Excel (") + clients.length + tr(" عميل)"));
 };
 
 // ── CSV import (dedupes by phone against the current directory) ──
@@ -1412,7 +1329,7 @@ const doImportClients = async () => {
   setImpBusy(false);
   setImp(null);
   onRefresh();
-  toast_(added ? `✅ تم استيراد ${added} عميل${skipped ? ` — تخطّي ${skipped} مكرر/غير صالح` : ""}` : "لم يُضف أي عميل جديد (كله مكرر)", added ? "ok" : "warn");
+  toast_(added ? tr("✅ تم استيراد {0} عميل{1}",[added,skipped ? tr(" — تخطّي {0} مكرر/غير صالح",[skipped]) : ""]) : tr("لم يُضف أي عميل جديد (كله مكرر)"), added ? "ok" : "warn");
 };
 
 // Spend stats per normalized phone, derived from the company invoices
@@ -1428,10 +1345,10 @@ if(inv.date>stats[ph].lastDate)stats[ph].lastDate=inv.date;
 const saveClient=async data=>{
 if(modal.mode==="add"){
   await api.createClient({...data,company:company.id});
-  toast_("✅ تم إضافة "+data.name+" إلى الدليل");
+  toast_(tr("✅ تم إضافة ")+data.name+tr(" إلى الدليل"));
 }else{
   await api.updateClient(modal.client.id,data);
-  toast_("✅ تم تحديث بيانات "+data.name);
+  toast_(tr("✅ تم تحديث بيانات ")+data.name);
 }
 setModal(null);
 onRefresh();
@@ -1441,7 +1358,7 @@ const confirmDelClient=async()=>{
 try{ await api.deleteClient(del.id); }catch{}
 setDel(null);
 onRefresh();
-toast_("🗑️ تم حذف "+(del.name||"العميل")+" من الدليل","warn");
+toast_(tr("🗑️ تم حذف ")+(del.name||tr("العميل"))+tr(" من الدليل"),"warn");
 };
 
 // quick search filter (name / phone / email / address)
@@ -1455,18 +1372,18 @@ return(
   <div style={{display:"flex",alignItems:"center",gap:"10px",padding:"14px 18px",borderBottom:"1.5px solid var(--ia-border3)",background:"linear-gradient(135deg,var(--ia-soft),var(--ia-card))",flexWrap:"wrap"}}>
     <div style={{width:"38px",height:"38px",background:cardBg,border:`1.5px solid ${col}33`,borderRadius:"10px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"18px",flexShrink:0}}>📇</div>
     <div style={{flex:1,minWidth:"150px"}}>
-      <div style={{fontSize:"14px",fontWeight:900,color:"var(--ia-text)"}}>دليل العملاء المحفوظين</div>
-      <div style={{fontSize:"11px",color:"var(--ia-muted)",fontWeight:600}}>للاستخدام السريع عند إنشاء الفواتير — يُحفظ لكل شركة على حدة</div>
+      <div style={{fontSize:"14px",fontWeight:900,color:"var(--ia-text)"}}>{tr("دليل العملاء المحفوظين")}</div>
+      <div style={{fontSize:"11px",color:"var(--ia-muted)",fontWeight:600}}>{tr("للاستخدام السريع عند إنشاء الفواتير — يُحفظ لكل شركة على حدة")}</div>
     </div>
-    <span style={{background:"var(--ia-blue-bg)",color:"var(--ia-blue-tx)",borderRadius:"20px",padding:"3px 11px",fontSize:"11px",fontWeight:800}}>{dirSearch?shownClients.length+" من "+clients.length:clients.length+" محفوظ"}</span>
+    <span style={{background:"var(--ia-blue-bg)",color:"var(--ia-blue-tx)",borderRadius:"20px",padding:"3px 11px",fontSize:"11px",fontWeight:800}}>{dirSearch?shownClients.length+tr(" من ")+clients.length:clients.length+tr(" محفوظ")}</span>
     {clients.length>3&&(
-      <input className="inp" placeholder="🔍 بحث في الدليل…" value={dirSearch} onChange={e=>setDirSearch(e.target.value)}
+      <input className="inp" placeholder={tr("🔍 بحث في الدليل…")} value={dirSearch} onChange={e=>setDirSearch(e.target.value)}
         style={{width:"170px",padding:"6px 10px",fontSize:"12px",borderRadius:"8px"}}
-        aria-label="بحث في دليل العملاء"/>
+        aria-label={tr("بحث في دليل العملاء")}/>
     )}
-    <button className="btn" title="تنزيل الدليل كملف CSV (يفتح في Excel)" style={{background:"var(--ia-ghost-bg)",color:"var(--ia-ghost-tx)",padding:"7px 11px",fontSize:"12px"}} onClick={exportClientsCSV}>⬇️ CSV</button>
-    <button className="btn" title="تنزيل الدليل كملف Excel (.xlsx)" style={{background:"var(--ia-ghost-bg)",color:"var(--ia-ghost-tx)",padding:"7px 11px",fontSize:"12px"}} onClick={exportClientsExcel}>📊 Excel</button>
-    {canEdit&&<button className="btn" title="استيراد عملاء من ملف CSV أو Excel (الاسم + التلفون مطلوبان)" style={{background:"#0f766e",color:"#fff",padding:"7px 11px",fontSize:"12px"}} onClick={()=>impFileRef.current?.click()}>⬆️ استيراد</button>}
+    <button className="btn" title={tr("تنزيل الدليل كملف CSV (يفتح في Excel)")} style={{background:"var(--ia-ghost-bg)",color:"var(--ia-ghost-tx)",padding:"7px 11px",fontSize:"12px"}} onClick={exportClientsCSV}>⬇️ CSV</button>
+    <button className="btn" title={tr("تنزيل الدليل كملف Excel (.xlsx)")} style={{background:"var(--ia-ghost-bg)",color:"var(--ia-ghost-tx)",padding:"7px 11px",fontSize:"12px"}} onClick={exportClientsExcel}>📊 Excel</button>
+    {canEdit&&<button className="btn" title={tr("استيراد عملاء من ملف CSV أو Excel (الاسم + التلفون مطلوبان)")} style={{background:"#0f766e",color:"#fff",padding:"7px 11px",fontSize:"12px"}} onClick={()=>impFileRef.current?.click()}>{tr("⬆️ استيراد")}</button>}
     <input ref={impFileRef} type="file" accept=".csv,.txt,.xlsx,.xls" style={{display:"none"}} onChange={e=>{
       const file=e.target.files[0];
       e.target.value="";
@@ -1476,38 +1393,38 @@ return(
         const reader=new FileReader();
         reader.onload=()=>{
           const res=parseClientsExcel(new Uint8Array(reader.result));
-          if(!res.rows.length){toast_("❌ "+(res.errors[0]||"ملف غير صالح"),"warn");return;}
+          if(!res.rows.length){toast_("❌ "+(res.errors[0]||tr("ملف غير صالح")),"warn");return;}
           setImp(res);
         };
-        reader.onerror=()=>toast_("❌ تعذّر قراءة الملف","warn");
+        reader.onerror=()=>toast_(tr("❌ تعذّر قراءة الملف"),"warn");
         reader.readAsArrayBuffer(file);
       }else{
         const reader=new FileReader();
         reader.onload=()=>{
           const res=parseClientsCSV(String(reader.result||""));
-          if(!res.rows.length){toast_("❌ "+(res.errors[0]||"ملف غير صالح"),"warn");return;}
+          if(!res.rows.length){toast_("❌ "+(res.errors[0]||tr("ملف غير صالح")),"warn");return;}
           setImp(res);
         };
-        reader.onerror=()=>toast_("❌ تعذّر قراءة الملف","warn");
+        reader.onerror=()=>toast_(tr("❌ تعذّر قراءة الملف"),"warn");
         reader.readAsText(file,"utf-8");
       }
     }}/>
-    {canEdit&&<button className="btn" style={{background:col,color:"#fff",padding:"7px 13px",fontSize:"12px"}} onClick={()=>setModal({mode:"add"})}>➕ عميل جديد</button>}
+    {canEdit&&<button className="btn" style={{background:col,color:"#fff",padding:"7px 13px",fontSize:"12px"}} onClick={()=>setModal({mode:"add"})}>{tr("➕ عميل جديد")}</button>}
   </div>
 
   {clients.length===0?(
     <div style={{padding:"34px",textAlign:"center",color:"var(--ia-muted)"}}>
       <div style={{fontSize:"34px",marginBottom:"8px"}}>📇</div>
-      <div style={{fontWeight:700,fontSize:"13px",marginBottom:"4px"}}>لا يوجد عملاء محفوظون بعد</div>
-      <div style={{fontSize:"12px",marginBottom:"14px"}}>أضف عميلك الأول ليظهر هنا، أو سيُضاف تلقائياً عند إنشاء أول فاتورة له</div>
-      {canEdit&&<button className="btn" style={{background:col,color:"#fff"}} onClick={()=>setModal({mode:"add"})}>➕ إضافة عميل</button>}
+      <div style={{fontWeight:700,fontSize:"13px",marginBottom:"4px"}}>{tr("لا يوجد عملاء محفوظون بعد")}</div>
+      <div style={{fontSize:"12px",marginBottom:"14px"}}>{tr("أضف عميلك الأول ليظهر هنا، أو سيُضاف تلقائياً عند إنشاء أول فاتورة له")}</div>
+      {canEdit&&<button className="btn" style={{background:col,color:"#fff"}} onClick={()=>setModal({mode:"add"})}>{tr("➕ إضافة عميل")}</button>}
     </div>
   ):(
     <div style={{overflowX:"auto"}}>
       <table style={{width:"100%",borderCollapse:"collapse"}}>
         <thead><tr style={{background:"var(--ia-soft)",borderBottom:"2px solid var(--ia-border2)"}}>
-          {["العميل","التلفون","العنوان","إجمالي الإنفاق","الفواتير","آخر شراء",""].map(h=>(
-            <th key={h} style={{padding:"10px 12px",fontSize:"11px",fontWeight:700,color:"var(--ia-sub)",textAlign:"right",textTransform:"uppercase",letterSpacing:".3px",whiteSpace:"nowrap"}}>{h}</th>
+          {[tr("العميل"),tr("التلفون"),tr("العنوان"),tr("إجمالي الإنفاق"),tr("الفواتير"),tr("آخر شراء"),""].map(h=>(
+            <th key={h} style={{padding:"10px 12px",fontSize:"11px",fontWeight:700,color:"var(--ia-sub)",textAlign:"start",textTransform:"uppercase",letterSpacing:".3px",whiteSpace:"nowrap"}}>{h}</th>
           ))}
         </tr></thead>
         <tbody>
@@ -1523,25 +1440,25 @@ return(
                     </div>
                     <div style={{minWidth:0}}>
                       <div style={{fontWeight:700,fontSize:"13px"}}>{c.name}</div>
-                      {c.email&&<div style={{fontSize:"10.5px",color:"var(--ia-muted)",direction:"ltr",textAlign:"right"}}>{c.email}</div>}
+                      {c.email&&<div style={{fontSize:"10.5px",color:"var(--ia-muted)",direction:"ltr",textAlign:"start"}}>{c.email}</div>}
                     </div>
                   </div>
                 </td>
-                <td style={{padding:"10px 12px",direction:"ltr",textAlign:"right",color:"var(--ia-link)",fontSize:"12.5px",fontWeight:600,whiteSpace:"nowrap"}}>{c.phone||"—"}</td>
+                <td style={{padding:"10px 12px",direction:"ltr",textAlign:"start",color:"var(--ia-link)",fontSize:"12.5px",fontWeight:600,whiteSpace:"nowrap"}}>{c.phone||"—"}</td>
                 <td style={{padding:"10px 12px",color:"var(--ia-sub)",fontSize:"12px",maxWidth:"150px"}}>
                   <div style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.address||"—"}</div>
                 </td>
                 <td style={{padding:"10px 12px",fontWeight:800,color:st?colTx:"var(--ia-muted)",whiteSpace:"nowrap"}}>{st?fKWD(st.spent):"—"}</td>
                 <td style={{padding:"10px 12px",textAlign:"center"}}>
                   {st?<span style={{background:"var(--ia-blue-bg)",color:"var(--ia-blue-tx)",borderRadius:"20px",padding:"2px 9px",fontSize:"11px",fontWeight:700}}>{st.count}</span>
-                     :<span style={{color:"#d1d5db",fontSize:"11px"}}>جديد</span>}
+                     :<span style={{color:"#d1d5db",fontSize:"11px"}}>{tr("جديد")}</span>}
                 </td>
                 <td style={{padding:"10px 12px",color:"var(--ia-sub)",fontSize:"11.5px",whiteSpace:"nowrap"}}>{st?fDate(st.lastDate):"—"}</td>
                 <td style={{padding:"10px 12px"}} onClick={e=>e.stopPropagation()}>
                   {canEdit&&(
                     <div style={{display:"flex",gap:"4px"}}>
-                      <button className="btn" title="تعديل بيانات العميل" style={{background:"#f59e0b",color:"#fff",padding:"5px 9px",fontSize:"12px"}} onClick={()=>setModal({mode:"edit",client:c})}>✏️</button>
-                      <button className="btn btn-red" title="حذف من الدليل" style={{padding:"5px 9px",fontSize:"12px"}} onClick={()=>setDel(c)}>🗑️</button>
+                      <button className="btn" title={tr("تعديل بيانات العميل")} style={{background:"#f59e0b",color:"#fff",padding:"5px 9px",fontSize:"12px"}} onClick={()=>setModal({mode:"edit",client:c})}>✏️</button>
+                      <button className="btn btn-red" title={tr("حذف من الدليل")} style={{padding:"5px 9px",fontSize:"12px"}} onClick={()=>setDel(c)}>🗑️</button>
                     </div>
                   )}
                 </td>
@@ -1551,7 +1468,7 @@ return(
           {shownClients.length===0&&dirSearch&&(
             <tr><td colSpan={7} style={{padding:"24px",textAlign:"center",color:"var(--ia-muted)"}}>
               <div style={{fontSize:"22px",marginBottom:"6px"}}>🔍</div>
-              لا نتائج مطابقة للبحث «{dirSearch}» — جرّب اسماً أو رقماً آخر
+              {tr("لا نتائج مطابقة للبحث «")}{dirSearch}{tr("» — جرّب اسماً أو رقماً آخر")}
             </td></tr>
           )}
         </tbody>
@@ -1576,8 +1493,8 @@ return(
         <div style={{background:"#0f766e",padding:"14px 18px",display:"flex",alignItems:"center",gap:"11px",flexShrink:0}}>
           <div style={{width:"38px",height:"38px",background:"rgba(255,255,255,.18)",borderRadius:"10px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"18px"}}>⬆️</div>
           <div style={{flex:1,color:"#fff"}}>
-            <div style={{fontWeight:900,fontSize:"14.5px"}}>استيراد عملاء من CSV</div>
-            <div style={{fontSize:"11.5px",opacity:.8}}>{imp.rows.length} صف صالح — سيُتخطى المكرر تلقائياً</div>
+            <div style={{fontWeight:900,fontSize:"14.5px"}}>{tr("استيراد عملاء من CSV")}</div>
+            <div style={{fontSize:"11.5px",opacity:.8}}>{imp.rows.length} {tr("صف صالح — سيُتخطى المكرر تلقائياً")}</div>
           </div>
           <button onClick={()=>setImp(null)} disabled={impBusy} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"8px",padding:"6px 12px",color:"#fff",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>✕</button>
         </div>
@@ -1588,28 +1505,28 @@ return(
           <div style={{border:"1px solid var(--ia-border)",borderRadius:"9px",overflow:"hidden"}}>
             <table style={{width:"100%",borderCollapse:"collapse",fontSize:"12px"}}>
               <thead><tr style={{background:"var(--ia-soft)"}}>
-                {["#","الاسم","التلفون","البريد","العنوان"].map(h=>(<th key={h} style={{padding:"7px 10px",fontSize:"10.5px",fontWeight:800,color:"var(--ia-sub)",textAlign:"right"}}>{h}</th>))}
+                {["#",tr("الاسم"),tr("التلفون"),tr("البريد"),tr("العنوان")].map(h=>(<th key={h} style={{padding:"7px 10px",fontSize:"10.5px",fontWeight:800,color:"var(--ia-sub)",textAlign:"start"}}>{h}</th>))}
               </tr></thead>
               <tbody>
                 {imp.rows.slice(0,30).map((r,i)=>(
                   <tr key={i} style={{borderBottom:"1px solid var(--ia-border3)",background:i%2===0?"var(--ia-card)":"var(--ia-row-alt)"}}>
                     <td style={{padding:"6px 10px",color:"var(--ia-muted)",fontWeight:700}}>{i+1}</td>
                     <td style={{padding:"6px 10px",fontWeight:700}}>{r.name}</td>
-                    <td style={{padding:"6px 10px",direction:"ltr",textAlign:"right",color:"var(--ia-link)",fontWeight:600}}>{r.phone}</td>
-                    <td style={{padding:"6px 10px",direction:"ltr",textAlign:"right",color:"var(--ia-muted)",fontSize:"11px"}}>{r.email||"—"}</td>
+                    <td style={{padding:"6px 10px",direction:"ltr",textAlign:"start",color:"var(--ia-link)",fontWeight:600}}>{r.phone}</td>
+                    <td style={{padding:"6px 10px",direction:"ltr",textAlign:"start",color:"var(--ia-muted)",fontSize:"11px"}}>{r.email||"—"}</td>
                     <td style={{padding:"6px 10px",color:"var(--ia-sub)",fontSize:"11px",maxWidth:"110px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.address||"—"}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          {imp.rows.length>30&&<div style={{textAlign:"center",fontSize:"11px",color:"var(--ia-muted)",marginTop:"8px"}}>… و {imp.rows.length-30} عميل آخر</div>}
+          {imp.rows.length>30&&<div style={{textAlign:"center",fontSize:"11px",color:"var(--ia-muted)",marginTop:"8px"}}>{tr("… و")} {imp.rows.length-30} {tr("عميل آخر")}</div>}
         </div>
         <div style={{display:"flex",gap:"9px",padding:"13px 18px",borderTop:"1px solid var(--ia-border3)",background:"var(--ia-soft)",flexShrink:0}}>
           <button className="btn" disabled={impBusy} style={{background:"#0f766e",color:"#fff",flex:1,fontSize:"13.5px",padding:"10px",opacity:impBusy?.7:1}} onClick={doImportClients}>
-            {impBusy?"⏳ جارٍ الاستيراد...":`💾 استيراد ${imp.rows.length} عميل`}
+            {impBusy?tr("⏳ جارٍ الاستيراد..."):tr("💾 استيراد {0} عميل",[imp.rows.length])}
           </button>
-          <button className="btn" disabled={impBusy} style={{background:"var(--ia-ghost-bg)",color:"var(--ia-ghost-tx)",fontSize:"13px",padding:"10px 14px"}} onClick={()=>setImp(null)}>إلغاء</button>
+          <button className="btn" disabled={impBusy} style={{background:"var(--ia-ghost-bg)",color:"var(--ia-ghost-tx)",fontSize:"13px",padding:"10px 14px"}} onClick={()=>setImp(null)}>{tr("إلغاء")}</button>
         </div>
       </div>
     </div>
@@ -1620,14 +1537,14 @@ return(
     <div style={{position:"fixed",inset:0,background:"var(--ia-overlay)",zIndex:2100,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",direction:"rtl"}} onClick={()=>setDel(null)}>
       <div className="card" style={{padding:"26px 30px",textAlign:"center",maxWidth:"330px",animation:"fadeUp .2s"}} onClick={e=>e.stopPropagation()}>
         <div style={{fontSize:"36px",marginBottom:"8px"}}>🗑️</div>
-        <div style={{fontWeight:800,fontSize:"14.5px",marginBottom:"6px"}}>حذف العميل من الدليل؟</div>
+        <div style={{fontWeight:800,fontSize:"14.5px",marginBottom:"6px"}}>{tr("حذف العميل من الدليل؟")}</div>
         <div style={{color:"var(--ia-sub)",fontSize:"12.5px",marginBottom:"16px",lineHeight:1.7}}>
-          سيتم حذف <b>{del.name}</b> من دليل العملاء.<br/>
-          <span style={{fontSize:"11px",color:"var(--ia-muted)"}}>فواتيره السابقة لن تتأثر.</span>
+          {tr("سيتم حذف")} <b>{del.name}</b> {tr("من دليل العملاء.")}<br/>
+          <span style={{fontSize:"11px",color:"var(--ia-muted)"}}>{tr("فواتيره السابقة لن تتأثر.")}</span>
         </div>
         <div style={{display:"flex",gap:"9px",justifyContent:"center"}}>
-          <button className="btn btn-red" onClick={confirmDelClient}>نعم، احذف</button>
-          <button className="btn btn-ghost" onClick={()=>setDel(null)}>إلغاء</button>
+          <button className="btn btn-red" onClick={confirmDelClient}>{tr("نعم، احذف")}</button>
+          <button className="btn btn-ghost" onClick={()=>setDel(null)}>{tr("إلغاء")}</button>
         </div>
       </div>
     </div>
@@ -1660,7 +1577,7 @@ const toggleCreditBlock=()=>{
   const v=!creditBlock;
   setCreditBlockState(v);
   setCreditBlock(company,v);
-  toast_(v?"⛔ تم تفعيل المنع الصارم لتجاوز حدود الائتمان — لن يستطيع غير المديرين حفظ فواتير متجاوزة":"✅ تم تعطيل المنع الصارم — سيقتصر الأمر على التحذير فقط");
+  toast_(v?tr("⛔ تم تفعيل المنع الصارم لتجاوز حدود الائتمان — لن يستطيع غير المديرين حفظ فواتير متجاوزة"):tr("✅ تم تعطيل المنع الصارم — سيقتصر الأمر على التحذير فقط"));
 };
 // ── Credit limits (per-company, localStorage) ──
 const [creditMap,setCreditMap]=useState(()=>loadCreditMap(company?.id));
@@ -1692,7 +1609,7 @@ const saveCredit=()=>{
   if(v>0)map[ph]=v; else delete map[ph];
   setCreditMap(map);
   saveCreditMap(company,map);
-  toast_(v>0?`✅ تم تعيين حد الائتمان ${fKWD(v)}`:"🗑️ تم إزالة حد الائتمان");
+  toast_(v>0?tr("✅ تم تعيين حد الائتمان {0}",[fKWD(v)]):tr("🗑️ تم إزالة حد الائتمان"));
 };
 
 // ── Client account statement PDF (كشف حساب) ──
@@ -1707,16 +1624,16 @@ const exportStatement=async cust=>{
       return {...inv,_pays:pays};
     }));
     const html=buildStatementHTML({client:cust,invoices:enriched,company,styleId:printStyle||"classic"});
-    const base="كشف_حساب_"+String(cust.name||"عميل").replace(/\s+/g,"_").slice(0,40);
+    const base=tr("كشف_حساب_")+String(cust.name||tr("عميل")).replace(/\s+/g,"_").slice(0,40);
     const blob=await api.exportPdf(html,base);
     const url=URL.createObjectURL(blob);
     const a=document.createElement("a");
     a.href=url; a.download=base+".pdf";
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(()=>URL.revokeObjectURL(url),5000);
-    toast_("✅ تم تصدير كشف الحساب PDF");
+    toast_(tr("✅ تم تصدير كشف الحساب PDF"));
   }catch(e){
-    toast_((e&&e.message)||"فشل تصدير كشف الحساب","err");
+    toast_((e&&e.message)||tr("فشل تصدير كشف الحساب"),"err");
   }finally{
     setStmtBusy(false);
   }
@@ -1736,22 +1653,22 @@ const statementWaHref=cust=>{
   if(!cust?.phone)return "";
   const {custInvs,billed,paid,bal,oldest}=statementSummaryOf(cust);
   const lines=[
-    `عميلنا العزيز ${cust.name}،`,
-    `📋 كشف حساب من ${company.nameAr} حتى ${new Date().toLocaleDateString("ar-KW")}`,
-    `🧾 عدد الفواتير: ${custInvs.length}`,
-    `💰 إجمالي المبيعات: ${fKWD(billed)}`,
-    `✅ المدفوع: ${fKWD(paid)}`,
-    bal>0?`⏳ الرصيد المستحق: ${fKWD(bal)}`:`🎉 لا يوجد رصيد مستحق — حسابكم مسدد بالكامل`,
-    bal>0&&oldest>0?`⏰ أقدم استحقاق متأخر: ${oldest} يوم`:"",
-    bal>0?`نرجو التكرم بمراجعة الحساب وتسوية الرصيد، ويمكننا إرسال كشف حساب PDF مفصل عند الطلب.`:"",
-    `شكراً لتعاونكم 🌹`,
-    `${company.nameAr} — ${company.phone}`,
+    tr("عميلنا العزيز {0}،",[cust.name]),
+    tr("📋 كشف حساب من {0} حتى {1}",[companyName(company),new Date().toLocaleDateString(dateLocale())]),
+    tr("🧾 عدد الفواتير: {0}",[custInvs.length]),
+    tr("💰 إجمالي المبيعات: {0}",[fKWD(billed)]),
+    tr("✅ المدفوع: {0}",[fKWD(paid)]),
+    bal>0?tr("⏳ الرصيد المستحق: {0}",[fKWD(bal)]):tr(`🎉 لا يوجد رصيد مستحق — حسابكم مسدد بالكامل`),
+    bal>0&&oldest>0?tr("⏰ أقدم استحقاق متأخر: {0} يوم",[oldest]):"",
+    bal>0?tr(`نرجو التكرم بمراجعة الحساب وتسوية الرصيد، ويمكننا إرسال كشف حساب PDF مفصل عند الطلب.`):"",
+    tr(`شكراً لتعاونكم 🌹`),
+    `${companyName(company)} — ${company.phone}`,
   ].filter(Boolean);
   return waHrefWithText(cust.phone,lines.join("\n"));
 };
 const sendStatementWa=cust=>{
   const href=statementWaHref(cust);
-  if(!href){toast_("لا يوجد رقم هاتف لهذا العميل","warn");return;}
+  if(!href){toast_(tr("لا يوجد رقم هاتف لهذا العميل"),"warn");return;}
   const {bal}=statementSummaryOf(cust);
   try{
     api.logReminder({
@@ -1764,7 +1681,7 @@ const sendStatementWa=cust=>{
       amount:bal,
     }).then(()=>{try{window.dispatchEvent(new CustomEvent("reminder-logged",{detail:{invoiceId:null}}));}catch{}}).catch(()=>{});
   }catch{}
-  toast_("📣 تم فتح محادثة كشف الحساب");
+  toast_(tr("📣 تم فتح محادثة كشف الحساب"));
 };
 
 const map={};
@@ -1808,9 +1725,9 @@ onClose={()=>setShowImport(false)}
     </div>
     <div style={{flex:1,minWidth:0}}>
       <div style={{color:"#fff",fontWeight:900,fontSize:"15px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{selCustomer.name}</div>
-      <div style={{color:"rgba(255,255,255,.75)",fontSize:"12px",direction:"ltr",textAlign:"right"}}>{selCustomer.phone||"—"}</div>
+      <div style={{color:"rgba(255,255,255,.75)",fontSize:"12px",direction:"ltr",textAlign:"start"}}>{selCustomer.phone||"—"}</div>
     </div>
-    <button onClick={()=>setSelCustomer(null)} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"8px",padding:"6px 12px",color:"#fff",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer",flexShrink:0}}>✕ إغلاق</button>
+    <button onClick={()=>setSelCustomer(null)} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"8px",padding:"6px 12px",color:"#fff",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer",flexShrink:0}}>{tr("✕ إغلاق")}</button>
   </div>
 
   <div style={{overflowY:"auto",flex:1,padding:"18px 20px"}}>
@@ -1818,30 +1735,30 @@ onClose={()=>setShowImport(false)}
     {/* Contact actions */}
     <div style={{display:"flex",gap:"8px",marginBottom:"14px",flexWrap:"wrap"}}>
       <button onClick={()=>exportStatement(selCustomer)} disabled={stmtBusy}
-        title="تصدير كشف حساب كامل: كل الفواتير والمدفوعات والرصيد وتقادم الذمم"
+        title={tr("تصدير كشف حساب كامل: كل الفواتير والمدفوعات والرصيد وتقادم الذمم")}
         style={{background:stmtBusy?"#991b1b":"#dc2626",border:"none",color:"#fff",borderRadius:"8px",padding:"9px 16px",fontFamily:"inherit",fontSize:"12.5px",fontWeight:800,cursor:stmtBusy?"wait":"pointer",boxShadow:"0 2px 8px rgba(0,0,0,.15)"}}>
-        {stmtBusy?"⏳ جاري التجهيز…":"📄 كشف حساب PDF"}
+        {stmtBusy?tr("⏳ جاري التجهيز…"):tr("📄 كشف حساب PDF")}
       </button>
       {selCustomer.phone&&(()=>{ // r9: WhatsApp statement summary (balance-aware label)
         const {bal}=statementSummaryOf(selCustomer);
         return(
         <a href={statementWaHref(selCustomer)} target="_blank" rel="noopener noreferrer" className="btn wa-btn"
-          title="إرسال ملخص كشف الحساب عبر واتساب: عدد الفواتير، إجمالي المبيعات، المدفوع والرصيد المستحق — يُسجَّل في سجل التحصيل"
+          title={tr("إرسال ملخص كشف الحساب عبر واتساب: عدد الفواتير، إجمالي المبيعات، المدفوع والرصيد المستحق — يُسجَّل في سجل التحصيل")}
           onClick={()=>sendStatementWa(selCustomer)}
           style={{color:"#fff",textDecoration:"none",padding:"9px 16px"}}>
-          {bal>0?`📨 كشف الحساب واتساب (${fKWD(bal)})`:"📨 كشف الحساب واتساب"}
+          {bal>0?tr("📨 كشف الحساب واتساب ({0})",[fKWD(bal)]):tr("📨 كشف الحساب واتساب")}
         </a>
         );
       })()}
       {selCustomer.phone&&(
         <>
-        <a href={`https://wa.me/965${selCustomer.phone.replace(/^\+?965/,"")}`} target="_blank" rel="noopener noreferrer" className="btn" style={{background:"#16a34a",color:"#fff",textDecoration:"none",padding:"9px 16px"}}>💬 واتساب</a>
-        <a href={`tel:+965${selCustomer.phone.replace(/^\+?965/,"")}`} className="btn" style={{background:"#2563eb",color:"#fff",textDecoration:"none",padding:"9px 16px"}}>📞 اتصال</a>
+        <a href={`https://wa.me/965${selCustomer.phone.replace(/^\+?965/,"")}`} target="_blank" rel="noopener noreferrer" className="btn" style={{background:"#16a34a",color:"#fff",textDecoration:"none",padding:"9px 16px"}}>{tr("💬 واتساب")}</a>
+        <a href={`tel:+965${selCustomer.phone.replace(/^\+?965/,"")}`} className="btn" style={{background:"#2563eb",color:"#fff",textDecoration:"none",padding:"9px 16px"}}>{tr("📞 اتصال")}</a>
         </>
       )}
       {isAdmin&&selCustomer&&(
         <button onClick={()=>{setMergeOpen(true);setMergeTarget(null);setMergeSearch("");setMergeArmed(false);}}
-          title="دمج هذا العميل مع عميل آخر مكرر — تُنقل كل فواتيره وتُوحّد الاسم والرقم (مفيد لمن أُدخل برقمين مختلفين)"
+          title={tr("دمج هذا العميل مع عميل آخر مكرر — تُنقل كل فواتيره وتُوحّد الاسم والرقم (مفيد لمن أُدخل برقمين مختلفين)")}
           style={{
             background:softAdapt("#fef3c7",dark),color:txAdapt("#92400e",dark),
             border:`1.5px dashed ${txAdapt("#f59e0b",dark)}`,borderRadius:"8px",
@@ -1850,7 +1767,7 @@ onClose={()=>setShowImport(false)}
           }}
           onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-1px)";e.currentTarget.style.boxShadow="0 3px 10px rgba(245,158,11,.25)";}}
           onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="none";}}
-        >🔀 دمج مكرر</button>
+        >{tr("🔀 دمج مكرر")}</button>
       )}
       {selCustomer.address&&(
         <div style={{display:"inline-flex",alignItems:"center",gap:"6px",background:"var(--ia-soft)",border:"1px solid var(--ia-border)",borderRadius:"8px",padding:"9px 14px",fontSize:"12px",color:"var(--ia-text2)",fontWeight:600,flex:1,minWidth:"140px"}}>
@@ -1862,19 +1779,19 @@ onClose={()=>setShowImport(false)}
     {/* Stats */}
     <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:"8px",marginBottom:"16px"}}>
       <div style={{background:cardBg,borderRadius:"10px",padding:"10px 14px",border:`1px solid ${col}22`}}>
-        <div style={{fontSize:"10px",color:"var(--ia-sub)",fontWeight:700,marginBottom:"3px"}}>إجمالي الإنفاق</div>
+        <div style={{fontSize:"10px",color:"var(--ia-sub)",fontWeight:700,marginBottom:"3px"}}>{tr("إجمالي الإنفاق")}</div>
         <div style={{fontSize:"16px",fontWeight:900,color:colTx}}>{fKWD(selCustomer.totalSpent)}</div>
       </div>
       <div style={{background:"var(--ia-blue-bg)",borderRadius:"10px",padding:"10px 14px",border:"1px solid #93c5fd44"}}>
-        <div style={{fontSize:"10px",color:"var(--ia-blue-tx2)",fontWeight:700,marginBottom:"3px"}}>عدد الفواتير</div>
-        <div style={{fontSize:"16px",fontWeight:900,color:"var(--ia-blue-tx)"}}>{selCustomer.count} فاتورة</div>
+        <div style={{fontSize:"10px",color:"var(--ia-blue-tx2)",fontWeight:700,marginBottom:"3px"}}>{tr("عدد الفواتير")}</div>
+        <div style={{fontSize:"16px",fontWeight:900,color:"var(--ia-blue-tx)"}}>{selCustomer.count} {tr("فاتورة")}</div>
       </div>
       <div style={{background:"var(--ia-ok-bg)",borderRadius:"10px",padding:"10px 14px",border:"1px solid #86efac44"}}>
-        <div style={{fontSize:"10px",color:"var(--ia-ok-tx2)",fontWeight:700,marginBottom:"3px"}}>أول شراء</div>
+        <div style={{fontSize:"10px",color:"var(--ia-ok-tx2)",fontWeight:700,marginBottom:"3px"}}>{tr("أول شراء")}</div>
         <div style={{fontSize:"13px",fontWeight:800,color:"var(--ia-ok-tx)"}}>{fDate(selCustomer.firstDate)}</div>
       </div>
       <div style={{background:"var(--ia-warn-bg)",borderRadius:"10px",padding:"10px 14px",border:"1px solid #fde68a44"}}>
-        <div style={{fontSize:"10px",color:"var(--ia-warn-tx2)",fontWeight:700,marginBottom:"3px"}}>آخر شراء</div>
+        <div style={{fontSize:"10px",color:"var(--ia-warn-tx2)",fontWeight:700,marginBottom:"3px"}}>{tr("آخر شراء")}</div>
         <div style={{fontSize:"13px",fontWeight:800,color:"var(--ia-warn-tx)"}}>{fDate(selCustomer.lastDate)}</div>
       </div>
     </div>
@@ -1888,25 +1805,25 @@ onClose={()=>setShowImport(false)}
       const over=hasLimit&&out>limit;
       const barColor=!hasLimit?"var(--ia-border2)":pct<50?"#16a34a":pct<80?"#d97706":pct<100?"#ea580c":"#dc2626";
       const chip=over
-        ?{t:`⛔ تجاوز الحد بمقدار ${fKWD(out-limit)}`,c:"var(--ia-red-tx)",bg:"var(--ia-red-bg)",bd:"var(--ia-red-bd)"}
+        ?{t:tr("⛔ تجاوز الحد بمقدار {0}",[fKWD(out-limit)]),c:"var(--ia-red-tx)",bg:"var(--ia-red-bg)",bd:"var(--ia-red-bd)"}
         :hasLimit&&pct>=80
-        ?{t:"🔴 قارب استنفاد الحد",c:"var(--ia-red-tx)",bg:"var(--ia-red-bg)",bd:"var(--ia-red-bd)"}
+        ?{t:tr("🔴 قارب استنفاد الحد"),c:"var(--ia-red-tx)",bg:"var(--ia-red-bg)",bd:"var(--ia-red-bd)"}
         :hasLimit&&pct>=50
-        ?{t:"🟡 استهلاك متوسط للحد",c:"var(--ia-warn-tx)",bg:"var(--ia-warn-bg)",bd:"#fde68a66"}
+        ?{t:tr("🟡 استهلاك متوسط للحد"),c:"var(--ia-warn-tx)",bg:"var(--ia-warn-bg)",bd:"#fde68a66"}
         :hasLimit
-        ?{t:"🟢 ضمن الحد الآمن",c:"var(--ia-ok-tx)",bg:"var(--ia-ok-bg)",bd:"#86efac55"}
+        ?{t:tr("🟢 ضمن الحد الآمن"),c:"var(--ia-ok-tx)",bg:"var(--ia-ok-bg)",bd:"#86efac55"}
         :null;
       const shown=creditInput!==""?creditInput:(hasLimit?String(creditLimitOf(creditMap,selCustomer.phone)||""):"");
       return(
       <div style={{background:"var(--ia-soft)",border:"1px solid var(--ia-border)",borderRadius:"10px",padding:"13px 15px",marginBottom:"16px"}}>
         <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"9px",flexWrap:"wrap"}}>
-          <div style={{fontSize:"11px",fontWeight:900,color:"var(--ia-sub)",textTransform:"uppercase",letterSpacing:".5px"}}>💳 حد الائتمان</div>
+          <div style={{fontSize:"11px",fontWeight:900,color:"var(--ia-sub)",textTransform:"uppercase",letterSpacing:".5px"}}>{tr("💳 حد الائتمان")}</div>
           {chip&&<span style={{fontSize:"11px",fontWeight:800,color:chip.c,background:chip.bg,border:`1px solid ${chip.bd}`,borderRadius:"20px",padding:"2px 10px"}}>{chip.t}</span>}
           <div style={{flex:1}}/>
           <div style={{direction:"rtl",display:"flex",gap:"10px",alignItems:"baseline"}}>
             <span style={{fontSize:"13px",fontWeight:900,color:over?"var(--ia-red-tx)":"var(--ia-text)"}}>{fKWD(out)}</span>
-            <span style={{fontSize:"10px",color:"var(--ia-muted)"}}>مستحق</span>
-            {hasLimit&&<><span style={{color:"var(--ia-muted)"}}>/</span><span style={{fontSize:"13px",fontWeight:800,color:colTx}}>{fKWD(limit)}</span><span style={{fontSize:"10px",color:"var(--ia-muted)"}}>الحد</span></>}
+            <span style={{fontSize:"10px",color:"var(--ia-muted)"}}>{tr("مستحق")}</span>
+            {hasLimit&&<><span style={{color:"var(--ia-muted)"}}>/</span><span style={{fontSize:"13px",fontWeight:800,color:colTx}}>{fKWD(limit)}</span><span style={{fontSize:"10px",color:"var(--ia-muted)"}}>{tr("الحد")}</span></>}
           </div>
         </div>
         {/* utilization bar */}
@@ -1915,17 +1832,17 @@ onClose={()=>setShowImport(false)}
             <div style={{height:"8px",background:"var(--ia-border2)",borderRadius:"50px",overflow:"hidden",direction:"ltr"}}>
               <div style={{height:"100%",width:Math.min(100,pct)+"%",background:barColor,borderRadius:"50px",transition:"width .3s,background .3s"}}/>
             </div>
-            <div style={{fontSize:"10px",color:"var(--ia-muted)",marginTop:"3px",textAlign:"left",direction:"ltr"}}>{pct.toFixed(0)}% مستخدم{over?` — الرجاء التحصيل قبل فتح فواتير جديدة`:""}</div>
+            <div style={{fontSize:"10px",color:"var(--ia-muted)",marginTop:"3px",textAlign:"end",direction:"ltr"}}>{pct.toFixed(0)}{tr("% مستخدم")}{over?tr(` — الرجاء التحصيل قبل فتح فواتير جديدة`):""}</div>
           </div>
         )}
         {/* limit editor */}
         <div style={{display:"flex",gap:"8px",alignItems:"center"}}>
-          <input className="inp" style={{width:"130px",direction:"ltr",textAlign:"right",padding:"7px 10px",fontSize:"12px"}} type="number" step="0.5" min="0"
-            placeholder="حد ائتمان (KD)" value={shown} onChange={e=>setCreditInput(e.target.value)}
-            title="الحد الأقصى للديون المسموح بها لهذا العميل"/>
-          <button className="btn" style={{background:col,color:"#fff",fontSize:"12px",padding:"7px 14px"}} onClick={saveCredit}>💾 حفظ الحد</button>
-          {hasLimit&&<button className="btn btn-ghost" style={{fontSize:"11.5px",padding:"7px 12px"}} onClick={()=>{setCreditInput("0");}}>🗑️ إزالة</button>}
-          {!hasLimit&&<span style={{fontSize:"10.5px",color:"var(--ia-muted)"}}>بدون حد — يُستخدم للتنبيه عند إنشاء فواتير جديدة</span>}
+          <input className="inp" style={{width:"130px",direction:"ltr",textAlign:"start",padding:"7px 10px",fontSize:"12px"}} type="number" step="0.5" min="0"
+            placeholder={tr("حد ائتمان (KD)")} value={shown} onChange={e=>setCreditInput(e.target.value)}
+            title={tr("الحد الأقصى للديون المسموح بها لهذا العميل")}/>
+          <button className="btn" style={{background:col,color:"#fff",fontSize:"12px",padding:"7px 14px"}} onClick={saveCredit}>{tr("💾 حفظ الحد")}</button>
+          {hasLimit&&<button className="btn btn-ghost" style={{fontSize:"11.5px",padding:"7px 12px"}} onClick={()=>{setCreditInput("0");}}>{tr("🗑️ إزالة")}</button>}
+          {!hasLimit&&<span style={{fontSize:"10.5px",color:"var(--ia-muted)"}}>{tr("بدون حد — يُستخدم للتنبيه عند إنشاء فواتير جديدة")}</span>}
         </div>
       </div>
       );
@@ -1934,7 +1851,7 @@ onClose={()=>setShowImport(false)}
     {/* Products purchased */}
     {selCustomer.products.length>0&&(
       <div style={{marginBottom:"16px"}}>
-        <div style={{fontSize:"11px",fontWeight:900,color:"var(--ia-sub)",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"8px"}}>🛍️ المنتجات المشتراة ({selCustomer.products.length})</div>
+        <div style={{fontSize:"11px",fontWeight:900,color:"var(--ia-sub)",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"8px"}}>{tr("🛍️ المنتجات المشتراة (")}{selCustomer.products.length})</div>
         <div style={{display:"flex",gap:"6px",flexWrap:"wrap"}}>
           {selCustomer.products.map(p=>(
             <span key={p} style={{background:"var(--ia-chip)",border:"1px solid var(--ia-border)",borderRadius:"20px",padding:"4px 12px",fontSize:"11.5px",color:"var(--ia-text2)",fontWeight:600}}>{p}</span>
@@ -1944,12 +1861,12 @@ onClose={()=>setShowImport(false)}
     )}
 
     {/* Invoice history */}
-    <div style={{fontSize:"11px",fontWeight:900,color:"var(--ia-sub)",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"8px"}}>🧾 سجل الفواتير — اضغط لعرض الفاتورة</div>
+    <div style={{fontSize:"11px",fontWeight:900,color:"var(--ia-sub)",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"8px"}}>{tr("🧾 سجل الفواتير — اضغط لعرض الفاتورة")}</div>
     <div style={{border:"1px solid var(--ia-border)",borderRadius:"10px",overflow:"hidden",maxHeight:"300px",overflowY:"auto"}}>
       <table style={{width:"100%",borderCollapse:"collapse",fontSize:"12.5px"}}>
         <thead><tr style={{background:"var(--ia-soft)",position:"sticky",top:0,zIndex:1}}>
-          {["رقم","التاريخ","الإجمالي","المدفوع","الحالة"].map(h=>(
-            <th key={h} style={{padding:"8px 12px",fontSize:"10.5px",fontWeight:700,color:"var(--ia-sub)",textAlign:"right"}}>{h}</th>
+          {[tr("رقم"),tr("التاريخ"),tr("الإجمالي"),tr("المدفوع"),tr("الحالة")].map(h=>(
+            <th key={h} style={{padding:"8px 12px",fontSize:"10.5px",fontWeight:700,color:"var(--ia-sub)",textAlign:"start"}}>{h}</th>
           ))}
         </tr></thead>
         <tbody>
@@ -1962,7 +1879,7 @@ onClose={()=>setShowImport(false)}
                 <td style={{padding:"8px 12px",color:"var(--ia-sub)",fontSize:"11px"}}>{fDate(inv.date)}</td>
                 <td style={{padding:"8px 12px",fontWeight:800,color:colTx}}>{fKWD(iT(inv))}</td>
                 <td style={{padding:"8px 12px",color:"#16a34a",fontWeight:600}}>{fKWD(pN(inv.paid||0))}</td>
-                <td style={{padding:"8px 12px"}}><span className={`b-${st}`}>{stLabel[st]}</span></td>
+                <td style={{padding:"8px 12px"}}><span className={`b-${st}`}>{tr(stLabel[st])}</span></td>
               </tr>
             );
           })}
@@ -1991,13 +1908,13 @@ onClose={()=>setShowImport(false)}
         from:{phone:selCustomer.phone,name:selCustomer.name},
         to:{phone:mergeTarget.phone,name:mergeTarget.name,address:mergeTarget.address||""},
       });
-      toast_(res?.message||`✅ تم دمج ${res?.merged??srcCount} فاتورة بنجاح`);
+      toast_(res?.message||tr("✅ تم دمج {0} فاتورة بنجاح",[res?.merged??srcCount]));
       setMergeOpen(false);
       setSelCustomer(null);
       if(onMerged){try{await onMerged();}catch{}}
       try{refreshClients&&refreshClients();}catch{} // r11: حدّث دليل العملاء (حذف صف المصدر)
     }catch(e){
-      toast_("فشل الدمج: "+(e.message||"خطأ غير معروف"),"warn");
+      toast_(tr("فشل الدمج: ")+(e.message||tr("خطأ غير معروف")),"warn");
     }finally{
       setMergeBusy(false);
       setMergeArmed(false);
@@ -2010,31 +1927,31 @@ onClose={()=>setShowImport(false)}
       <div style={{background:"linear-gradient(135deg,#b45309,#15803d)",padding:"14px 18px",display:"flex",alignItems:"center",gap:10,margin:"-1px -1px 0"}}>
         <span style={{fontSize:20}}>🔀</span>
         <div style={{flex:1,color:"#fff"}}>
-          <div style={{fontWeight:900,fontSize:15}}>دمج العملاء المكررين</div>
-          <div style={{fontSize:11.5,opacity:.85}}>نقل فواتير المصدر إلى العميل الهدف وتوحيد الاسم والرقم</div>
+          <div style={{fontWeight:900,fontSize:15}}>{tr("دمج العملاء المكررين")}</div>
+          <div style={{fontSize:11.5,opacity:.85}}>{tr("نقل فواتير المصدر إلى العميل الهدف وتوحيد الاسم والرقم")}</div>
         </div>
-        <button onClick={()=>!mergeBusy&&setMergeOpen(false)} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"8px",padding:"6px 12px",color:"#fff",fontFamily:"inherit",fontSize:12.5,fontWeight:700,cursor:"pointer"}}>✕ إغلاق</button>
+        <button onClick={()=>!mergeBusy&&setMergeOpen(false)} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"8px",padding:"6px 12px",color:"#fff",fontFamily:"inherit",fontSize:12.5,fontWeight:700,cursor:"pointer"}}>{tr("✕ إغلاق")}</button>
       </div>
 
       <div style={{padding:"16px 18px"}}>
         {/* بطاقة المصدر */}
         <div style={{background:softAdapt("#fef3c7",dark),border:`1.5px solid ${txAdapt("#fbbf24",dark)}55`,borderRadius:12,padding:"12px 14px",marginBottom:10}}>
-          <div style={{fontSize:10.5,fontWeight:800,color:txAdapt("#92400e",dark),marginBottom:6}}>المصدر — سيُدمج في الهدف (لا فواتير تبقى باسمه)</div>
+          <div style={{fontSize:10.5,fontWeight:800,color:txAdapt("#92400e",dark),marginBottom:6}}>{tr("المصدر — سيُدمج في الهدف (لا فواتير تبقى باسمه)")}</div>
           <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
             <div style={{width:38,height:38,borderRadius:10,background:txAdapt("#d97706",dark),color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,fontSize:16,flexShrink:0}}>{(selCustomer.name||"؟").trim().charAt(0)}</div>
             <div style={{flex:1,minWidth:120}}>
               <div style={{fontWeight:900,fontSize:13.5,color:"var(--ia-text)"}}>{selCustomer.name}</div>
-              <div style={{fontSize:12,color:"var(--ia-sub)",direction:"ltr",textAlign:"right"}}>{selCustomer.phone}</div>
+              <div style={{fontSize:12,color:"var(--ia-sub)",direction:"ltr",textAlign:"start"}}>{selCustomer.phone}</div>
             </div>
             <div style={{textAlign:"center"}}>
               <div style={{fontSize:15,fontWeight:900,color:txAdapt("#b45309",dark)}}>{srcCount}</div>
-              <div style={{fontSize:10,color:"var(--ia-sub)",fontWeight:700}}>فاتورة</div>
+              <div style={{fontSize:10,color:"var(--ia-sub)",fontWeight:700}}>{tr("فاتورة")}</div>
             </div>
           </div>
         </div>
 
         {/* السهم */}
-        <div style={{textAlign:"center",fontSize:18,color:"var(--ia-sub)",margin:"2px 0 10px"}}>{mergeTarget?"⬇️":"اختر العميل الهدف ⬇️"}</div>
+        <div style={{textAlign:"center",fontSize:18,color:"var(--ia-sub)",margin:"2px 0 10px"}}>{mergeTarget?"⬇️":tr("اختر العميل الهدف ⬇️")}</div>
 
         {/* بطاقة الهدف/المنتقي */}
         {mergeTarget?(
@@ -2042,33 +1959,33 @@ onClose={()=>setShowImport(false)}
             <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
               <div style={{width:38,height:38,borderRadius:10,background:"#16a34a",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,fontSize:16,flexShrink:0}}>{(mergeTarget.name||"؟").trim().charAt(0)}</div>
               <div style={{flex:1,minWidth:120}}>
-                <div style={{fontWeight:900,fontSize:13.5,color:"var(--ia-text)"}}>{mergeTarget.name} <span style={{fontSize:10.5,fontWeight:800,color:txAdapt("#15803d",dark)}}>الهدف ✓</span></div>
-                <div style={{fontSize:12,color:"var(--ia-sub)",direction:"ltr",textAlign:"right"}}>{mergeTarget.phone}</div>
+                <div style={{fontWeight:900,fontSize:13.5,color:"var(--ia-text)"}}>{mergeTarget.name} <span style={{fontSize:10.5,fontWeight:800,color:txAdapt("#15803d",dark)}}>{tr("الهدف ✓")}</span></div>
+                <div style={{fontSize:12,color:"var(--ia-sub)",direction:"ltr",textAlign:"start"}}>{mergeTarget.phone}</div>
               </div>
               <div style={{textAlign:"center"}}>
                 <div style={{fontSize:15,fontWeight:900,color:txAdapt("#15803d",dark)}}>{tgtCount}+{srcCount}</div>
-                <div style={{fontSize:10,color:"var(--ia-sub)",fontWeight:700}}>فاتورة بعد الدمج</div>
+                <div style={{fontSize:10,color:"var(--ia-sub)",fontWeight:700}}>{tr("فاتورة بعد الدمج")}</div>
               </div>
-              <button onClick={()=>{setMergeTarget(null);setMergeArmed(false);}} disabled={mergeBusy} className="btn btn-outline" style={{padding:"5px 10px",fontSize:11.5}}>تغيير</button>
+              <button onClick={()=>{setMergeTarget(null);setMergeArmed(false);}} disabled={mergeBusy} className="btn btn-outline" style={{padding:"5px 10px",fontSize:11.5}}>{tr("تغيير")}</button>
             </div>
           </div>
         ):(
           <div style={{border:`1.5px solid var(--ia-border2)`,borderRadius:12,padding:10,marginBottom:10}}>
-            <input className="inp" style={{marginBottom:8,padding:"8px 12px"}} placeholder="🔍 ابحث باسم أو رقم العميل الهدف..." value={mergeSearch} onChange={e=>setMergeSearch(e.target.value)}/>
+            <input className="inp" style={{marginBottom:8,padding:"8px 12px"}} placeholder={tr("🔍 ابحث باسم أو رقم العميل الهدف...")} value={mergeSearch} onChange={e=>setMergeSearch(e.target.value)}/>
             <div style={{maxHeight:180,overflowY:"auto",display:"flex",flexDirection:"column",gap:4}}>
               {filteredOthers.length===0?(
-                <div style={{padding:14,textAlign:"center",fontSize:12.5,color:"var(--ia-sub)"}}>لا يوجد عملاء آخرون مطابقون</div>
+                <div style={{padding:14,textAlign:"center",fontSize:12.5,color:"var(--ia-sub)"}}>{tr("لا يوجد عملاء آخرون مطابقون")}</div>
               ):filteredOthers.slice(0,30).map(c=>(
                 <button key={c.phone} onClick={()=>{setMergeTarget(c);setMergeArmed(false);}} disabled={mergeBusy}
-                  style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",borderRadius:8,border:"1px solid var(--ia-border)",background:"var(--ia-card)",cursor:"pointer",fontFamily:"inherit",textAlign:"right",transition:"all .15s"}}
+                  style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",borderRadius:8,border:"1px solid var(--ia-border)",background:"var(--ia-card)",cursor:"pointer",fontFamily:"inherit",textAlign:"start",transition:"all .15s"}}
                   onMouseEnter={e=>{e.currentTarget.style.borderColor=txAdapt("#16a34a",dark);e.currentTarget.style.background=softAdapt("#f0fdf4",dark);}}
                   onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--ia-border)";e.currentTarget.style.background="var(--ia-card)";}}>
                   <div style={{width:30,height:30,borderRadius:8,background:softAdapt("#f1f5f9",dark),display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,fontSize:13,flexShrink:0}}>{(c.name||"؟").charAt(0)}</div>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontSize:12.5,fontWeight:800,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</div>
-                    <div style={{fontSize:11,color:"var(--ia-sub)",direction:"ltr",textAlign:"right"}}>{c.phone}</div>
+                    <div style={{fontSize:11,color:"var(--ia-sub)",direction:"ltr",textAlign:"start"}}>{c.phone}</div>
                   </div>
-                  <span style={{fontSize:10.5,fontWeight:800,color:"var(--ia-sub)",background:softAdapt("#f1f5f9",dark),padding:"2px 8px",borderRadius:12,whiteSpace:"nowrap"}}>{c.count} فاتورة • {fKWD(c.totalSpent)}</span>
+                  <span style={{fontSize:10.5,fontWeight:800,color:"var(--ia-sub)",background:softAdapt("#f1f5f9",dark),padding:"2px 8px",borderRadius:12,whiteSpace:"nowrap"}}>{c.count} {tr("فاتورة •")} {fKWD(c.totalSpent)}</span>
                 </button>
               ))}
             </div>
@@ -2078,17 +1995,17 @@ onClose={()=>setShowImport(false)}
         {/* ملخص وتحذير */}
         {mergeTarget&&(
           <div style={{background:softAdapt("#fef2f2",dark),border:`1px solid ${txAdapt("#fca5a5",dark)}55`,borderRadius:10,padding:"10px 12px",marginBottom:12,fontSize:12,lineHeight:1.9,color:"var(--ia-text2)"}}>
-            سيُنقل <b style={{color:txAdapt("#b45309",dark)}}>{srcCount} فاتورة</b> من «{selCustomer.name}» إلى «{mergeTarget.name}» ويتوحّد الاسم والرقم على العميل الهدف.
-            <br/>⚠️ لا يمكن التراجع مباشرة — احتفظ بنسخة احتياطية من تبويب 💾 النظام قبل الدمج عند الشك.</div>
+            {tr("سيُنقل")} <b style={{color:txAdapt("#b45309",dark)}}>{srcCount} {tr("فاتورة")}</b> {tr("من «")}{selCustomer.name}{tr("» إلى «")}{mergeTarget.name}{tr("» ويتوحّد الاسم والرقم على العميل الهدف.")}
+            <br/>{tr("⚠️ لا يمكن التراجع مباشرة — احتفظ بنسخة احتياطية من تبويب 💾 النظام قبل الدمج عند الشك.")}</div>
         )}
 
         {/* الأزرار */}
         <div style={{display:"flex",gap:8}}>
-          <button className="btn btn-outline" onClick={()=>setMergeOpen(false)} disabled={mergeBusy} style={{flex:1,justifyContent:"center"}}>إلغاء</button>
+          <button className="btn btn-outline" onClick={()=>setMergeOpen(false)} disabled={mergeBusy} style={{flex:1,justifyContent:"center"}}>{tr("إلغاء")}</button>
           <button onClick={runMerge} disabled={!mergeTarget||mergeBusy}
             style={{flex:1.4,justifyContent:"center",border:"none",borderRadius:8,padding:"10px 16px",fontFamily:"inherit",fontSize:13,fontWeight:800,cursor:!mergeTarget||mergeBusy?"not-allowed":"pointer",color:"#fff",
               background:mergeArmed?"#dc2626":"#15803d",opacity:!mergeTarget||mergeBusy?.55:1,transition:"all .18s"}}>
-            {mergeBusy?"⏳ جارٍ الدمج…":mergeArmed?"⚠️ متأكد؟ اضغط مجدداً للتنفيذ":"🔀 تنفيذ الدمج"}
+            {mergeBusy?tr("⏳ جارٍ الدمج…"):mergeArmed?tr("⚠️ متأكد؟ اضغط مجدداً للتنفيذ"):tr("🔀 تنفيذ الدمج")}
           </button>
         </div>
       </div>
@@ -2098,11 +2015,11 @@ onClose={()=>setShowImport(false)}
 })()}
 
 <div style={{display:"flex",gap:"10px",marginBottom:"14px",alignItems:"center",flexWrap:"wrap"}}>
-<input className="inp" style={{flex:1,minWidth:"200px",padding:"9px 14px"}} placeholder="🔍 ابحث باسم العميل أو التلفون..." value={search} onChange={e=>setSearch(e.target.value)}/>
+<input className="inp" style={{flex:1,minWidth:"200px",padding:"9px 14px"}} placeholder={tr("🔍 ابحث باسم العميل أو التلفون...")} value={search} onChange={e=>setSearch(e.target.value)}/>
 <select className="inp" style={{width:"auto",padding:"9px 12px"}} value={sort} onChange={e=>setSort(e.target.value)}>
-<option value="spent">ترتيب: أعلى إنفاق</option>
-<option value="count">ترتيب: أكثر فواتير</option>
-<option value="last">ترتيب: آخر شراء</option>
+<option value="spent">{tr("ترتيب: أعلى إنفاق")}</option>
+<option value="count">{tr("ترتيب: أكثر فواتير")}</option>
+<option value="last">{tr("ترتيب: آخر شراء")}</option>
 </select>
 {/* ── Import Button (CSV / Excel) ── */}
 <button
@@ -2110,18 +2027,18 @@ className="btn"
 style={{background:"#0f766e",color:"#fff",whiteSpace:"nowrap",gap:"6px",border:"none",display:"inline-flex",alignItems:"center"}}
 onClick={()=>setShowImport(true)}
 >
-<span style={{fontSize:"15px"}}>📥</span> استيراد CSV / Excel
+<span style={{fontSize:"15px"}}>📥</span> {tr("استيراد CSV / Excel")}
 </button>
-{!!perms.export_data&&<button className="btn" style={{background:col,color:"#fff",whiteSpace:"nowrap"}} onClick={()=>exportMetaAudience(invoices)}>⬇️ تصدير Excel للميتا</button>}
+{!!perms.export_data&&<button className="btn" style={{background:col,color:"#fff",whiteSpace:"nowrap"}} onClick={()=>exportMetaAudience(invoices)}>{tr("⬇️ تصدير Excel للميتا")}</button>}
 </div>
 <div style={{display:"grid",gridTemplateColumns:customers.some(c=>creditLimitOf(creditMap,c.phone)>0)?"repeat(auto-fit,minmax(150px,1fr))":"repeat(3,1fr)",gap:"10px",marginBottom:"14px"}}>
 {[
-{l:"إجمالي العملاء",v:customers.length+" عميل",c:colTx,bg:cardBg},
-{l:"إجمالي الإنفاق",v:fKWD(customers.reduce((s,c)=>s+c.totalSpent,0)),c:txAdapt("#16a34a",dark),bg:softAdapt("#dcfce7",dark)},
-{l:"متوسط الإنفاق / عميل",v:fKWD(customers.length?customers.reduce((s,c)=>s+c.totalSpent,0)/customers.length:0),c:txAdapt("#7c3aed",dark),bg:softAdapt("#ede9fe",dark)},
+{l:tr("إجمالي العملاء"),v:customers.length+tr(" عميل"),c:colTx,bg:cardBg},
+{l:tr("إجمالي الإنفاق"),v:fKWD(customers.reduce((s,c)=>s+c.totalSpent,0)),c:txAdapt("#16a34a",dark),bg:softAdapt("#dcfce7",dark)},
+{l:tr("متوسط الإنفاق / عميل"),v:fKWD(customers.length?customers.reduce((s,c)=>s+c.totalSpent,0)/customers.length:0),c:txAdapt("#7c3aed",dark),bg:softAdapt("#ede9fe",dark)},
 ...(customers.some(c=>creditLimitOf(creditMap,c.phone)>0)?[(()=>{
   const overN=customers.filter(c=>{const l=creditLimitOf(creditMap,c.phone);return l>0&&outstandingOf(invoices,c.phone)>l;}).length;
-  return{l:"متجاوزو حد الائتمان",v:overN+" عميل",c:overN>0?txAdapt("#dc2626",dark):txAdapt("#16a34a",dark),bg:overN>0?softAdapt("#fee2e2",dark):softAdapt("#dcfce7",dark)};
+  return{l:tr("متجاوزو حد الائتمان"),v:overN+tr(" عميل"),c:overN>0?txAdapt("#dc2626",dark):txAdapt("#16a34a",dark),bg:overN>0?softAdapt("#fee2e2",dark):softAdapt("#dcfce7",dark)};
 })()]:[]),
 ].map(s=>(
 <div key={s.l} style={{background:s.bg,borderRadius:"10px",padding:"12px 16px",border:`1px solid ${s.c}22`}}>
@@ -2136,24 +2053,24 @@ onClick={()=>setShowImport(true)}
 <div style={{display:"flex",alignItems:"center",gap:"12px",flexWrap:"wrap",background:creditBlock?"var(--ia-red-bg)":"var(--ia-soft)",border:`1.5px solid ${creditBlock?"var(--ia-red-bd)":"var(--ia-border2)"}`,borderRadius:"10px",padding:"11px 16px",marginBottom:"14px"}}>
 <span style={{fontSize:"18px"}}>{creditBlock?"⛔":"🟢"}</span>
 <div style={{flex:1,minWidth:"220px"}}>
-<div style={{fontSize:"13px",fontWeight:900,color:creditBlock?"var(--ia-red-tx)":"var(--ia-text)"}}>المنع الصارم لتجاوز حدود الائتمان</div>
-<div style={{fontSize:"11px",color:"var(--ia-sub)",lineHeight:1.6}}>{creditBlock?"مُفعّل: لا يستطيع غير المديرين حفظ فاتورة تتجاوز حد ائتمان العميل — يُطبَّق على مستوى الشركة ويُزامن عبر الأجهزة.":"غير مُفعّل: يتجاوز الحد يُظهر تحذيراً فقط دون منع الحفظ."}</div>
+<div style={{fontSize:"13px",fontWeight:900,color:creditBlock?"var(--ia-red-tx)":"var(--ia-text)"}}>{tr("المنع الصارم لتجاوز حدود الائتمان")}</div>
+<div style={{fontSize:"11px",color:"var(--ia-sub)",lineHeight:1.6}}>{creditBlock?tr("مُفعّل: لا يستطيع غير المديرين حفظ فاتورة تتجاوز حد ائتمان العميل — يُطبَّق على مستوى الشركة ويُزامن عبر الأجهزة."):tr("غير مُفعّل: يتجاوز الحد يُظهر تحذيراً فقط دون منع الحفظ.")}</div>
 </div>
 <button onClick={toggleCreditBlock}
-title="تبديل سياسة إنفاذ حدود الائتمان لهذه الشركة"
+title={tr("تبديل سياسة إنفاذ حدود الائتمان لهذه الشركة")}
 style={{background:creditBlock?"#dc2626":col,color:"#fff",border:"none",borderRadius:"8px",padding:"8px 16px",fontFamily:"inherit",fontSize:"12.5px",fontWeight:800,cursor:"pointer",boxShadow:"0 2px 8px rgba(0,0,0,.12)",whiteSpace:"nowrap"}}>
-{creditBlock?"🚫 تعطيل المنع الصارم":"🔒 تفعيل المنع الصارم"}
+{creditBlock?tr("🚫 تعطيل المنع الصارم"):tr("🔒 تفعيل المنع الصارم")}
 </button>
 </div>
 )}
 {customers.length===0?(
-<div className="card" style={{padding:"48px",textAlign:"center",color:"var(--ia-muted)"}}><div style={{fontSize:"40px",marginBottom:"10px"}}>👥</div><div style={{fontWeight:600}}>لا توجد عملاء</div></div>
+<div className="card" style={{padding:"48px",textAlign:"center",color:"var(--ia-muted)"}}><div style={{fontSize:"40px",marginBottom:"10px"}}>👥</div><div style={{fontWeight:600}}>{tr("لا توجد عملاء")}</div></div>
 ):(
 <div className="card" style={{overflow:"hidden"}}>
 <table style={{width:"100%",borderCollapse:"collapse"}}>
 <thead><tr style={{background:"var(--ia-soft)",borderBottom:"2px solid var(--ia-border2)"}}>
-{["العميل","التلفون","إجمالي الإنفاق","عدد الفواتير","آخر شراء","الرصيد المستحق","المنتجات","للميتا"].map(h=>(
-<th key={h} className={h==="الرصيد المستحق"?"col-credit":undefined} style={{padding:"10px 12px",fontSize:"11px",fontWeight:700,color:"var(--ia-sub)",textAlign:"right",textTransform:"uppercase",letterSpacing:".3px"}}>{h}</th>
+{[tr("العميل"),tr("التلفون"),tr("إجمالي الإنفاق"),tr("عدد الفواتير"),tr("آخر شراء"),tr("الرصيد المستحق"),tr("المنتجات"),tr("للميتا")].map(h=>(
+<th key={h} className={h===tr("الرصيد المستحق")?"col-credit":undefined} style={{padding:"10px 12px",fontSize:"11px",fontWeight:700,color:"var(--ia-sub)",textAlign:"start",textTransform:"uppercase",letterSpacing:".3px"}}>{h}</th>
 ))}
 </tr></thead>
 <tbody>
@@ -2162,7 +2079,7 @@ style={{background:creditBlock?"#dc2626":col,color:"#fff",border:"none",borderRa
 style={{borderBottom:"1px solid var(--ia-border3)",background:selCustomer&&selCustomer.phone===c.phone?`${col}0d`:(i%2===0?"var(--ia-card)":"var(--ia-row-alt)"),cursor:"pointer"}}
 className="trow">
 <td style={{padding:"11px 12px",fontWeight:600,fontSize:"13px"}}>{c.name}</td>
-<td style={{padding:"11px 12px",direction:"ltr",textAlign:"right",color:"var(--ia-link)",fontSize:"13px"}}>{c.phone}</td>
+<td style={{padding:"11px 12px",direction:"ltr",textAlign:"start",color:"var(--ia-link)",fontSize:"13px"}}>{c.phone}</td>
 <td style={{padding:"11px 12px",fontWeight:700,color:colTx}}>{fKWD(c.totalSpent)}</td>
 <td style={{padding:"11px 12px",textAlign:"center"}}><span style={{background:"var(--ia-blue-bg)",color:"var(--ia-blue-tx)",borderRadius:"20px",padding:"2px 8px",fontSize:"11px",fontWeight:700}}>{c.count}</span></td>
 <td style={{padding:"11px 12px",color:"var(--ia-sub)",fontSize:"12px"}}>{fDate(c.lastDate)}</td>
@@ -2174,7 +2091,7 @@ className="trow">
   <span style={{fontSize:"12px",fontWeight:800,color:out<=0?"var(--ia-muted)":over?"var(--ia-red-tx)":"var(--ia-warn-tx)"}}>
     {out>0?fKWD(out):"—"}
     {lim>0&&<span style={{fontSize:"10px",color:"var(--ia-muted)",fontWeight:600}}> / {fKWD(lim)}</span>}
-    {over&&<span style={{background:"var(--ia-red-bg)",color:"var(--ia-red-tx)",border:"1px solid var(--ia-red-bd)",borderRadius:"20px",padding:"0 7px",fontSize:"10px",fontWeight:800,marginRight:"5px",display:"inline-block"}}>⛔</span>}
+    {over&&<span style={{background:"var(--ia-red-bg)",color:"var(--ia-red-tx)",border:"1px solid var(--ia-red-bd)",borderRadius:"20px",padding:"0 7px",fontSize:"10px",fontWeight:800,marginInlineStart:"5px",display:"inline-block"}}>⛔</span>}
   </span>
   );
 })()}</td>
@@ -2230,7 +2147,7 @@ const teal = "#0d9488", tealTx = txAdapt(teal, dark);
 const tealBg = softAdapt("#ccfbf1", dark);
 
 const copyLink = async () => {
-  if (!link) { toast_("لا يوجد رابط دفع مُعد — أضف قالب بوابة الدفع أولاً", "warn"); return; }
+  if (!link) { toast_(tr("لا يوجد رابط دفع مُعد — أضف قالب بوابة الدفع أولاً"), "warn"); return; }
   try { await navigator.clipboard.writeText(link); }
   catch {
     const ta = document.createElement("textarea");
@@ -2239,12 +2156,12 @@ const copyLink = async () => {
     ta.remove();
   }
   setCopied(true); setTimeout(() => setCopied(false), 1800);
-  toast_("📋 تم نسخ رابط الدفع");
+  toast_(tr("📋 تم نسخ رابط الدفع"));
 };
 
 const saveTpl = () => {
   setPayLinkTpl(company, tpl);
-  toast_(tpl.trim() ? "✅ تم حفظ قالب بوابة الدفع (يتزامن عبر أجهزتك)" : "🗑️ تم مسح قالب بوابة الدفع");
+  toast_(tpl.trim() ? tr("✅ تم حفظ قالب بوابة الدفع (يتزامن عبر أجهزتك)") : tr("🗑️ تم مسح قالب بوابة الدفع"));
 };
 
 return(
@@ -2255,8 +2172,8 @@ return(
   <div style={{background:"linear-gradient(135deg,#0f766e,#0d9488)",padding:"16px 20px",display:"flex",alignItems:"center",gap:"12px",flexShrink:0}}>
     <div style={{width:"42px",height:"42px",background:"rgba(255,255,255,.18)",borderRadius:"12px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"20px"}}>💳</div>
     <div style={{flex:1,minWidth:0}}>
-      <div style={{color:"#fff",fontWeight:900,fontSize:"15px"}}>رابط الدفع الإلكتروني</div>
-      <div style={{color:"rgba(255,255,255,.8)",fontSize:"12px"}}>فاتورة <b>{inv.invNum}</b> — المتبقي <b>{fKWD(remaining)}</b></div>
+      <div style={{color:"#fff",fontWeight:900,fontSize:"15px"}}>{tr("رابط الدفع الإلكتروني")}</div>
+      <div style={{color:"rgba(255,255,255,.8)",fontSize:"12px"}}>{tr("فاتورة")} <b>{inv.invNum}</b> {tr("— المتبقي")} <b>{fKWD(remaining)}</b></div>
     </div>
     <button onClick={onClose} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"8px",padding:"6px 12px",color:"#fff",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>✕</button>
   </div>
@@ -2264,61 +2181,61 @@ return(
   <div style={{overflowY:"auto",flex:1,padding:"16px 20px"}}>
 
     {/* Amount */}
-    <label style={{fontSize:"11px",color:"var(--ia-sub)",fontWeight:700,display:"block",marginBottom:"5px"}}>💰 المبلغ المطلوب (KD)</label>
+    <label style={{fontSize:"11px",color:"var(--ia-sub)",fontWeight:700,display:"block",marginBottom:"5px"}}>{tr("💰 المبلغ المطلوب (KD)")}</label>
     <div style={{display:"flex",gap:"8px",marginBottom:"14px"}}>
-      <input className="inp" style={{direction:"ltr",textAlign:"right",fontWeight:800,fontSize:"15px"}} type="number" step="0.001" min="0" value={amount} onChange={e=>setAmount(e.target.value)}/>
-      <button className="btn" style={{background:tealBg,color:tealTx,whiteSpace:"nowrap",fontSize:"12px"}} onClick={()=>setAmount(remaining.toFixed(3))} title="إرجاع المبلغ إلى المتبقي الفعلي على الفاتورة">↺ المتبقي</button>
+      <input className="inp" style={{direction:"ltr",textAlign:"start",fontWeight:800,fontSize:"15px"}} type="number" step="0.001" min="0" value={amount} onChange={e=>setAmount(e.target.value)}/>
+      <button className="btn" style={{background:tealBg,color:tealTx,whiteSpace:"nowrap",fontSize:"12px"}} onClick={()=>setAmount(remaining.toFixed(3))} title={tr("إرجاع المبلغ إلى المتبقي الفعلي على الفاتورة")}>{tr("↺ المتبقي")}</button>
     </div>
 
     {/* Generated link */}
     {link ? (
       <div style={{marginBottom:"14px"}}>
-        <div style={{fontSize:"11px",color:"var(--ia-sub)",fontWeight:700,marginBottom:"5px"}}>🔗 رابط الدفع الجاهز</div>
+        <div style={{fontSize:"11px",color:"var(--ia-sub)",fontWeight:700,marginBottom:"5px"}}>{tr("🔗 رابط الدفع الجاهز")}</div>
         <div dir="ltr" style={{background:tealBg,border:"1px solid #0d948844",borderRadius:"8px",padding:"10px 12px",fontSize:"11.5px",fontFamily:"monospace",color:tealTx,wordBreak:"break-all",userSelect:"all"}}>{link}</div>
       </div>
     ) : (
       <div style={{background:"var(--ia-warn-bg)",border:"1px solid #fde68a66",borderRadius:"10px",padding:"12px 14px",marginBottom:"14px",fontSize:"12.5px",color:"var(--ia-warn-tx)",lineHeight:1.7}}>
-        <b>⚙️ لم يُضبط رابط بوابة الدفع بعد.</b><br/>
-        أضف قالب رابط بوابة الدفع (KPay / MyFatoorah / kNET…) مرة واحدة، وسيتولّى النظام توليد الروابط تلقائياً لكل فاتورة. يمكنك أيضاً إرسال طلب دفع عبر واتساب بدون رابط.
-        <button className="btn" style={{background:"var(--ia-warn-bg)",border:"1px solid var(--ia-warn-tx)",color:"var(--ia-warn-tx)",fontSize:"11.5px",marginTop:"8px"}} onClick={()=>setShowCfg(true)}>⚙️ إعداد الآن</button>
+        <b>{tr("⚙️ لم يُضبط رابط بوابة الدفع بعد.")}</b><br/>
+        {tr("أضف قالب رابط بوابة الدفع (KPay / MyFatoorah / kNET…) مرة واحدة، وسيتولّى النظام توليد الروابط تلقائياً لكل فاتورة. يمكنك أيضاً إرسال طلب دفع عبر واتساب بدون رابط.")}
+        <button className="btn" style={{background:"var(--ia-warn-bg)",border:"1px solid var(--ia-warn-tx)",color:"var(--ia-warn-tx)",fontSize:"11.5px",marginTop:"8px"}} onClick={()=>setShowCfg(true)}>{tr("⚙️ إعداد الآن")}</button>
       </div>
     )}
 
     {/* Gateway template configuration (collapsible) */}
     {showCfg && (
       <div style={{background:"var(--ia-soft)",border:"1px dashed var(--ia-border2)",borderRadius:"10px",padding:"12px 14px",marginBottom:"14px"}}>
-        <div style={{fontSize:"12px",fontWeight:900,color:"var(--ia-text)",marginBottom:"4px"}}>⚙️ قالب رابط بوابة الدفع</div>
+        <div style={{fontSize:"12px",fontWeight:900,color:"var(--ia-text)",marginBottom:"4px"}}>{tr("⚙️ قالب رابط بوابة الدفع")}</div>
         <div style={{fontSize:"11px",color:"var(--ia-sub)",lineHeight:1.7,marginBottom:"8px"}}>
-          الصق رابط بوابة الدفع الخاص بالشركة واستخدم العناصر البديلة:
-          <span dir="ltr" style={{fontFamily:"monospace",color:tealTx}}>{"{amount}"}</span> للمبلغ،
-          <span dir="ltr" style={{fontFamily:"monospace",color:tealTx}}>{"{invoice}"}</span> لرقم الفاتورة.
+          {tr("الصق رابط بوابة الدفع الخاص بالشركة واستخدم العناصر البديلة:")}
+          <span dir="ltr" style={{fontFamily:"monospace",color:tealTx}}>{"{amount}"}</span> {tr("للمبلغ،")}
+          <span dir="ltr" style={{fontFamily:"monospace",color:tealTx}}>{"{invoice}"}</span> {tr("لرقم الفاتورة.")}
         </div>
         <div style={{display:"flex",gap:"8px"}}>
           <input className="inp" dir="ltr" style={{fontFamily:"monospace",fontSize:"11.5px"}} placeholder="https://kpay.com.kw/pay/XXXX?amt={amount}" value={tpl} onChange={e=>setTpl(e.target.value)}/>
-          <button className="btn" style={{background:teal,color:"#fff",whiteSpace:"nowrap"}} onClick={saveTpl}>💾 حفظ</button>
+          <button className="btn" style={{background:teal,color:"#fff",whiteSpace:"nowrap"}} onClick={saveTpl}>{tr("💾 حفظ")}</button>
         </div>
-        <div style={{fontSize:"10.5px",color:"var(--ia-muted)",marginTop:"6px"}}>💾 يُحفظ لشركة {company?.nameAr} على الخادم — يتزامن تلقائياً عبر كل الأجهزة</div>
+        <div style={{fontSize:"10.5px",color:"var(--ia-muted)",marginTop:"6px"}}>{tr("💾 يُحفظ لشركة")} {company?.nameAr} {tr("على الخادم — يتزامن تلقائياً عبر كل الأجهزة")}</div>
       </div>
     )}
     {!showCfg && link && (
-      <button className="btn btn-ghost" style={{fontSize:"11.5px",marginBottom:"14px",padding:"6px 12px"}} onClick={()=>setShowCfg(true)}>⚙️ تعديل قالب بوابة الدفع</button>
+      <button className="btn btn-ghost" style={{fontSize:"11.5px",marginBottom:"14px",padding:"6px 12px"}} onClick={()=>setShowCfg(true)}>{tr("⚙️ تعديل قالب بوابة الدفع")}</button>
     )}
 
     {/* WhatsApp preview */}
     <div style={{background:softAdapt("#dcfce7",dark),border:"1px solid #86efac55",borderRadius:"10px",padding:"11px 14px",fontSize:"12px",color:"var(--ia-text2)",whiteSpace:"pre-wrap",lineHeight:1.8,maxHeight:"170px",overflowY:"auto"}}>
-      <div style={{fontSize:"11px",fontWeight:900,color:txAdapt("#15803d",dark),marginBottom:"4px"}}>📣 معاينة رسالة الطلب (واتساب)</div>
+      <div style={{fontSize:"11px",fontWeight:900,color:txAdapt("#15803d",dark),marginBottom:"4px"}}>{tr("📣 معاينة رسالة الطلب (واتساب)")}</div>
       {msg}
     </div>
   </div>
 
   {/* Footer actions */}
   <div style={{padding:"14px 20px",borderTop:"1px solid var(--ia-border)",display:"flex",gap:"8px",flexShrink:0,flexWrap:"wrap"}}>
-    <button className="btn" style={{background:teal,color:"#fff",flex:1,justifyContent:"center"}} onClick={copyLink}>{copied?"✅ تم النسخ":"📋 نسخ رابط الدفع"}</button>
+    <button className="btn" style={{background:teal,color:"#fff",flex:1,justifyContent:"center"}} onClick={copyLink}>{copied?tr("✅ تم النسخ"):tr("📋 نسخ رابط الدفع")}</button>
     {hasPhone && (
       <a href={waHref} target="_blank" rel="noopener noreferrer" className="btn wa-btn" style={{color:"#fff",textDecoration:"none",flex:1,justifyContent:"center"}}
-        onClick={()=>logReminderSent(inv,company,waHref,"payment_request")}>📣 إرسال واتساب</a>
+        onClick={()=>logReminderSent(inv,company,waHref,"payment_request")}>{tr("📣 إرسال واتساب")}</a>
     )}
-    <button className="btn btn-ghost" onClick={onClose}>إغلاق</button>
+    <button className="btn btn-ghost" onClick={onClose}>{tr("إغلاق")}</button>
   </div>
 </div>
 </div>
@@ -2342,7 +2259,7 @@ const totalDue = chosen.reduce((s, i) => s + (iT(i) - pN(i.paid || 0)), 0);
 
 const copyNumbers = async () => {
   const nums = chosen.map(i => "+965" + norm(i.clientPhone || "").replace(/^\+?965/, ""));
-  if (!nums.length) { toast_("لا توجد فواتير محددة", "warn"); return; }
+  if (!nums.length) { toast_(tr("لا توجد فواتير محددة"), "warn"); return; }
   const text = nums.join(", ");
   try { await navigator.clipboard.writeText(text); }
   catch {
@@ -2353,17 +2270,17 @@ const copyNumbers = async () => {
     ta.remove();
   }
   setCopied(true); setTimeout(() => setCopied(false), 1800);
-  toast_("📋 تم نسخ " + nums.length + " رقم — الصقها في قائمة Broadcast في واتساب");
+  toast_(tr("📋 تم نسخ ") + nums.length + tr(" رقم — الصقها في قائمة Broadcast في واتساب"));
 };
 
 const sendAll = () => {
-  if (!chosen.length) { toast_("حدّد فاتورة واحدة على الأقل", "warn"); return; }
+  if (!chosen.length) { toast_(tr("حدّد فاتورة واحدة على الأقل"), "warn"); return; }
   chosen.forEach((inv, i) => {
     const href = waReminderHref(inv, company);
     logReminderSent(inv, company, href);
     setTimeout(() => { try { window.open(href, "_blank"); } catch {} }, i * 400);
   });
-  toast_("🚀 جارٍ فتح واتساب لـ " + chosen.length + " عميل");
+  toast_(tr("🚀 جارٍ فتح واتساب لـ ") + chosen.length + tr(" عميل"));
 };
 
 return(
@@ -2374,8 +2291,8 @@ return(
     <div style={{background:col,padding:"15px 20px",display:"flex",alignItems:"center",gap:"12px",flexShrink:0}}>
       <div style={{width:"42px",height:"42px",background:"rgba(255,255,255,.18)",borderRadius:"11px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"20px",flexShrink:0}}>📣</div>
       <div style={{flex:1,minWidth:0,color:"#fff"}}>
-        <div style={{fontWeight:900,fontSize:"15px"}}>تذكير جماعي بالسداد</div>
-        <div style={{fontSize:"11.5px",opacity:.8}}>{sendable.length} فاتورة متأخرة بإجمالي متبقٍ {fKWD(overdue.reduce((s,i)=>s+iT(i)-pN(i.paid||0),0))}</div>
+        <div style={{fontWeight:900,fontSize:"15px"}}>{tr("تذكير جماعي بالسداد")}</div>
+        <div style={{fontSize:"11.5px",opacity:.8}}>{sendable.length} {tr("فاتورة متأخرة بإجمالي متبقٍ")} {fKWD(overdue.reduce((s,i)=>s+iT(i)-pN(i.paid||0),0))}</div>
       </div>
       <button onClick={onClose} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"8px",padding:"6px 12px",color:"#fff",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer",flexShrink:0}}>✕</button>
     </div>
@@ -2384,12 +2301,12 @@ return(
     <div style={{display:"flex",gap:"8px",alignItems:"center",padding:"12px 18px",borderBottom:"1px solid var(--ia-border3)",background:"var(--ia-soft)",flexWrap:"wrap",flexShrink:0}}>
       <label style={{display:"flex",alignItems:"center",gap:"6px",cursor:"pointer",fontSize:"12px",fontWeight:800,color:"var(--ia-text2)",userSelect:"none"}}>
         <input type="checkbox" checked={allSel} onChange={toggleAll} style={{accentColor:col,cursor:"pointer",width:"15px",height:"15px"}}/>
-        تحديد الكل
+        {tr("تحديد الكل")}
       </label>
-      <span style={{fontSize:"11.5px",fontWeight:700,color:"var(--ia-sub)"}}>{chosen.length} محدد • {fKWD(totalDue)}</span>
+      <span style={{fontSize:"11.5px",fontWeight:700,color:"var(--ia-sub)"}}>{chosen.length} {tr("محدد •")} {fKWD(totalDue)}</span>
       <div style={{flex:1}}/>
-      <button className="btn" style={{background:copied?"#15803d":"#2563eb",color:"#fff",padding:"6px 12px",fontSize:"12px"}} onClick={copyNumbers}>{copied?"✅ تم النسخ":"📋 نسخ الأرقام"}</button>
-      <button className="btn wa-btn" style={{color:"#fff",padding:"6px 12px",fontSize:"12px"}} onClick={sendAll}>🚀 إرسال ({chosen.length})</button>
+      <button className="btn" style={{background:copied?"#15803d":"#2563eb",color:"#fff",padding:"6px 12px",fontSize:"12px"}} onClick={copyNumbers}>{copied?tr("✅ تم النسخ"):tr("📋 نسخ الأرقام")}</button>
+      <button className="btn wa-btn" style={{color:"#fff",padding:"6px 12px",fontSize:"12px"}} onClick={sendAll}>{tr("🚀 إرسال (")}{chosen.length})</button>
     </div>
 
     {/* Rows */}
@@ -2397,7 +2314,7 @@ return(
       {sendable.length===0?(
         <div style={{textAlign:"center",color:"var(--ia-muted)",padding:"32px 0"}}>
           <div style={{fontSize:"34px",marginBottom:"8px"}}>👍</div>
-          <div style={{fontWeight:700,fontSize:"13px"}}>كل الفواتير المتأخرة بلا أرقام تلفون</div>
+          <div style={{fontWeight:700,fontSize:"13px"}}>{tr("كل الفواتير المتأخرة بلا أرقام تلفون")}</div>
         </div>
       ):sendable.map(inv=>{
         const checked=sel.includes(inv.id);
@@ -2413,14 +2330,14 @@ return(
             </div>
             <div style={{minWidth:0,flex:1}}>
               <div style={{fontWeight:700,fontSize:"12.5px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{inv.clientName||inv.clientPhone}</div>
-              <div style={{fontSize:"10.5px",color:"var(--ia-sub)",direction:"ltr",textAlign:"right"}}>{inv.clientPhone}</div>
+              <div style={{fontSize:"10.5px",color:"var(--ia-sub)",direction:"ltr",textAlign:"start"}}>{inv.clientPhone}</div>
             </div>
             <span className="b-inv" style={{flexShrink:0}}>{inv.invNum}</span>
-            <div style={{textAlign:"left",flexShrink:0,minWidth:"70px"}}>
+            <div style={{textAlign:"end",flexShrink:0,minWidth:"70px"}}>
               <div style={{fontWeight:900,fontSize:"12.5px",color:"var(--ia-red-tx)",direction:"ltr"}}>{fKWD(due)}</div>
-              <div style={{fontSize:"10px",fontWeight:800,color:"var(--ia-red-tx)"}}>⏰ {od} يوم</div>
+              <div style={{fontSize:"10px",fontWeight:800,color:"var(--ia-red-tx)"}}>⏰ {od} {tr("يوم")}</div>
             </div>
-            <a href={waReminderHref(inv,company)} target="_blank" rel="noopener noreferrer" className="btn wa-btn" title="إرسال تذكير لهذا العميل"
+            <a href={waReminderHref(inv,company)} target="_blank" rel="noopener noreferrer" className="btn wa-btn" title={tr("إرسال تذكير لهذا العميل")}
               style={{color:"#fff",padding:"5px 8px",fontSize:"12px",textDecoration:"none",flexShrink:0}}
               onClick={e=>{e.stopPropagation();logReminderSent(inv,company,waReminderHref(inv,company));}}>📣</a>
           </div>
@@ -2430,9 +2347,7 @@ return(
 
     {/* Footer hint */}
     <div style={{padding:"10px 18px",borderTop:"1px solid var(--ia-border3)",background:"var(--ia-soft)",fontSize:"11px",color:"var(--ia-sub)",lineHeight:1.7,flexShrink:0}}>
-      💡 سيفتح زر «إرسال» محادثة واتساب لكل عميل على حدة (برسالة جاهزة).
-      لإرسال قائمة تذكير واحدة للجميع استخدم «نسخ الأرقام» ثم أنشئ <b>Broadcast</b> في واتساب.
-      اسمح بالـ Popups للمتصفح.
+      {tr("💡 سيفتح زر «إرسال» محادثة واتساب لكل عميل على حدة (برسالة جاهزة).\n      لإرسال قائمة تذكير واحدة للجميع استخدم «نسخ الأرقام» ثم أنشئ")} <b>Broadcast</b> {tr("في واتساب.\n      اسمح بالـ Popups للمتصفح.")}
     </div>
   </div>
 </div>
@@ -2442,6 +2357,8 @@ return(
 // ─── MAIN APP ─────────────────────────────────────────────────────
 export default function App(){
 const { user, profile, loading: authLoading, isAdmin, canEdit, allowedCompanies, perms } = useAuth();
+// r20: i18n التطبيق — مزامنة اللغة العالمية + إعادة رندر الشجرة عند التبديل
+const { dir } = useAppI18n();
 const [selectedCompany,setCompany]=useState(null);
 const [invoices,setInvoices]=useState([]);
 const [view,setView]=useState("dash");
@@ -2672,8 +2589,8 @@ const openEdit=(inv)=>{
 };
 
 const updateInvoice=async()=>{
-  if(!editForm.clientPhone&&!editForm.clientName){toast_("يرجى إدخال التلفون أو الاسم","warn");return;}
-  const phone=norm(editForm.clientPhone);const name=editForm.clientName||phone||"عميل";
+  if(!editForm.clientPhone&&!editForm.clientName){toast_(tr("يرجى إدخال التلفون أو الاسم"),"warn");return;}
+  const phone=norm(editForm.clientPhone);const name=editForm.clientName||phone||tr("عميل");
   const updated={...editingInv,clientName:name,clientPhone:phone,
     clientAddress:editForm.clientAddress,
     items:editForm.items.map(it=>({...it,qty:parseInt(toW(String(it.qty)))||1,price:pN(it.price)})),
@@ -2682,18 +2599,18 @@ const updateInvoice=async()=>{
   const list=invoices.map(inv=>inv.id===updated.id?updated:inv);
   await persist(list);
   api.updateInvoice(updated.id,{...updated,companySlug:company?.sk}).then(()=>refreshInvoices()).catch(()=>{});
-  toast_("✅ تم تحديث الفاتورة "+updated.invNum);
+  toast_(tr("✅ تم تحديث الفاتورة ")+updated.invNum);
   setEditingInv(null);setEditForm(null);setView("list");
 };
 
 const toggleSelect=(id)=>setSelectedIds(p=>p.includes(id)?p.filter(x=>x!==id):[...p,id]);
 const deleteSelected=async()=>{
   if(!selectedIds.length)return;
-  if(!confirm(`هل تريد حذف ${selectedIds.length} فاتورة؟`))return;
+  if(!confirm(tr("هل تريد حذف {0} فاتورة؟",[selectedIds.length])))return;
   const list=invoices.filter(inv=>!selectedIds.includes(inv.id));
   await persist(list);
   Promise.all(selectedIds.map(id=>api.deleteInvoice(id))).then(()=>refreshInvoices()).catch(()=>{});
-  toast_(`🗑️ تم حذف ${selectedIds.length} فاتورة`,"warn");
+  toast_(tr("🗑️ تم حذف {0} فاتورة",[selectedIds.length]),"warn");
   setSelectedIds([]);
 };
 const printSelected=()=>{
@@ -2718,9 +2635,9 @@ const autoRegisterClient = (inv) => {
 };
 
 const saveInvoice=async()=>{
-if(!form.clientPhone&&!form.clientName){toast_("يرجى إدخال التلفون أو الاسم","warn");return;}
+if(!form.clientPhone&&!form.clientName){toast_(tr("يرجى إدخال التلفون أو الاسم"),"warn");return;}
 const phone=norm(form.clientPhone);
-const name=form.clientName||phone||"عميل";
+const name=form.clientName||phone||tr("عميل");
 // r9: credit hard-block — when the company enforces limits and the client would exceed
 // theirs, non-admin users are blocked from saving (admins proceed with a warning toast).
 {
@@ -2730,10 +2647,10 @@ const name=form.clientName||phone||"عميل";
     const sub=form.items.reduce((s,it)=>s+(parseInt(toW(it.qty))||1)*pN(it.price),0)+pN(form.shipping);
     if(out+sub>lim){
       if(!isAdmin){
-        toast_(`⛔ منع الحفظ — تجاوز حد الائتمان: الرصيد ${fKWD(out)} + هذه الفاتورة ${fKWD(sub)} = ${fKWD(out+sub)} (الحد ${fKWD(lim)}). يرجى التحصيل أولاً أو مراجعة الإدارة.`,"err");
+        toast_(tr("⛔ منع الحفظ — تجاوز حد الائتمان: الرصيد {0} + هذه الفاتورة {1} = {2} (الحد {3}). يرجى التحصيل أولاً أو مراجعة الإدارة.",[fKWD(out),fKWD(sub),fKWD(out+sub),fKWD(lim)]),"err");
         return;
       }
-      toast_(`⚠️ تم تجاوز حد الائتمان بفارق ${fKWD(out+sub-lim)} — الحفظ مسموح لك بصفتك مدير النظام`,"warn");
+      toast_(tr("⚠️ تم تجاوز حد الائتمان بفارق {0} — الحفظ مسموح لك بصفتك مدير النظام",[fKWD(out+sub-lim)]),"warn");
     }
   }
 }
@@ -2744,7 +2661,7 @@ const list=[...invoices,newInv];
 await persist(list);
 api.createInvoice({...newInv,companySlug:company?.sk},company?.sk).then(()=>refreshInvoices()).catch(()=>{});
 autoRegisterClient(newInv);
-toast_("✅ تم حفظ الفاتورة "+newInv.invNum);
+toast_(tr("✅ تم حفظ الفاتورة ")+newInv.invNum);
 setForm(emptyForm());setView("list");
 };
 
@@ -2755,7 +2672,7 @@ await persist(list);
 api.deleteInvoice(delModal.id).then(()=>refreshInvoices()).catch(()=>{});
 setDelModal(null);
 if(selInv?.id===delModal.id)setSelInv(null);
-toast_("🗑️ تم الحذف","warn");
+toast_(tr("🗑️ تم الحذف"),"warn");
 };
 
 const saveBulk=async()=>{
@@ -2764,13 +2681,13 @@ const newBulk=[];
 bulkParsed.forEach(b=>{
   const running=[...list,...newBulk];
   newBulk.push({id:Date.now()+Math.random(),invNum:nxtN(running),
-  clientName:b.clientName||b.clientPhone||"عميل",clientPhone:norm(b.clientPhone),
+  clientName:b.clientName||b.clientPhone||tr("عميل"),clientPhone:norm(b.clientPhone),
   clientAddress:b.clientAddress,items:b.items,shipping:pN(b.shipping||0),
   date:b.date,dueDate:b.dueDate,paid:0,notes:"",createdAt:new Date().toISOString()});
 });
 await persist([...list,...newBulk]);
 api.bulkCreateInvoices(newBulk.map(v=>({...v,taxRate:v.taxRate??companyTax(company)})),company?.sk).then(()=>refreshInvoices()).catch(()=>{});
-setBulkStep(2);toast_(`✅ تم حفظ ${bulkParsed.length} فاتورة`);
+setBulkStep(2);toast_(tr("✅ تم حفظ {0} فاتورة",[bulkParsed.length]));
 };
 
 // r16: معالجة الإدخال المجمع بالذكاء الاصطناعي — «زرار المعالجة والإضافة بالذكاء الاصطناعي»
@@ -2786,20 +2703,20 @@ const processBulkAI=async()=>{
     const data=await res.json().catch(()=>({}));
     if(!res.ok)throw new Error(data.error||`HTTP ${res.status}`);
     const orders=(data.orders||[]).map(o=>({
-      clientName:o.clientName||"عميل",
+      clientName:o.clientName||tr("عميل"),
       clientPhone:o.clientPhone||"",
       clientAddress:o.clientAddress||"",
-      items:(o.items||[]).map(it=>({name:it.name||"منتج",desc:it.desc||"",qty:Number(it.qty)||1,price:String(it.price??"")})),
+      items:(o.items||[]).map(it=>({name:it.name||tr("منتج"),desc:it.desc||"",qty:Number(it.qty)||1,price:String(it.price??"")})),
       shipping:Number(o.shipping)||0,
       date:today(),dueDate:addD(today(),30),paid:0,notes:"",
     }));
-    if(!orders.length)throw new Error("لم يُستخرج أي طلب من النص");
+    if(!orders.length)throw new Error(tr("لم يُستخرج أي طلب من النص"));
     setBulkParsed(orders);
     setBulkAiUsed(true);
     setBulkStep(1);
-    toast_(`🤖 عولج ${orders.length} طلب بالذكاء الاصطناعي`);
+    toast_(tr("🤖 عولج {0} طلب بالذكاء الاصطناعي",[orders.length]));
   }catch(e){
-    setBulkAiErr(e.message||"تعذرّت المعالجة الذكية");
+    setBulkAiErr(e.message||tr("تعذرّت المعالجة الذكية"));
   }finally{
     setBulkAiBusy(false);
   }
@@ -2813,16 +2730,16 @@ return invoices.filter(inv=>{const n=parseInt(inv.invNum?.replace(/\D/g,"")||0);
 };
 const doPrintRange=()=>{
 const list=printRangeList();
-if(!list.length){toast_("لا توجد فواتير في هذا النطاق","warn");return;}
+if(!list.length){toast_(tr("لا توجد فواتير في هذا النطاق"),"warn");return;}
 doPrint(list, company, printStyle);
 };
 
 const SORTS={
-  date_desc:{label:"الأحدث أولاً",fn:(a,b)=>new Date(b.createdAt)-new Date(a.createdAt)},
-  date_asc:{label:"الأقدم أولاً",fn:(a,b)=>new Date(a.createdAt)-new Date(b.createdAt)},
-  total_desc:{label:"المبلغ: الأعلى",fn:(a,b)=>iT(b)-iT(a)},
-  total_asc:{label:"المبلغ: الأقل",fn:(a,b)=>iT(a)-iT(b)},
-  overdue:{label:"المتأخرة أولاً",fn:(a,b)=>overdueDays(b)-overdueDays(a)},
+  date_desc:{label:tr("الأحدث أولاً"),fn:(a,b)=>new Date(b.createdAt)-new Date(a.createdAt)},
+  date_asc:{label:tr("الأقدم أولاً"),fn:(a,b)=>new Date(a.createdAt)-new Date(b.createdAt)},
+  total_desc:{label:tr("المبلغ: الأعلى"),fn:(a,b)=>iT(b)-iT(a)},
+  total_asc:{label:tr("المبلغ: الأقل"),fn:(a,b)=>iT(a)-iT(b)},
+  overdue:{label:tr("المتأخرة أولاً"),fn:(a,b)=>overdueDays(b)-overdueDays(a)},
 };
 const filtered=invoices.filter(inv=>{
 if(statusFilter!=="all"&&getStatus(inv)!==statusFilter)return false;
@@ -2847,7 +2764,7 @@ const exportInvoicesCSV=()=>{
   a.href=`/api/invoices/export?companySlug=${encodeURIComponent(company.sk)}`;
   a.download=`Invoices_${company.id}_${today()}.csv`;
   document.body.appendChild(a);a.click();a.remove();
-  toast_("⬇️ تم تنزيل ملف CSV");
+  toast_(tr("⬇️ تم تنزيل ملف CSV"));
 };
 
 // r20: تصدير Excel (.xlsx) — نفس أعمدة تصدير CSV مع تنسيق RTL للعربية
@@ -2857,46 +2774,46 @@ const exportInvoicesExcel=()=>{
     const st=getStatus(inv);
     const items=inv.items||[];
     return {
-      "رقم الفاتورة":inv.invNum,
+      [tr("رقم الفاتورة")]:inv.invNum,
       "العميل":inv.clientName,
       "الهاتف":inv.clientPhone||"",
       "العنوان":inv.clientAddress||"",
-      "التاريخ":inv.date,
+      [tr("التاريخ")]:inv.date,
       "تاريخ الاستحقاق":inv.dueDate,
-      "المنتجات":items.map(it=>`${it.name} × ${it.qty||1}`).join(" ، "),
-      "عدد المنتجات":items.length,
-      "التوصيل":Number(pN(inv.shipping||0).toFixed(3)),
-      "الإجمالي":Number(iT(inv).toFixed(3)),
-      "المدفوع":Number(pN(inv.paid||0).toFixed(3)),
-      "المتبقي":Number(Math.max(0,iT(inv)-pN(inv.paid||0)).toFixed(3)),
-      "الحالة":stLabel[st]||st,
-      "ملاحظات":inv.notes||"",
+      [tr("المنتجات")]:items.map(it=>`${it.name} × ${it.qty||1}`).join(" ، "),
+      [tr("عدد المنتجات")]:items.length,
+      [tr("التوصيل")]:Number(pN(inv.shipping||0).toFixed(3)),
+      [tr("الإجمالي")]:Number(iT(inv).toFixed(3)),
+      [tr("المدفوع")]:Number(pN(inv.paid||0).toFixed(3)),
+      [tr("المتبقي")]:Number(Math.max(0,iT(inv)-pN(inv.paid||0)).toFixed(3)),
+      [tr("الحالة")]:tr(stLabel[st]||st),
+      [tr("ملاحظات")]:inv.notes||"",
     };
   });
   const ws=XLSX.utils.json_to_sheet(rows);
   ws["!cols"]=[{wch:13},{wch:22},{wch:16},{wch:22},{wch:12},{wch:14},{wch:42},{wch:11},{wch:10},{wch:12},{wch:12},{wch:12},{wch:12},{wch:28}];
   const wb=XLSX.utils.book_new();
   wb.Workbook={Views:[{RTL:true}]};
-  XLSX.utils.book_append_sheet(wb,ws,"الفواتير");
+  XLSX.utils.book_append_sheet(wb,ws,tr("الفواتير"));
   XLSX.writeFile(wb,`Invoices_${company.id}_${today()}.xlsx`);
-  toast_("📊 تم تنزيل ملف Excel");
+  toast_(tr("📊 تم تنزيل ملف Excel"));
 };
 
 const TABS=[
-{id:"dash",l:"📊 Dashboard"},
-{id:"list",l:"📋 الفواتير"},
-{id:"customers",l:"👥 العملاء"},
-{id:"reports",l:"📈 التقارير"},
-{id:"new",l:"➕ جديد"},
-{id:"bulk",l:"📦 مجمع"},
+{id:"dash",l:tr("📊 الرئيسية")},
+{id:"list",l:tr("📋 الفواتير")},
+{id:"customers",l:tr("👥 العملاء")},
+{id:"reports",l:tr("📈 التقارير")},
+{id:"new",l:tr("➕ جديد")},
+{id:"bulk",l:tr("📦 مجمع")},
 {id:"ai",l:"🤖 AI"},
-{id:"chat",l:"💬 المساعد الذكي"},
-{id:"print",l:"🖨️ طباعة"},
-{id:"purchase",l:"🛒 المشتريات"},
-{id:"account",l:"👤 حسابي"},
+{id:"chat",l:tr("💬 المساعد الذكي")},
+{id:"print",l:tr("🖨️ طباعة")},
+{id:"purchase",l:tr("🛒 المشتريات")},
+{id:"account",l:tr("👤 حسابي")},
 {id:"deepseek",l:"🧠 DeepSeek"},
-{id:"site",l:"🌐 الموقع"},
-{id:"system",l:"💾 النظام"},
+{id:"site",l:tr("🌐 الموقع")},
+{id:"system",l:tr("💾 النظام")},
 ];
 
 // r16: توجيه hash داخل مسار / الواحد — #/ أو #/team أو #/founder أو #/login أو #/reset?token=…
@@ -2916,12 +2833,12 @@ useEffect(()=>{
 useEffect(()=>{
   // r13: الموقع العام يضبط عنوانه بنفسه (قبل الدخول أو عند المعاينة عبر hash)
   if(sitePage||!user)return;
-  const extra={edit:"تعديل فاتورة",bulk:"الإدخال المجمع"};
+  const extra={edit:tr("تعديل فاتورة"),bulk:tr("الإدخال المجمع")};
   const t=TABS.find(x=>x.id===view);
   const tabLabel=t?t.l.replace(/^\S+\s/,""):(extra[view]||"");
   const apply=()=>{document.title=company
-    ?`${tabLabel?tabLabel+" | ":""}${company.nameAr} — نظام إدارة الحسابات`
-    :"نظام إدارة الحسابات — الشركة القابضة المتحدة";};
+    ?tr("{0}{1} — نظام إدارة الحسابات",[tabLabel?tabLabel+" | ":"",companyName(company)])
+    :tr("نظام إدارة الحسابات — الشركة القابضة المتحدة");};
   apply();
   // React قد يعيد تطبيق عنوان metadata عند اكتمال الإنعاش — إعادة ضبط متأخرة تفوز بالسباق
   const id=setTimeout(apply,700);
@@ -2937,7 +2854,7 @@ useEffect(()=>{
 
 if(authLoading&&!sitePage)return(
 <div style={{minHeight:"100vh",background:"#0f1f3d",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontFamily:"Cairo,sans-serif",fontSize:"16px",flexDirection:"column",gap:"16px"}}>
-<div style={{fontSize:"40px"}}>🛒</div><div>جارٍ التحميل...</div>
+<div style={{fontSize:"40px"}}>🛒</div><div>{tr("جارٍ التحميل...")}</div>
 </div>
 );
 
@@ -2970,8 +2887,8 @@ const colTx = txAdapt(col, dark);          // readable company color for TEXT on
 const cardBg = softAdapt(company.cardBg, dark); // soft tinted surface (KPI/summary boxes)
 
 return(
-<div dir="rtl" style={{minHeight:"100vh",background:"var(--ia-bg)",fontFamily:"'Cairo','Tajawal',sans-serif",color:"var(--ia-text)",display:"flex",flexDirection:"column"}}>
-<style>{`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap'); *{box-sizing:border-box} .inp{width:100%;border:1.5px solid var(--ia-border2);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:13px;background:var(--ia-inp-bg);color:var(--ia-text);outline:none;transition:border .15s,box-shadow .15s} .inp:focus{border-color:${col};box-shadow:0 0 0 3px ${col}1a} .inp:hover{border-color:var(--ia-muted)} .inp::placeholder{color:var(--ia-muted)} .btn{border:none;border-radius:8px;padding:9px 16px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap} .btn:hover{filter:brightness(1.06);box-shadow:0 2px 10px rgba(0,0,0,.12)} .btn:active{opacity:.85;transform:scale(.97)} .btn-ghost{background:var(--ia-ghost-bg);color:var(--ia-ghost-tx)} .btn-outline{background:transparent;border:1.5px solid var(--ia-border2);color:var(--ia-text2)} .btn-outline:hover{border-color:${col};color:${colTx}} .btn-red{background:#dc2626;color:#fff} .card{background:var(--ia-card);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);border:1px solid var(--ia-border)} [data-theme="dark"] .card{box-shadow:0 1px 3px rgba(0,0,0,.35)} .trow{transition:background .12s} .trow:hover,.trow:active{background:var(--ia-hover);cursor:pointer} .inv-table tbody tr:last-child td{border-bottom:none} .b-paid{background:var(--ia-ok-bg);color:var(--ia-ok-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-paid::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-ok-tx);margin-left:5px;vertical-align:middle} .b-part{background:var(--ia-warn-bg);color:var(--ia-warn-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-part::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-warn-tx);margin-left:5px;vertical-align:middle} .b-unp{background:var(--ia-red-bg);color:var(--ia-red-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-unp::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-red-tx);margin-left:5px;vertical-align:middle} .b-cancel{background:var(--ia-chip);color:var(--ia-sub);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;text-decoration:line-through} .b-inv{background:var(--ia-blue-bg);color:var(--ia-blue-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;letter-spacing:.3px} @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}} @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}} .navbar{background:${col};position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,.25)} .navbar-top{display:flex;align-items:center;padding:0 12px;height:48px;gap:6px} @media(max-width:420px){.navbar-top{gap:3px;padding:0 6px}.nav-top-label{display:none}.co-name{max-width:58px}} .navbar-tabs{display:flex;overflow-x:auto;padding:4px 12px 6px;gap:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none} .navbar-tabs::-webkit-scrollbar{display:none} .io-btn{background:#0f766e;} .nav-tab{background:transparent;color:rgba(255,255,255,.7);border:1px solid transparent;border-radius:6px;padding:5px 11px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s} .nav-tab:hover{color:#fff;background:rgba(255,255,255,.08)} .nav-tab.active{background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.25)} .nav-tab:active{background:rgba(255,255,255,.2)} .inv-table{width:100%;border-collapse:collapse} .inv-table th{padding:10px 10px;font-size:11px;font-weight:700;color:var(--ia-sub);text-align:right;text-transform:uppercase;letter-spacing:.3px} .inv-table td{padding:10px 10px;border-bottom:1px solid var(--ia-border3);font-size:13px} .col-addr,.col-date,.col-phone,.col-credit{display:none} @media(min-width:500px){.col-phone{display:table-cell}} @media(min-width:680px){.col-date{display:table-cell}.col-credit{display:table-cell}} .form-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px} .form-3col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px} .item-row{display:grid;grid-template-columns:2fr 65px 110px auto;gap:7px;margin-bottom:7px;align-items:center} @media(max-width:500px){.form-2col{grid-template-columns:1fr}.form-3col{grid-template-columns:1fr 1fr}.item-row{grid-template-columns:1fr 55px 90px auto}} .kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px} .kpi-grid>div{transition:transform .18s,box-shadow .18s} .kpi-grid>div:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.08)} @media(min-width:600px){.kpi-grid{grid-template-columns:repeat(4,1fr)}} .chart-grid{display:grid;grid-template-columns:1fr;gap:12px} @media(min-width:680px){.chart-grid{grid-template-columns:1.7fr 1fr}} .print-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end} @media(max-width:480px){.print-grid{grid-template-columns:1fr 1fr;} .print-grid .print-btn{grid-column:1/-1}} .cust-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px} @media(max-width:480px){.cust-stats{grid-template-columns:1fr}} .io-btn{background:linear-gradient(135deg,#0f766e,#0d9488)!important;border:none;box-shadow:0 2px 8px rgba(15,118,110,.3);transition:all .2s!important} .io-btn:hover{box-shadow:0 4px 14px rgba(15,118,110,.45)!important;transform:translateY(-1px)} ::-webkit-scrollbar{width:9px;height:9px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:var(--ia-border2);border-radius:8px;border:2px solid var(--ia-bg)} ::-webkit-scrollbar-thumb:hover{background:var(--ia-muted)} .sk{position:relative;overflow:hidden;background:var(--ia-skel);border-radius:6px} .sk::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.65),transparent);animation:shimmer 1.4s infinite} [data-theme="dark"] .sk::after{background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent)} @keyframes shimmer{100%{transform:translateX(100%)}} .sk-sm{height:11px} .sk-lg{height:22px} .btn:focus-visible,.inp:focus-visible{outline:2.5px solid ${col};outline-offset:2px} .nav-tab:focus-visible{outline:2.5px solid #fff;outline-offset:1px} .wa-btn{background:#16a34a!important;transition:all .18s!important} .wa-btn:hover{background:#15803d!important;box-shadow:0 4px 14px rgba(22,163,74,.4)!important;transform:translateY(-1px)} select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:left 10px center;padding-left:26px} .print-chip:hover{transform:translateY(-2px);border-color:var(--ia-muted)!important;box-shadow:0 5px 16px rgba(0,0,0,.09)} [data-theme="dark"] .print-chip:hover{box-shadow:0 5px 16px rgba(0,0,0,.45)} .chart-grid>div{transition:box-shadow .18s} .chart-grid>div:hover{box-shadow:0 4px 16px rgba(0,0,0,.06)} [data-theme="dark"] .chart-grid>div:hover{box-shadow:0 4px 16px rgba(0,0,0,.4)} [data-theme="dark"] .kpi-grid>div:hover{box-shadow:0 6px 18px rgba(0,0,0,.45)} [data-theme="dark"] .btn:hover{filter:brightness(1.15)}`}</style>
+<div dir={dir} style={{minHeight:"100vh",background:"var(--ia-bg)",fontFamily:"'Cairo','Tajawal',sans-serif",color:"var(--ia-text)",display:"flex",flexDirection:"column"}}>
+<style>{`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap'); *{box-sizing:border-box} .inp{width:100%;border:1.5px solid var(--ia-border2);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:13px;background:var(--ia-inp-bg);color:var(--ia-text);outline:none;transition:border .15s,box-shadow .15s} .inp:focus{border-color:${col};box-shadow:0 0 0 3px ${col}1a} .inp:hover{border-color:var(--ia-muted)} .inp::placeholder{color:var(--ia-muted)} .btn{border:none;border-radius:8px;padding:9px 16px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap} .btn:hover{filter:brightness(1.06);box-shadow:0 2px 10px rgba(0,0,0,.12)} .btn:active{opacity:.85;transform:scale(.97)} .btn-ghost{background:var(--ia-ghost-bg);color:var(--ia-ghost-tx)} .btn-outline{background:transparent;border:1.5px solid var(--ia-border2);color:var(--ia-text2)} .btn-outline:hover{border-color:${col};color:${colTx}} .btn-red{background:#dc2626;color:#fff} .card{background:var(--ia-card);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);border:1px solid var(--ia-border)} [data-theme="dark"] .card{box-shadow:0 1px 3px rgba(0,0,0,.35)} .trow{transition:background .12s} .trow:hover,.trow:active{background:var(--ia-hover);cursor:pointer} .inv-table tbody tr:last-child td{border-bottom:none} .b-paid{background:var(--ia-ok-bg);color:var(--ia-ok-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-paid::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-ok-tx);margin-inline-end:5px;vertical-align:middle} .b-part{background:var(--ia-warn-bg);color:var(--ia-warn-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-part::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-warn-tx);margin-inline-end:5px;vertical-align:middle} .b-unp{background:var(--ia-red-bg);color:var(--ia-red-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-unp::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-red-tx);margin-inline-end:5px;vertical-align:middle} .b-cancel{background:var(--ia-chip);color:var(--ia-sub);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;text-decoration:line-through} .b-inv{background:var(--ia-blue-bg);color:var(--ia-blue-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;letter-spacing:.3px} @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}} @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}} .navbar{background:${col};position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,.25)} .navbar-top{display:flex;align-items:center;padding:0 12px;height:48px;gap:6px} @media(max-width:420px){.navbar-top{gap:3px;padding:0 6px}.nav-top-label{display:none}.co-name{max-width:58px}} .navbar-tabs{display:flex;overflow-x:auto;padding:4px 12px 6px;gap:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none} .navbar-tabs::-webkit-scrollbar{display:none} .io-btn{background:#0f766e;} .nav-tab{background:transparent;color:rgba(255,255,255,.7);border:1px solid transparent;border-radius:6px;padding:5px 11px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s} .nav-tab:hover{color:#fff;background:rgba(255,255,255,.08)} .nav-tab.active{background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.25)} .nav-tab:active{background:rgba(255,255,255,.2)} .inv-table{width:100%;border-collapse:collapse} .inv-table th{padding:10px 10px;font-size:11px;font-weight:700;color:var(--ia-sub);text-align:start;text-transform:uppercase;letter-spacing:.3px} .inv-table td{padding:10px 10px;border-bottom:1px solid var(--ia-border3);font-size:13px} .col-addr,.col-date,.col-phone,.col-credit{display:none} @media(min-width:500px){.col-phone{display:table-cell}} @media(min-width:680px){.col-date{display:table-cell}.col-credit{display:table-cell}} .form-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px} .form-3col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px} .item-row{display:grid;grid-template-columns:2fr 65px 110px auto;gap:7px;margin-bottom:7px;align-items:center} @media(max-width:500px){.form-2col{grid-template-columns:1fr}.form-3col{grid-template-columns:1fr 1fr}.item-row{grid-template-columns:1fr 55px 90px auto}} .kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px} .kpi-grid>div{transition:transform .18s,box-shadow .18s} .kpi-grid>div:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.08)} @media(min-width:600px){.kpi-grid{grid-template-columns:repeat(4,1fr)}} .chart-grid{display:grid;grid-template-columns:1fr;gap:12px} @media(min-width:680px){.chart-grid{grid-template-columns:1.7fr 1fr}} .print-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end} @media(max-width:480px){.print-grid{grid-template-columns:1fr 1fr;} .print-grid .print-btn{grid-column:1/-1}} .cust-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px} @media(max-width:480px){.cust-stats{grid-template-columns:1fr}} .io-btn{background:linear-gradient(135deg,#0f766e,#0d9488)!important;border:none;box-shadow:0 2px 8px rgba(15,118,110,.3);transition:all .2s!important} .io-btn:hover{box-shadow:0 4px 14px rgba(15,118,110,.45)!important;transform:translateY(-1px)} ::-webkit-scrollbar{width:9px;height:9px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:var(--ia-border2);border-radius:8px;border:2px solid var(--ia-bg)} ::-webkit-scrollbar-thumb:hover{background:var(--ia-muted)} .sk{position:relative;overflow:hidden;background:var(--ia-skel);border-radius:6px} .sk::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.65),transparent);animation:shimmer 1.4s infinite} [data-theme="dark"] .sk::after{background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent)} @keyframes shimmer{100%{transform:translateX(100%)}} .sk-sm{height:11px} .sk-lg{height:22px} .btn:focus-visible,.inp:focus-visible{outline:2.5px solid ${col};outline-offset:2px} .nav-tab:focus-visible{outline:2.5px solid #fff;outline-offset:1px} .wa-btn{background:#16a34a!important;transition:all .18s!important} .wa-btn:hover{background:#15803d!important;box-shadow:0 4px 14px rgba(22,163,74,.4)!important;transform:translateY(-1px)} select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:left 10px center;padding-left:26px} .print-chip:hover{transform:translateY(-2px);border-color:var(--ia-muted)!important;box-shadow:0 5px 16px rgba(0,0,0,.09)} [data-theme="dark"] .print-chip:hover{box-shadow:0 5px 16px rgba(0,0,0,.45)} .chart-grid>div{transition:box-shadow .18s} .chart-grid>div:hover{box-shadow:0 4px 16px rgba(0,0,0,.06)} [data-theme="dark"] .chart-grid>div:hover{box-shadow:0 4px 16px rgba(0,0,0,.4)} [data-theme="dark"] .kpi-grid>div:hover{box-shadow:0 6px 18px rgba(0,0,0,.45)} [data-theme="dark"] .btn:hover{filter:brightness(1.15)}`}</style>
 
   {/* Admin Dashboard Modal */}
   {showAdmin&&<AdminDashboard onClose={()=>setShowAdmin(false)} companies={availableCompanies}/>}
@@ -2994,7 +2911,7 @@ return(
         setInvoices(p=>[...p,...newInvs]);
         api.bulkCreateInvoices(newInvs.map(v=>({...v,taxRate:v.taxRate??companyTax(company)})),company?.sk).then(()=>refreshInvoices()).catch(()=>{});
         setShowImportModal(false);
-        toast_(`✅ تم استيراد ${newInvs.length} فاتورة من الملف`);
+        toast_(tr("✅ تم استيراد {0} فاتورة من الملف",[newInvs.length]));
         setView("list");
       }}
       onClose={()=>setShowImportModal(false)}
@@ -3005,13 +2922,14 @@ return(
   <div className="navbar">
     <div className="navbar-top">
       <button onClick={switchCompany} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"6px",padding:"5px 10px",fontFamily:"inherit",fontSize:"12px",fontWeight:700,cursor:"pointer",color:"#fff",display:"flex",alignItems:"center",gap:"4px",flexShrink:0}}>
-        {company.logo} <span className="co-name" style={{maxWidth:"80px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{company.nameAr}</span> <span style={{opacity:.6,fontSize:"10px"}}>▼</span>
+        {company.logo} <span className="co-name" style={{maxWidth:"80px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{companyName(company)}</span> <span style={{opacity:.6,fontSize:"10px"}}>▼</span>
       </button>
       <div style={{flex:1}}/>
-      {isAdmin&&<button onClick={()=>setShowAdmin(true)} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"6px",color:"rgba(255,255,255,.9)",padding:"5px 10px",fontFamily:"inherit",fontSize:"12px",fontWeight:700,cursor:"pointer",flexShrink:0}}>⚙️ <span className="nav-top-label">المستخدمين</span></button>}
-      {isAdmin&&<button onClick={()=>setCompanyModal({mode:"edit",company})} title="تعديل بيانات الشركة الحالية" style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"6px",color:"rgba(255,255,255,.9)",padding:"5px 10px",fontFamily:"inherit",fontSize:"12px",fontWeight:700,cursor:"pointer",flexShrink:0}}>🏢✏️</button>}
-      <button onClick={toggle} title={dark?"التبديل إلى الوضع النهاري":"التبديل إلى الوضع الليلي"} aria-label="تبديل السمة" style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"6px",color:"#fff",padding:"5px 10px",fontFamily:"inherit",fontSize:"13px",cursor:"pointer",flexShrink:0,lineHeight:1}}>{dark?"☀️":"🌙"}</button>
-      <button onClick={logout} style={{background:"rgba(0,0,0,.2)",border:"1px solid rgba(255,255,255,.2)",borderRadius:"6px",color:"rgba(255,255,255,.8)",padding:"5px 10px",fontFamily:"inherit",fontSize:"12px",fontWeight:700,cursor:"pointer",flexShrink:0}}>خروج</button>
+      {isAdmin&&<button onClick={()=>setShowAdmin(true)} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"6px",color:"rgba(255,255,255,.9)",padding:"5px 10px",fontFamily:"inherit",fontSize:"12px",fontWeight:700,cursor:"pointer",flexShrink:0}}>⚙️ <span className="nav-top-label">{tr("المستخدمين")}</span></button>}
+      {isAdmin&&<button onClick={()=>setCompanyModal({mode:"edit",company})} title={tr("تعديل بيانات الشركة الحالية")} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"6px",color:"rgba(255,255,255,.9)",padding:"5px 10px",fontFamily:"inherit",fontSize:"12px",fontWeight:700,cursor:"pointer",flexShrink:0}}>🏢✏️</button>}
+      <button onClick={toggle} title={dark?tr("التبديل إلى الوضع النهاري"):tr("التبديل إلى الوضع الليلي")} aria-label={tr("تبديل السمة")} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"6px",color:"#fff",padding:"5px 10px",fontFamily:"inherit",fontSize:"13px",cursor:"pointer",flexShrink:0,lineHeight:1}}>{dark?"☀️":"🌙"}</button>
+      <LanguageSwitcher compact />
+      <button onClick={logout} style={{background:"rgba(0,0,0,.2)",border:"1px solid rgba(255,255,255,.2)",borderRadius:"6px",color:"rgba(255,255,255,.8)",padding:"5px 10px",fontFamily:"inherit",fontSize:"12px",fontWeight:700,cursor:"pointer",flexShrink:0}}>{tr("خروج")}</button>
     </div>
     <div className="navbar-tabs">
       {TABS.filter(t=>{if(t.id==="new")return!!perms.create_invoice;if(t.id==="bulk")return!!perms.bulk_input;if(t.id==="customers")return!!perms.view_customers;if(t.id==="print")return!!perms.print_invoice;if(t.id==="deepseek"||t.id==="system"||t.id==="site")return isAdmin;return true;}).map(t=>(
@@ -3051,11 +2969,11 @@ return(
     <div style={{position:"fixed",inset:0,background:"var(--ia-overlay)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={()=>setDelModal(null)}>
       <div className="card" style={{padding:"28px 32px",textAlign:"center",maxWidth:"320px",animation:"fadeUp .2s"}} onClick={e=>e.stopPropagation()}>
         <div style={{fontSize:"38px",marginBottom:"8px"}}>🗑️</div>
-        <div style={{fontWeight:700,fontSize:"15px",marginBottom:"6px"}}>تأكيد الحذف</div>
-        <div style={{color:"var(--ia-sub)",fontSize:"13px",marginBottom:"18px"}}>سيتم حذف الفاتورة <b>{delModal.invNum}</b> نهائياً</div>
+        <div style={{fontWeight:700,fontSize:"15px",marginBottom:"6px"}}>{tr("تأكيد الحذف")}</div>
+        <div style={{color:"var(--ia-sub)",fontSize:"13px",marginBottom:"18px"}}>{tr("سيتم حذف الفاتورة")} <b>{delModal.invNum}</b> {tr("نهائياً")}</div>
         <div style={{display:"flex",gap:"10px",justifyContent:"center"}}>
-          <button className="btn btn-red" onClick={confirmDelete}>نعم، احذف</button>
-          <button className="btn btn-ghost" onClick={()=>setDelModal(null)}>إلغاء</button>
+          <button className="btn btn-red" onClick={confirmDelete}>{tr("نعم، احذف")}</button>
+          <button className="btn btn-ghost" onClick={()=>setDelModal(null)}>{tr("إلغاء")}</button>
         </div>
       </div>
     </div>
@@ -3076,10 +2994,10 @@ return(
         <div className="card" style={{marginTop:14,padding:"14px 16px 16px",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
           <span style={{fontSize:18}}>💬</span>
           <div style={{flex:1,minWidth:200}}>
-            <div style={{fontSize:13.5,fontWeight:900,color:colTx}}>المساعد الذكي — اسأل بياناتك ونفّذ من هنا</div>
-            <div style={{fontSize:11.5,color:"var(--ia-sub)",marginTop:2}}>ملخصات وتحليلات فورية + إنشاء فواتير وعملاء ودفوعات ببطاقة تأكيد</div>
+            <div style={{fontSize:13.5,fontWeight:900,color:colTx}}>{tr("المساعد الذكي — اسأل بياناتك ونفّذ من هنا")}</div>
+            <div style={{fontSize:11.5,color:"var(--ia-sub)",marginTop:2}}>{tr("ملخصات وتحليلات فورية + إنشاء فواتير وعملاء ودفوعات ببطاقة تأكيد")}</div>
           </div>
-          <button className="btn" style={{background:col,color:"#fff",padding:"8px 16px"}} onClick={()=>setView("chat")}>فتح المحادثة الكاملة ←</button>
+          <button className="btn" style={{background:col,color:"#fff",padding:"8px 16px"}} onClick={()=>setView("chat")}>{tr("فتح المحادثة الكاملة ←")}</button>
         </div>
         <div style={{marginTop:14}}>
           <SmartChat company={company} onDataChanged={()=>{ refreshInvoices(); refreshClients(); }} />
@@ -3102,7 +3020,7 @@ return(
           onImportDone={async newInvs=>{
             setInvoices(p=>[...p,...newInvs]);
             api.bulkCreateInvoices(newInvs.map(v=>({...v,taxRate:v.taxRate??companyTax(company)})),company?.sk).then(()=>refreshInvoices()).catch(()=>{});
-            toast_(`✅ تم استيراد البيانات من الملف بنجاح`);
+            toast_(tr(`✅ تم استيراد البيانات من الملف بنجاح`));
           }}
         />
       </div>
@@ -3112,17 +3030,17 @@ return(
     {view==="list"&&!selInv&&(
       <div style={{animation:"fadeUp .25s"}}>
         <div style={{display:"flex",gap:"10px",marginBottom:"10px",alignItems:"center",flexWrap:"wrap"}}>
-          <input className="inp" style={{flex:1,padding:"10px 14px",minWidth:"180px"}} placeholder="🔍 ابحث بالتلفون أو الاسم أو رقم الفاتورة..." value={search} onChange={e=>{setSearch(e.target.value);setSelectedIds([]);setPage(1);}}/>
+          <input className="inp" style={{flex:1,padding:"10px 14px",minWidth:"180px"}} placeholder={tr("🔍 ابحث بالتلفون أو الاسم أو رقم الفاتورة...")} value={search} onChange={e=>{setSearch(e.target.value);setSelectedIds([]);setPage(1);}}/>
           <button className="btn io-btn" style={{color:"#fff",gap:"6px"}} onClick={()=>setShowImportModal(true)}>
-            <span style={{fontSize:"15px"}}>📥</span> استيراد CSV / Excel
+            <span style={{fontSize:"15px"}}>📥</span> {tr("استيراد CSV / Excel")}
           </button>
           <button className="btn io-btn" style={{color:"#fff",gap:"6px"}} onClick={exportInvoicesCSV}>
-            <span style={{fontSize:"15px"}}>⬇️</span> تصدير CSV
+            <span style={{fontSize:"15px"}}>⬇️</span> {tr("تصدير CSV")}
           </button>
           <button className="btn io-btn" style={{color:"#fff",gap:"6px"}} onClick={exportInvoicesExcel}>
-            <span style={{fontSize:"15px"}}>📊</span> تصدير Excel
+            <span style={{fontSize:"15px"}}>📊</span> {tr("تصدير Excel")}
           </button>
-          <span style={{fontSize:"12px",color:"var(--ia-sub)",whiteSpace:"nowrap"}}>{filtered.length} فاتورة</span>
+          <span style={{fontSize:"12px",color:"var(--ia-sub)",whiteSpace:"nowrap"}}>{filtered.length} {tr("فاتورة")}</span>
         </div>
 
         {/* Sort + page size bar */}
@@ -3131,15 +3049,15 @@ return(
             {Object.entries(SORTS).map(([k,v])=><option key={k} value={k}>↕️ {v.label}</option>)}
           </select>
           <select className="inp" style={{width:"auto",padding:"6px 10px",fontSize:"12px",fontWeight:700,color:"var(--ia-text2)"}} value={pageSize} onChange={e=>{setPageSize(Number(e.target.value));setPage(1);}}>
-            {[10,25,50,100].map(n=><option key={n} value={n}>{n} / صفحة</option>)}
+            {[10,25,50,100].map(n=><option key={n} value={n}>{n} {tr("/ صفحة")}</option>)}
           </select>
           <div style={{flex:1}}/>
           {overdueList.length>0&&(
-            <span style={{fontSize:"11.5px",fontWeight:800,color:"var(--ia-red-tx)",background:"var(--ia-red-bg)",border:"1px solid var(--ia-red-bd)",borderRadius:"20px",padding:"4px 12px"}}>⏰ {overdueList.length} فاتورة متأخرة عن الاستحقاق</span>
+            <span style={{fontSize:"11.5px",fontWeight:800,color:"var(--ia-red-tx)",background:"var(--ia-red-bg)",border:"1px solid var(--ia-red-bd)",borderRadius:"20px",padding:"4px 12px"}}>⏰ {overdueList.length} {tr("فاتورة متأخرة عن الاستحقاق")}</span>
           )}
           {overdueList.length>0&&(
-            <button className="btn wa-btn" style={{color:"#fff",padding:"6px 12px",fontSize:"12px",gap:"5px"}} onClick={()=>setShowBulkWa(true)} title="إرسال تذكير واتساب لكل العملاء المتأخرين">
-              <span style={{fontSize:"13px"}}>📣</span> تذكير جماعي
+            <button className="btn wa-btn" style={{color:"#fff",padding:"6px 12px",fontSize:"12px",gap:"5px"}} onClick={()=>setShowBulkWa(true)} title={tr("إرسال تذكير واتساب لكل العملاء المتأخرين")}>
+              <span style={{fontSize:"13px"}}>📣</span> {tr("تذكير جماعي")}
             </button>
           )}
         </div>
@@ -3167,7 +3085,7 @@ return(
                   alignItems:"center",
                   gap:"6px",
                 }}>
-                {sf==="all"?"📋 الكل":sf==="paid"?"✅ ":sf==="part"?"🟡 ":sf==="unp"?"🔴 ":"⛔ "}{sf!=="all"?stLabel[sf]:""}
+                {sf==="all"?tr("📋 الكل"):sf==="paid"?"✅ ":sf==="part"?"🟡 ":sf==="unp"?"🔴 ":"⛔ "}{sf!=="all"?stLabel[sf]:""}
                 <span style={{background:active?`${c}22`:"var(--ia-chip)",borderRadius:"12px",padding:"1px 7px",fontSize:"10px",fontWeight:900}}>{cnt}</span>
               </button>
             );
@@ -3177,20 +3095,20 @@ return(
         {/* Bulk actions bar */}
         {selectedIds.length>0&&(
           <div style={{display:"flex",gap:"8px",alignItems:"center",background:`${col}0d`,border:`1.5px solid ${col}33`,borderRadius:"9px",padding:"9px 14px",marginBottom:"10px",flexWrap:"wrap"}}>
-            <span style={{fontSize:"13px",fontWeight:800,color:colTx}}>{selectedIds.length} محدد</span>
+            <span style={{fontSize:"13px",fontWeight:800,color:colTx}}>{selectedIds.length} {tr("محدد")}</span>
             <div style={{flex:1}}/>
-            {!!perms.print_invoice&&<button className="btn" style={{background:col,color:"#fff",padding:"6px 12px",fontSize:"12px"}} onClick={printSelected}>🖨️ طباعة المحددة</button>}
-            <button className="btn" style={{background:"#7c3aed",color:"#fff",padding:"6px 12px",fontSize:"12px"}} onClick={()=>{setPurchasePreSelect([...selectedIds]);setSelectedIds([]);setView("purchase");}}>🛒 توليد فاتورة مشتريات</button>
-            {!!perms.delete_invoice&&<button className="btn btn-red" style={{padding:"6px 12px",fontSize:"12px"}} onClick={deleteSelected}>🗑️ حذف المحددة</button>}
-            <button className="btn btn-ghost" style={{padding:"6px 10px",fontSize:"12px"}} onClick={()=>setSelectedIds([])}>✕ إلغاء التحديد</button>
+            {!!perms.print_invoice&&<button className="btn" style={{background:col,color:"#fff",padding:"6px 12px",fontSize:"12px"}} onClick={printSelected}>{tr("🖨️ طباعة المحددة")}</button>}
+            <button className="btn" style={{background:"#7c3aed",color:"#fff",padding:"6px 12px",fontSize:"12px"}} onClick={()=>{setPurchasePreSelect([...selectedIds]);setSelectedIds([]);setView("purchase");}}>{tr("🛒 توليد فاتورة مشتريات")}</button>
+            {!!perms.delete_invoice&&<button className="btn btn-red" style={{padding:"6px 12px",fontSize:"12px"}} onClick={deleteSelected}>{tr("🗑️ حذف المحددة")}</button>}
+            <button className="btn btn-ghost" style={{padding:"6px 10px",fontSize:"12px"}} onClick={()=>setSelectedIds([])}>{tr("✕ إلغاء التحديد")}</button>
           </div>
         )}
 
         {filtered.length===0?(
           <div className="card" style={{padding:"56px",textAlign:"center",color:"var(--ia-muted)"}}>
             <div style={{fontSize:"44px",marginBottom:"10px"}}>📄</div>
-            <div style={{fontWeight:600,marginBottom:"14px"}}>لا توجد فواتير</div>
-            <button className="btn io-btn" style={{color:"#fff"}} onClick={()=>setShowImportModal(true)}>📥 استورد فواتيرك (CSV / Excel)</button>
+            <div style={{fontWeight:600,marginBottom:"14px"}}>{tr("لا توجد فواتير")}</div>
+            <button className="btn io-btn" style={{color:"#fff"}} onClick={()=>setShowImportModal(true)}>{tr("📥 استورد فواتيرك (CSV / Excel)")}</button>
           </div>
         ):(
           <div className="card" style={{overflow:"hidden"}}>
@@ -3200,10 +3118,10 @@ return(
                   <input type="checkbox" checked={allSel} onChange={toggleSelectAll}
                     style={{cursor:"pointer",width:"15px",height:"15px",accentColor:col}}/>
                 </th>
-                <th>رقم</th><th>العميل</th>
-                <th className="col-phone">التلفون</th>
-                <th className="col-date">التاريخ</th>
-                <th>المبلغ</th><th>الحالة</th><th></th>
+                <th>{tr("رقم")}</th><th>{tr("العميل")}</th>
+                <th className="col-phone">{tr("التلفون")}</th>
+                <th className="col-date">{tr("التاريخ")}</th>
+                <th>{tr("المبلغ")}</th><th>{tr("الحالة")}</th><th></th>
               </tr></thead>
               <tbody>
                 {pageInvs.map(inv=>{
@@ -3218,36 +3136,36 @@ return(
                       </td>
                       <td>
                         <span className="b-inv">{inv.invNum}</span>
-                        {(inv.source==="import"||inv.source==="aliphia")&&<span title="فاتورة مستوردة من ملف" style={{marginRight:"4px",fontSize:"10px",background:"#ccfbf1",color:"#0f766e",borderRadius:"4px",padding:"1px 5px",fontWeight:700}}>📥</span>}
+                        {(inv.source==="import")&&<span title={tr("فاتورة مستوردة من ملف")} style={{marginInlineStart:"4px",fontSize:"10px",background:"#ccfbf1",color:"#0f766e",borderRadius:"4px",padding:"1px 5px",fontWeight:700}}>📥</span>}
                       </td>
                       <td style={{fontWeight:600}}>{inv.clientName}</td>
-                      <td className="col-phone" style={{direction:"ltr",textAlign:"right",color:"var(--ia-link)"}}>{inv.clientPhone}</td>
+                      <td className="col-phone" style={{direction:"ltr",textAlign:"start",color:"var(--ia-link)"}}>{inv.clientPhone}</td>
                       <td className="col-date" style={{color:"var(--ia-sub)",fontSize:"12px"}}>
                         {fDate(inv.date)}
                         {overdueDays(inv)>0&&(
                           <span style={{display:"block",marginTop:"2px",fontSize:"10px",fontWeight:800,color:"var(--ia-red-tx)",background:"var(--ia-red-bg)",borderRadius:"4px",padding:"1px 6px",width:"fit-content"}}>
-                            ⏰ متأخرة {overdueDays(inv)} يوم
+                            {tr("⏰ متأخرة")} {overdueDays(inv)} {tr("يوم")}
                           </span>
                         )}
                       </td>
                       <td style={{fontWeight:700}}>{fKWD(iT(inv))}</td>
                       <td>
-                        <span className={`b-${st}`}>{stLabel[st]}</span>
+                        <span className={`b-${st}`}>{tr(stLabel[st])}</span>
                       </td>
                       <td onClick={e=>e.stopPropagation()}>
                         <div style={{display:"flex",gap:"4px"}}>
                           {overdueDays(inv)>0&&norm(inv.clientPhone)&&(
                             <a href={waReminderHref(inv,company)} target="_blank" rel="noopener noreferrer" className="btn wa-btn"
-                              title="إرسال تذكير بالسداد عبر واتساب (رسالة جاهزة)"
+                              title={tr("إرسال تذكير بالسداد عبر واتساب (رسالة جاهزة)")}
                               style={{color:"#fff",padding:"5px 8px",fontSize:"12px",textDecoration:"none"}}
                               onClick={e=>{e.stopPropagation();logReminderSent(inv,company,waReminderHref(inv,company));}}>
                               📣
                             </a>
                           )}
-                          {!!perms.print_invoice&&<button className="btn" title="طباعة الفاتورة" style={{background:col,color:"#fff",padding:"5px 8px",fontSize:"12px"}} onClick={e=>{e.stopPropagation();doPrint([inv],company,printStyle);}}>🖨️</button>}
-                          {!!perms.print_invoice&&<button className="btn" title="تصدير PDF" disabled={pdfBusy} style={{background:"#dc2626",color:"#fff",padding:"5px 8px",fontSize:"12px"}} onClick={e=>{e.stopPropagation();doPdfExport([inv],company,{toast:toast_,setBusy:setPdfBusy,styleId:printStyle});}}>📄</button>}
-                          {!!perms.edit_invoice&&<button className="btn" title="تعديل الفاتورة" style={{background:"#f59e0b",color:"#fff",padding:"5px 8px",fontSize:"12px"}} onClick={e=>{e.stopPropagation();openEdit(inv);}}>✏️</button>}
-                          {!!perms.delete_invoice&&<button className="btn btn-red" title="حذف الفاتورة" style={{padding:"5px 8px",fontSize:"12px"}} onClick={e=>{e.stopPropagation();setDelModal(inv);}}>🗑️</button>}
+                          {!!perms.print_invoice&&<button className="btn" title={tr("طباعة الفاتورة")} style={{background:col,color:"#fff",padding:"5px 8px",fontSize:"12px"}} onClick={e=>{e.stopPropagation();doPrint([inv],company,printStyle);}}>🖨️</button>}
+                          {!!perms.print_invoice&&<button className="btn" title={tr("تصدير PDF")} disabled={pdfBusy} style={{background:"#dc2626",color:"#fff",padding:"5px 8px",fontSize:"12px"}} onClick={e=>{e.stopPropagation();doPdfExport([inv],company,{toast:toast_,setBusy:setPdfBusy,styleId:printStyle});}}>📄</button>}
+                          {!!perms.edit_invoice&&<button className="btn" title={tr("تعديل الفاتورة")} style={{background:"#f59e0b",color:"#fff",padding:"5px 8px",fontSize:"12px"}} onClick={e=>{e.stopPropagation();openEdit(inv);}}>✏️</button>}
+                          {!!perms.delete_invoice&&<button className="btn btn-red" title={tr("حذف الفاتورة")} style={{padding:"5px 8px",fontSize:"12px"}} onClick={e=>{e.stopPropagation();setDelModal(inv);}}>🗑️</button>}
                         </div>
                       </td>
                     </tr>
@@ -3261,7 +3179,7 @@ return(
         {/* Pagination */}
         {filtered.length>0&&totalPages>1&&(
           <div style={{display:"flex",alignItems:"center",gap:"6px",marginTop:"12px",flexWrap:"wrap",justifyContent:"center"}}>
-            <button className="btn btn-ghost" style={{padding:"5px 12px",fontSize:"12px",opacity:safePage<=1?.5:1}} disabled={safePage<=1} onClick={()=>goToPage(safePage-1)}>→ السابق</button>
+            <button className="btn btn-ghost" style={{padding:"5px 12px",fontSize:"12px",opacity:safePage<=1?.5:1}} disabled={safePage<=1} onClick={()=>goToPage(safePage-1)}>{tr("→ السابق")}</button>
             {Array.from({length:totalPages}).slice(0,7).map((_,i)=>{
               let p=i+1;
               if(totalPages>7){
@@ -3279,8 +3197,8 @@ return(
                 }}>{p}</button>
               );
             })}
-            <button className="btn btn-ghost" style={{padding:"5px 12px",fontSize:"12px",opacity:safePage>=totalPages?.5:1}} disabled={safePage>=totalPages} onClick={()=>goToPage(safePage+1)}>التالي ←</button>
-            <span style={{fontSize:"11px",color:"var(--ia-muted)",marginRight:"8px"}}>{(safePage-1)*safePS+1}–{Math.min(safePage*safePS,filtered.length)} من {filtered.length}</span>
+            <button className="btn btn-ghost" style={{padding:"5px 12px",fontSize:"12px",opacity:safePage>=totalPages?.5:1}} disabled={safePage>=totalPages} onClick={()=>goToPage(safePage+1)}>{tr("التالي ←")}</button>
+            <span style={{fontSize:"11px",color:"var(--ia-muted)",marginInlineStart:"8px"}}>{(safePage-1)*safePS+1}–{Math.min(safePage*safePS,filtered.length)} {tr("من")} {filtered.length}</span>
           </div>
         )}
       </div>
@@ -3297,31 +3215,31 @@ return(
     {view==="list"&&selInv&&(
       <div style={{animation:"fadeUp .25s"}}>
         <div style={{display:"flex",gap:"8px",marginBottom:"12px",flexWrap:"wrap",alignItems:"center"}}>
-          <button className="btn btn-ghost" onClick={()=>setSelInv(null)}>← رجوع</button>
-          {!!perms.print_invoice&&<button className="btn" title="طباعة الفاتورة" style={{background:col,color:"#fff"}} onClick={()=>doPrint([selInv],company,printStyle)}>🖨️ طباعة</button>}
-          {!!perms.print_invoice&&<button className="btn" title="تصدير الفاتورة إلى ملف PDF" style={{background:"#dc2626",color:"#fff"}} disabled={pdfBusy} onClick={()=>doPdfExport([selInv],company,{toast:toast_,setBusy:setPdfBusy,styleId:printStyle})}>{pdfBusy?"⏳ جاري…":"📄 PDF"}</button>}
-          {!!perms.edit_invoice&&<button className="btn" title="تعديل الفاتورة" style={{background:"#f59e0b",color:"#fff"}} onClick={()=>openEdit(selInv)}>✏️ تعديل</button>}
-          {!!perms.delete_invoice&&<button className="btn btn-red" title="حذف الفاتورة" onClick={()=>setDelModal(selInv)}>🗑️ حذف</button>}
+          <button className="btn btn-ghost" onClick={()=>setSelInv(null)}>{tr("← رجوع")}</button>
+          {!!perms.print_invoice&&<button className="btn" title={tr("طباعة الفاتورة")} style={{background:col,color:"#fff"}} onClick={()=>doPrint([selInv],company,printStyle)}>{tr("🖨️ طباعة")}</button>}
+          {!!perms.print_invoice&&<button className="btn" title={tr("تصدير الفاتورة إلى ملف PDF")} style={{background:"#dc2626",color:"#fff"}} disabled={pdfBusy} onClick={()=>doPdfExport([selInv],company,{toast:toast_,setBusy:setPdfBusy,styleId:printStyle})}>{pdfBusy?tr("⏳ جاري…"):"📄 PDF"}</button>}
+          {!!perms.edit_invoice&&<button className="btn" title={tr("تعديل الفاتورة")} style={{background:"#f59e0b",color:"#fff"}} onClick={()=>openEdit(selInv)}>{tr("✏️ تعديل")}</button>}
+          {!!perms.delete_invoice&&<button className="btn btn-red" title={tr("حذف الفاتورة")} onClick={()=>setDelModal(selInv)}>{tr("🗑️ حذف")}</button>}
           {(()=>{
             const href=waReminderHref(selInv,company);
             return href&&iT(selInv)-pN(selInv.paid||0)>0?(
               <a href={href} target="_blank" rel="noopener noreferrer" className="btn wa-btn"
-                title="إرسال تذكير بالسداد عبر واتساب (رسالة جاهزة)"
+                title={tr("إرسال تذكير بالسداد عبر واتساب (رسالة جاهزة)")}
                 style={{color:"#fff",textDecoration:"none"}}
                 onClick={()=>logReminderSent(selInv,company,href)}>
-                📣 تذكير واتساب
+                {tr("📣 تذكير واتساب")}
               </a>
             ):null;
           })()}
           {iT(selInv)-pN(selInv.paid||0)>0&&(
-            <button className="btn" title="توليد رابط دفع إلكتروني (كي نت) وإرساله للعميل"
+            <button className="btn" title={tr("توليد رابط دفع إلكتروني (كي نت) وإرساله للعميل")}
               style={{background:"#0d9488",color:"#fff"}}
               onClick={()=>setPayLinkInv(selInv)}>
-              💳 رابط الدفع
+              {tr("💳 رابط الدفع")}
             </button>
           )}
           {overdueDays(selInv)>0&&(
-            <span style={{fontSize:"12px",fontWeight:800,color:"var(--ia-red-tx)",background:"var(--ia-red-bg)",border:"1px solid var(--ia-red-bd)",borderRadius:"20px",padding:"5px 14px"}}>⏰ متأخرة {overdueDays(selInv)} يوم عن الاستحقاق</span>
+            <span style={{fontSize:"12px",fontWeight:800,color:"var(--ia-red-tx)",background:"var(--ia-red-bg)",border:"1px solid var(--ia-red-bd)",borderRadius:"20px",padding:"5px 14px"}}>{tr("⏰ متأخرة")} {overdueDays(selInv)} {tr("يوم عن الاستحقاق")}</span>
           )}
         </div>
         <div className="card" style={{overflow:"hidden"}}><InvPreview inv={selInv} company={company}/></div>
@@ -3336,62 +3254,62 @@ return(
     {/* NEW */}
     {view==="new"&&(
       <div className="card" style={{padding:"24px",animation:"fadeUp .25s"}}>
-        <div style={{fontSize:"16px",fontWeight:900,color:colTx,marginBottom:"18px"}}>➕ فاتورة جديدة — {company.nameAr}</div>
-        <div style={{fontSize:"10px",fontWeight:700,color:"var(--ia-muted)",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"9px"}}>بيانات العميل</div>
+        <div style={{fontSize:"16px",fontWeight:900,color:colTx,marginBottom:"18px"}}>{tr("➕ فاتورة جديدة —")} {company.nameAr}</div>
+        <div style={{fontSize:"10px",fontWeight:700,color:"var(--ia-muted)",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"9px"}}>{tr("بيانات العميل")}</div>
         {clients.length>0&&(
           <div style={{marginBottom:"10px"}}>
-            <label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>📇 اختر من دليل العملاء ({clients.length} محفوظ)</label>
+            <label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("📇 اختر من دليل العملاء (")}{clients.length} {tr("محفوظ)")}</label>
             <select className="inp" value="" onChange={e=>{
               const c=clients.find(x=>String(x.id)===e.target.value);
               if(c){setField("clientName",c.name||"");setField("clientPhone",c.phone||"");setField("clientAddress",c.address||"");}
             }}>
-              <option value="">— إدخال يدوي (عميل جديد) —</option>
+              <option value="">{tr("— إدخال يدوي (عميل جديد) —")}</option>
               {clients.map(c=><option key={c.id} value={c.id}>{c.name}{c.phone?` (${c.phone})`:""}</option>)}
             </select>
           </div>
         )}
         <div className="form-2col" style={{marginBottom:"10px"}}>
-          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>الاسم (اختياري)</label>
-            <input className="inp" placeholder="اسم العميل" value={form.clientName} onChange={e=>setField("clientName",e.target.value)}/></div>
-          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>رقم التلفون *</label>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("الاسم (اختياري)")}</label>
+            <input className="inp" placeholder={tr("اسم العميل")} value={form.clientName} onChange={e=>setField("clientName",e.target.value)}/></div>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("رقم التلفون *")}</label>
             <input className="inp" placeholder="97479196" value={form.clientPhone} onChange={e=>setField("clientPhone",e.target.value)}/></div>
         </div>
         <div style={{marginBottom:"12px"}}>
-          <label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>العنوان</label>
-          <input className="inp" placeholder="المنطقة / العنوان" value={form.clientAddress} onChange={e=>setField("clientAddress",e.target.value)}/>
+          <label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("العنوان")}</label>
+          <input className="inp" placeholder={tr("المنطقة / العنوان")} value={form.clientAddress} onChange={e=>setField("clientAddress",e.target.value)}/>
         </div>
         <div className="form-3col" style={{marginBottom:"14px"}}>
-          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>تاريخ الفاتورة</label>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("تاريخ الفاتورة")}</label>
             <input className="inp" type="date" value={form.date} onChange={e=>setField("date",e.target.value)}/></div>
-          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>تاريخ الاستحقاق</label>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("تاريخ الاستحقاق")}</label>
             <input className="inp" type="date" value={form.dueDate} onChange={e=>setField("dueDate",e.target.value)}/></div>
-          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>المدفوع (KD)</label>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("المدفوع (KD)")}</label>
             <input className="inp" placeholder="0.000" value={form.paid} onChange={e=>setField("paid",e.target.value)}/></div>
         </div>
-        <div style={{fontSize:"10px",fontWeight:700,color:"var(--ia-muted)",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"9px"}}>المنتجات</div>
+        <div style={{fontSize:"10px",fontWeight:700,color:"var(--ia-muted)",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"9px"}}>{tr("المنتجات")}</div>
         {form.items.map((it,i)=>(
           <div key={i} className="item-row">
-            <input className="inp" placeholder="اسم المنتج *" value={it.name} onChange={e=>setItem(i,"name",e.target.value)}/>
+            <input className="inp" placeholder={tr("اسم المنتج *")} value={it.name} onChange={e=>setItem(i,"name",e.target.value)}/>
             <input className="inp" type="number" min="1" value={it.qty} onChange={e=>setItem(i,"qty",e.target.value)}/>
-            <input className="inp" placeholder={`السعر ${currencySymbol()}`} value={it.price} onChange={e=>setItem(i,"price",e.target.value)}/>
+            <input className="inp" placeholder={tr("السعر {0}",[currencySymbol()])} value={it.price} onChange={e=>setItem(i,"price",e.target.value)}/>
             {form.items.length>1?<button className="btn btn-red" style={{padding:"8px 10px"}} onClick={()=>setForm(f=>({...f,items:f.items.filter((_,j)=>j!==i)}))}>✕</button>:<div/>}
           </div>
         ))}
-        <button className="btn btn-outline" style={{marginBottom:"12px",fontSize:"12px"}} onClick={()=>setForm(f=>({...f,items:[...f.items,{name:"",desc:"",qty:1,price:""}]}))}>+ إضافة منتج</button>
+        <button className="btn btn-outline" style={{marginBottom:"12px",fontSize:"12px"}} onClick={()=>setForm(f=>({...f,items:[...f.items,{name:"",desc:"",qty:1,price:""}]}))}>{tr("+ إضافة منتج")}</button>
         <div className="form-3col" style={{marginBottom:"12px"}}>
-          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>التوصيل ({currencySymbol()}) — 0 للمجاني</label>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("التوصيل (")}{currencySymbol()}{tr(") — 0 للمجاني")}</label>
             <input className="inp" placeholder="0.000" value={form.shipping} onChange={e=>setField("shipping",e.target.value)}/></div>
-          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>🧾 الضريبة (٪) — اختيارية{companyTax(company)>0?` — افتراضي الشركة ${companyTax(company)}٪`:""}</label>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("🧾 الضريبة (٪) — اختيارية")}{companyTax(company)>0?tr(" — افتراضي الشركة {0}٪",[companyTax(company)]):""}</label>
             <input className="inp" type="number" min="0" max="100" step="0.5" inputMode="decimal" placeholder={String(companyTax(company)||0)} value={form.taxRate} onChange={e=>setField("taxRate",e.target.value)}/></div>
-          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>ملاحظات</label>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("ملاحظات")}</label>
             <input className="inp" value={form.notes} onChange={e=>setField("notes",e.target.value)}/></div>
         </div>
         {(()=>{const sub=form.items.reduce((s,it)=>s+(parseInt(toW(it.qty))||1)*pN(it.price),0);const ship=pN(form.shipping);const rate=form.taxRate!==""&&form.taxRate!=null?pN(form.taxRate):companyTax(company);const tax=+(sub*rate/100).toFixed(2);const tot=sub+tax+ship;
           return(<div style={{background:cardBg,borderRadius:"9px",padding:"11px 16px",marginBottom:"14px",display:"flex",gap:"16px",fontSize:"13px",border:`1px solid ${col}22`,flexWrap:"wrap"}}>
-            <span>المجموع: <b>{fKWD(sub)}</b></span>
-            {tax>0&&<span>الضريبة ({rate}%): <b>{fKWD(tax)}</b></span>}
-            {ship>0&&<span>التوصيل: <b>{fKWD(ship)}</b></span>}
-            <span style={{fontWeight:900,color:colTx}}>الإجمالي: <b>{fKWD(tot)}</b></span>
+            <span>{tr("المجموع:")} <b>{fKWD(sub)}</b></span>
+            {tax>0&&<span>{tr("الضريبة (")}{rate}%): <b>{fKWD(tax)}</b></span>}
+            {ship>0&&<span>{tr("التوصيل:")} <b>{fKWD(ship)}</b></span>}
+            <span style={{fontWeight:900,color:colTx}}>{tr("الإجمالي:")} <b>{fKWD(tot)}</b></span>
           </div>);})()}
         {/* Live credit-limit warning for the entered client phone */}
         {(()=>{const ph=norm(form.clientPhone||"");
@@ -3407,14 +3325,14 @@ return(
           return(
           <div role="alert" style={{background:over?"var(--ia-red-bg)":"var(--ia-warn-bg)",border:`1.5px solid ${over?"var(--ia-red-bd)":"#fde68a66"}`,borderRadius:"10px",padding:"11px 15px",marginBottom:"14px",fontSize:"12.5px",fontWeight:700,lineHeight:1.8,color:over?"var(--ia-red-tx)":"var(--ia-warn-tx)"}}>
             {over
-              ?`⛔ تجاوز حد الائتمان — الرصيد الحالي ${fKWD(out)} + هذه الفاتورة ${fKWD(sub)} = ${fKWD(tot)} (الحد ${fKWD(lim)}) بفارق ${fKWD(tot-lim)}. يُنصح بالتحصيل أولاً.`
-              :`⚠️ اقتراب من حد الائتمان — ${fKWD(tot)} من ${fKWD(lim)} (${pct.toFixed(0)}%) بعد إضافة هذه الفاتورة.`}
+              ?tr("⛔ تجاوز حد الائتمان — الرصيد الحالي {0} + هذه الفاتورة {1} = {2} (الحد {3}) بفارق {4}. يُنصح بالتحصيل أولاً.",[fKWD(out),fKWD(sub),fKWD(tot),fKWD(lim),fKWD(tot-lim)])
+              :tr("⚠️ اقتراب من حد الائتمان — {0} من {1} ({2}%) بعد إضافة هذه الفاتورة.",[fKWD(tot),fKWD(lim),pct.toFixed(0)])}
           </div>
           );
         })()}
         <div style={{display:"flex",gap:"8px"}}>
-          <button className="btn" style={{background:"#16a34a",color:"#fff",flex:1,fontSize:"14px",padding:"11px"}} onClick={saveInvoice}>💾 حفظ الفاتورة</button>
-          <button className="btn btn-ghost" onClick={()=>{setForm(emptyForm());setView("list");}}>إلغاء</button>
+          <button className="btn" style={{background:"#16a34a",color:"#fff",flex:1,fontSize:"14px",padding:"11px"}} onClick={saveInvoice}>{tr("💾 حفظ الفاتورة")}</button>
+          <button className="btn btn-ghost" onClick={()=>{setForm(emptyForm());setView("list");}}>{tr("إلغاء")}</button>
         </div>
       </div>
     )}
@@ -3423,69 +3341,69 @@ return(
     {view==="edit"&&editForm&&(
       <div className="card" style={{padding:"24px",animation:"fadeUp .25s"}}>
         <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"18px"}}>
-          <div style={{fontSize:"16px",fontWeight:900,color:"#f59e0b"}}>✏️ تعديل الفاتورة</div>
+          <div style={{fontSize:"16px",fontWeight:900,color:"#f59e0b"}}>{tr("✏️ تعديل الفاتورة")}</div>
           <span className="b-inv">{editingInv?.invNum}</span>
           <div style={{flex:1}}/>
-          <button className="btn btn-ghost" style={{fontSize:"12px"}} onClick={()=>{setView("list");setEditingInv(null);setEditForm(null);}}>← إلغاء</button>
+          <button className="btn btn-ghost" style={{fontSize:"12px"}} onClick={()=>{setView("list");setEditingInv(null);setEditForm(null);}}>{tr("← إلغاء")}</button>
         </div>
 
-        <div style={{fontSize:"10px",fontWeight:700,color:"var(--ia-muted)",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"9px"}}>بيانات العميل</div>
+        <div style={{fontSize:"10px",fontWeight:700,color:"var(--ia-muted)",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"9px"}}>{tr("بيانات العميل")}</div>
         {clients.length>0&&(
           <div style={{marginBottom:"10px"}}>
-            <label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>📇 اختر من دليل العملاء (استبدال البيانات)</label>
+            <label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("📇 اختر من دليل العملاء (استبدال البيانات)")}</label>
             <select className="inp" value="" onChange={e=>{
               const c=clients.find(x=>String(x.id)===e.target.value);
               if(c){setEditField("clientName",c.name||"");setEditField("clientPhone",c.phone||"");setEditField("clientAddress",c.address||"");}
             }}>
-              <option value="">— تعديل يدوي —</option>
+              <option value="">{tr("— تعديل يدوي —")}</option>
               {clients.map(c=><option key={c.id} value={c.id}>{c.name}{c.phone?` (${c.phone})`:""}</option>)}
             </select>
           </div>
         )}
         <div className="form-2col" style={{marginBottom:"10px"}}>
-          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>الاسم</label>
-            <input className="inp" placeholder="اسم العميل" value={editForm.clientName} onChange={e=>setEditField("clientName",e.target.value)}/></div>
-          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>رقم التلفون *</label>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("الاسم")}</label>
+            <input className="inp" placeholder={tr("اسم العميل")} value={editForm.clientName} onChange={e=>setEditField("clientName",e.target.value)}/></div>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("رقم التلفون *")}</label>
             <input className="inp" placeholder="97479196" value={editForm.clientPhone} onChange={e=>setEditField("clientPhone",e.target.value)}/></div>
         </div>
         <div style={{marginBottom:"12px"}}>
-          <label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>العنوان</label>
-          <input className="inp" placeholder="المنطقة / العنوان" value={editForm.clientAddress} onChange={e=>setEditField("clientAddress",e.target.value)}/>
+          <label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("العنوان")}</label>
+          <input className="inp" placeholder={tr("المنطقة / العنوان")} value={editForm.clientAddress} onChange={e=>setEditField("clientAddress",e.target.value)}/>
         </div>
         <div className="form-3col" style={{marginBottom:"14px"}}>
-          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>تاريخ الفاتورة</label>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("تاريخ الفاتورة")}</label>
             <input className="inp" type="date" value={editForm.date} onChange={e=>setEditField("date",e.target.value)}/></div>
-          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>تاريخ الاستحقاق</label>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("تاريخ الاستحقاق")}</label>
             <input className="inp" type="date" value={editForm.dueDate} onChange={e=>setEditField("dueDate",e.target.value)}/></div>
-          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>المدفوع (KD)</label>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("المدفوع (KD)")}</label>
             <input className="inp" placeholder="0.000" value={editForm.paid} onChange={e=>setEditField("paid",e.target.value)}/></div>
-          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>حالة الطلب</label>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("حالة الطلب")}</label>
             <select className="inp" value={editForm.status||""} onChange={e=>setEditField("status",e.target.value)}>
-              <option value="">تلقائي (حسب المدفوع)</option>
-              <option value="cancelled">ملغية ✕</option>
+              <option value="">{tr("تلقائي (حسب المدفوع)")}</option>
+              <option value="cancelled">{tr("ملغية ✕")}</option>
             </select>
           </div>
         </div>
 
-        <div style={{fontSize:"10px",fontWeight:700,color:"var(--ia-muted)",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"9px"}}>المنتجات</div>
+        <div style={{fontSize:"10px",fontWeight:700,color:"var(--ia-muted)",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"9px"}}>{tr("المنتجات")}</div>
         {editForm.items.map((it,i)=>(
           <div key={i} className="item-row">
-            <input className="inp" placeholder="اسم المنتج *" value={it.name} onChange={e=>setEditItem(i,"name",e.target.value)}/>
+            <input className="inp" placeholder={tr("اسم المنتج *")} value={it.name} onChange={e=>setEditItem(i,"name",e.target.value)}/>
             <input className="inp" type="number" min="1" value={it.qty} onChange={e=>setEditItem(i,"qty",e.target.value)}/>
-            <input className="inp" placeholder={`السعر ${currencySymbol()}`} value={it.price} onChange={e=>setEditItem(i,"price",e.target.value)}/>
+            <input className="inp" placeholder={tr("السعر {0}",[currencySymbol()])} value={it.price} onChange={e=>setEditItem(i,"price",e.target.value)}/>
             {editForm.items.length>1
               ?<button className="btn btn-red" style={{padding:"8px 10px"}} onClick={()=>setEditForm(f=>({...f,items:f.items.filter((_,j)=>j!==i)}))}>✕</button>
               :<div/>}
           </div>
         ))}
-        <button className="btn btn-outline" style={{marginBottom:"12px",fontSize:"12px"}} onClick={()=>setEditForm(f=>({...f,items:[...f.items,{name:"",desc:"",qty:1,price:""}]}))}>+ إضافة منتج</button>
+        <button className="btn btn-outline" style={{marginBottom:"12px",fontSize:"12px"}} onClick={()=>setEditForm(f=>({...f,items:[...f.items,{name:"",desc:"",qty:1,price:""}]}))}>{tr("+ إضافة منتج")}</button>
 
         <div className="form-3col" style={{marginBottom:"12px"}}>
-          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>التوصيل ({currencySymbol()}) — 0 للمجاني</label>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("التوصيل (")}{currencySymbol()}{tr(") — 0 للمجاني")}</label>
             <input className="inp" placeholder="0.000" value={editForm.shipping} onChange={e=>setEditField("shipping",e.target.value)}/></div>
-          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>🧾 الضريبة (٪) — اختيارية{companyTax(company)>0?` — افتراضي الشركة ${companyTax(company)}٪`:""}</label>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("🧾 الضريبة (٪) — اختيارية")}{companyTax(company)>0?tr(" — افتراضي الشركة {0}٪",[companyTax(company)]):""}</label>
             <input className="inp" type="number" min="0" max="100" step="0.5" inputMode="decimal" placeholder={String(companyTax(company)||0)} value={editForm.taxRate} onChange={e=>setEditField("taxRate",e.target.value)}/></div>
-          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>ملاحظات</label>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("ملاحظات")}</label>
             <input className="inp" value={editForm.notes} onChange={e=>setEditField("notes",e.target.value)}/></div>
         </div>
 
@@ -3494,17 +3412,17 @@ return(
           const ship=pN(editForm.shipping);const rate=editForm.taxRate!==""&&editForm.taxRate!=null?pN(editForm.taxRate):companyTax(company);const tax=+(sub*rate/100).toFixed(2);const tot=sub+tax+ship;
           return(
             <div style={{background:cardBg,borderRadius:"9px",padding:"11px 16px",marginBottom:"14px",display:"flex",gap:"16px",fontSize:"13px",border:`1px solid ${col}22`,flexWrap:"wrap"}}>
-              <span>المجموع: <b>{fKWD(sub)}</b></span>
-              {tax>0&&<span>الضريبة ({rate}%): <b>{fKWD(tax)}</b></span>}
-              {ship>0&&<span>التوصيل: <b>{fKWD(ship)}</b></span>}
-              <span style={{fontWeight:900,color:colTx}}>الإجمالي: <b>{fKWD(tot)}</b></span>
+              <span>{tr("المجموع:")} <b>{fKWD(sub)}</b></span>
+              {tax>0&&<span>{tr("الضريبة (")}{rate}%): <b>{fKWD(tax)}</b></span>}
+              {ship>0&&<span>{tr("التوصيل:")} <b>{fKWD(ship)}</b></span>}
+              <span style={{fontWeight:900,color:colTx}}>{tr("الإجمالي:")} <b>{fKWD(tot)}</b></span>
             </div>
           );
         })()}
 
         <div style={{display:"flex",gap:"8px"}}>
-          <button className="btn" style={{background:"#f59e0b",color:"#fff",flex:1,fontSize:"14px",padding:"11px"}} onClick={updateInvoice}>💾 حفظ التعديلات</button>
-          <button className="btn btn-ghost" onClick={()=>{setView("list");setEditingInv(null);setEditForm(null);}}>إلغاء</button>
+          <button className="btn" style={{background:"#f59e0b",color:"#fff",flex:1,fontSize:"14px",padding:"11px"}} onClick={updateInvoice}>{tr("💾 حفظ التعديلات")}</button>
+          <button className="btn btn-ghost" onClick={()=>{setView("list");setEditingInv(null);setEditForm(null);}}>{tr("إلغاء")}</button>
         </div>
       </div>
     )}
@@ -3513,17 +3431,17 @@ return(
     {view==="bulk"&&(
       <div className="card" style={{padding:"24px",animation:"fadeUp .25s"}}>
         <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"5px",flexWrap:"wrap"}}>
-          <div style={{fontSize:"16px",fontWeight:900,color:colTx}}>📦 إدخال مجمع</div>
-          <span style={{background:"rgba(124,58,237,.12)",color:"#7c3aed",border:"1px solid rgba(124,58,237,.25)",borderRadius:"20px",padding:"2px 10px",fontSize:"10.5px",fontWeight:800}}>🤖 بالذكاء الاصطناعي</span>
+          <div style={{fontSize:"16px",fontWeight:900,color:colTx}}>{tr("📦 إدخال مجمع")}</div>
+          <span style={{background:"rgba(124,58,237,.12)",color:"#7c3aed",border:"1px solid rgba(124,58,237,.25)",borderRadius:"20px",padding:"2px 10px",fontSize:"10.5px",fontWeight:800}}>{tr("🤖 بالذكاء الاصطناعي")}</span>
         </div>
         <p style={{fontSize:"12px",color:"var(--ia-sub)",marginBottom:"16px"}}>
-          كل طلب يفصله سطر فارغ — يقبل صيغة الإيموجي أو <b>أي صيغة حرة</b> (عربي/إنجليزي): المساعد الذكي يفهم ويستخرج الطلبات والأسعار والتوصيل
+          {tr("كل طلب يفصله سطر فارغ — يقبل صيغة الإيموجي أو")} <b>{tr("أي صيغة حرة")}</b> {tr("(عربي/إنجليزي): المساعد الذكي يفهم ويستخرج الطلبات والأسعار والتوصيل")}
         </p>
         {bulkStep===0&&(
           <>
             <textarea className="inp" style={{minHeight:"200px",resize:"vertical",marginBottom:"10px",fontSize:"12px",lineHeight:"1.7"}}
               value={bulkText} onChange={e=>{setBulkText(e.target.value);setBulkAiErr("");setBulkAiUsed(false);}}
-              placeholder={"📍 الاسم: محمد أبو العينين\n📞 الهاتف: 97479196\n🏠 العنوان: حولي\n🛠️ الطلب: ماتور بوص واحد حصان\n💰 السعر: 11.900\n🚚 التوصيل: مجاني"}/>
+              placeholder={tr("📍 الاسم: محمد أبو العينين\n📞 الهاتف: 97479196\n🏠 العنوان: حولي\n🛠️ الطلب: ماتور بوص واحد حصان\n💰 السعر: 11.900\n🚚 التوصيل: مجاني")}/>
             {bulkAiErr&&(
               <div style={{background:"var(--ia-red-bg)",border:"1px solid var(--ia-red-bd)",borderRadius:"8px",padding:"10px 14px",color:"var(--ia-red-tx)",fontSize:"12.5px",marginBottom:"10px"}}>
                 ❌ {bulkAiErr}
@@ -3533,8 +3451,8 @@ return(
               <div style={{display:"flex",alignItems:"center",gap:"12px",background:"rgba(124,58,237,.07)",border:"1.5px solid rgba(124,58,237,.25)",borderRadius:"10px",padding:"16px 18px"}}>
                 <div style={{fontSize:"26px",animation:"spin 1s linear infinite"}}>🤖</div>
                 <div style={{flex:1}}>
-                  <div style={{fontWeight:800,fontSize:13.5,color:"#7c3aed",marginBottom:3}}>جارٍ المعالجة بالذكاء الاصطناعي…</div>
-                  <div style={{fontSize:11.5,color:"var(--ia-sub)"}}>يقرأ النص، يستخرج العملاء والمنتجات والكميات والأسعار والتوصيل</div>
+                  <div style={{fontWeight:800,fontSize:13.5,color:"#7c3aed",marginBottom:3}}>{tr("جارٍ المعالجة بالذكاء الاصطناعي…")}</div>
+                  <div style={{fontSize:11.5,color:"var(--ia-sub)"}}>{tr("يقرأ النص، يستخرج العملاء والمنتجات والكميات والأسعار والتوصيل")}</div>
                 </div>
                 <style>{`@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}`}</style>
               </div>
@@ -3542,25 +3460,25 @@ return(
               <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
                 <button className="btn" style={{background:"linear-gradient(135deg,#7c3aed,#6d28d9)",color:"#fff",flex:2,justifyContent:"center",padding:"13px",fontSize:"14px",minWidth:"210px",boxShadow:"0 4px 14px rgba(124,58,237,.3)"}}
                   onClick={processBulkAI} disabled={!bulkText.trim()}>
-                  🤖 معالجة وإضافة بالذكاء الاصطناعي
+                  {tr("🤖 معالجة وإضافة بالذكاء الاصطناعي")}
                 </button>
                 <button className="btn btn-outline" style={{flex:1,justifyContent:"center",padding:"13px",minWidth:"130px"}}
                   onClick={()=>{setBulkParsed(parseBulk(bulkText));setBulkAiUsed(false);setBulkStep(1);}}>
-                  🔍 معاينة سريعة
+                  {tr("🔍 معاينة سريعة")}
                 </button>
               </div>
             )}
             <p style={{fontSize:"11px",color:"var(--ia-muted)",margin:"10px 0 0"}}>
-              💡 «المعاينة السريعة» تستخدم المحلل المحلي لصيغة الإيموجي فقط — زرّ الذكاء الاصطناعي يفهم أي صيغة
+              {tr("💡 «المعاينة السريعة» تستخدم المحلل المحلي لصيغة الإيموجي فقط — زرّ الذكاء الاصطناعي يفهم أي صيغة")}
             </p>
           </>
         )}
         {bulkStep===1&&(
           <>
             <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"10px",flexWrap:"wrap"}}>
-              <div style={{color:"#16a34a",fontWeight:800}}>✅ {bulkParsed.length} طلب جاهز</div>
+              <div style={{color:"#16a34a",fontWeight:800}}>✅ {bulkParsed.length} {tr("طلب جاهز")}</div>
               {bulkAiUsed&&(
-                <span style={{background:"rgba(124,58,237,.1)",color:"#7c3aed",border:"1px solid rgba(124,58,237,.25)",borderRadius:"20px",padding:"2px 10px",fontSize:"10.5px",fontWeight:800}}>⚡ عولج بالذكاء الاصطناعي</span>
+                <span style={{background:"rgba(124,58,237,.1)",color:"#7c3aed",border:"1px solid rgba(124,58,237,.25)",borderRadius:"20px",padding:"2px 10px",fontSize:"10.5px",fontWeight:800}}>{tr("⚡ عولج بالذكاء الاصطناعي")}</span>
               )}
             </div>
           <div style={{maxHeight:"360px",overflow:"auto",marginBottom:"12px"}}>
@@ -3568,29 +3486,29 @@ return(
               return(<div key={i} style={{border:"1px solid var(--ia-border)",borderRadius:"8px",padding:"10px 14px",marginBottom:"6px",background:"var(--ia-row-alt)"}}>
                 <div style={{display:"flex",justifyContent:"space-between"}}>
                   <div><b>{b.clientName}</b> <span style={{color:"var(--ia-link)",fontSize:"12px",direction:"ltr"}}>{b.clientPhone}</span>
-                    {b.clientAddress&&<span style={{color:"var(--ia-sub)",fontSize:"11px",marginRight:"6px"}}> — {b.clientAddress}</span>}</div>
+                    {b.clientAddress&&<span style={{color:"var(--ia-sub)",fontSize:"11px",marginInlineStart:"6px"}}> — {b.clientAddress}</span>}</div>
                   <b style={{color:colTx}}>{fKWD(tot)}</b>
                 </div>
                 <div style={{fontSize:"12px",color:"var(--ia-sub)",marginTop:"4px"}}>
                   {b.items.map((it,j)=><span key={j}>{it.name} × {it.qty} — {fKWD(it.price)} </span>)}
-                  {b.shipping===0&&<span style={{color:"#16a34a"}}>| توصيل مجاني</span>}
+                  {b.shipping===0&&<span style={{color:"#16a34a"}}>{tr("| توصيل مجاني")}</span>}
                 </div>
               </div>);})}
           </div>
           <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
-            <button className="btn" style={{background:"#16a34a",color:"#fff",flex:1,fontSize:"13.5px",padding:"11px"}} onClick={saveBulk}>💾 إضافة الفواتير ({bulkParsed.length})</button>
-            <button className="btn" style={{background:"linear-gradient(135deg,#7c3aed,#6d28d9)",color:"#fff",padding:"11px 16px"}} onClick={()=>{setBulkStep(0);}} disabled={bulkAiBusy}>🤖 إعادة معالجة بالذكاء</button>
-            <button className="btn btn-ghost" onClick={()=>setBulkStep(0)}>← تعديل النص</button>
+            <button className="btn" style={{background:"#16a34a",color:"#fff",flex:1,fontSize:"13.5px",padding:"11px"}} onClick={saveBulk}>{tr("💾 إضافة الفواتير (")}{bulkParsed.length})</button>
+            <button className="btn" style={{background:"linear-gradient(135deg,#7c3aed,#6d28d9)",color:"#fff",padding:"11px 16px"}} onClick={()=>{setBulkStep(0);}} disabled={bulkAiBusy}>{tr("🤖 إعادة معالجة بالذكاء")}</button>
+            <button className="btn btn-ghost" onClick={()=>setBulkStep(0)}>{tr("← تعديل النص")}</button>
           </div></>
         )}
         {bulkStep===2&&(
           <div style={{textAlign:"center",padding:"36px"}}>
             <div style={{fontSize:"48px",marginBottom:"8px"}}>✅</div>
-            <div style={{fontSize:"16px",fontWeight:700,marginBottom:"14px"}}>تم حفظ {bulkParsed.length} فاتورة!</div>
+            <div style={{fontSize:"16px",fontWeight:700,marginBottom:"14px"}}>{tr("تم حفظ")} {bulkParsed.length} {tr("فاتورة!")}</div>
             <div style={{display:"flex",gap:"8px",justifyContent:"center",flexWrap:"wrap"}}>
-              <button className="btn" style={{background:col,color:"#fff"}} onClick={()=>{setBulkStep(0);setBulkText("");setBulkParsed([]);}}>إدخال جديد</button>
-              <button className="btn" style={{background:"#7c3aed",color:"#fff"}} onClick={()=>{setBulkStep(0);setView("purchase");}}>🛒 توليد فاتورة مشتريات</button>
-              <button className="btn btn-ghost" onClick={()=>{setBulkStep(0);setView("list");}}>عرض الفواتير</button>
+              <button className="btn" style={{background:col,color:"#fff"}} onClick={()=>{setBulkStep(0);setBulkText("");setBulkParsed([]);}}>{tr("إدخال جديد")}</button>
+              <button className="btn" style={{background:"#7c3aed",color:"#fff"}} onClick={()=>{setBulkStep(0);setView("purchase");}}>{tr("🛒 توليد فاتورة مشتريات")}</button>
+              <button className="btn btn-ghost" onClick={()=>{setBulkStep(0);setView("list");}}>{tr("عرض الفواتير")}</button>
             </div>
           </div>
         )}
@@ -3601,34 +3519,34 @@ return(
     {view==="print"&&(
       <div style={{animation:"fadeUp .25s"}}>
         <div className="card" style={{padding:"22px",marginBottom:"12px"}}>
-          <div style={{fontSize:"16px",fontWeight:900,color:colTx,marginBottom:"14px"}}>🖨️ طباعة من رقم إلى رقم</div>
+          <div style={{fontSize:"16px",fontWeight:900,color:colTx,marginBottom:"14px"}}>{tr("🖨️ طباعة من رقم إلى رقم")}</div>
           <div style={{display:"flex",gap:"10px",marginBottom:"16px",flexWrap:"wrap"}}>
-            <div style={{fontSize:"11px",fontWeight:700,color:"var(--ia-muted)",textTransform:"uppercase",letterSpacing:".5px",alignSelf:"center"}}>نمط الفاتورة:</div>
+            <div style={{fontSize:"11px",fontWeight:700,color:"var(--ia-muted)",textTransform:"uppercase",letterSpacing:".5px",alignSelf:"center"}}>{tr("نمط الفاتورة:")}</div>
             {Object.values(PRINT_STYLES).map(st=>(
-              <button key={st.id} onClick={()=>{setPStyle(st.id);toast_(`تم اختيار نمط ${st.label}`);}}
-                title={`نمط ${st.label}${st.id==="modern"?" — بألوان الشركة":st.id==="minimal"?" — أبيض وأسود موفّر للحبر":""}`}
+              <button key={st.id} onClick={()=>{setPStyle(st.id);toast_(tr("تم اختيار نمط {0}",[tr(st.label)]));}}
+                title={tr("نمط {0}{1}",[tr(st.label),st.id==="modern"?tr(" — بألوان الشركة"):st.id==="minimal"?tr(" — أبيض وأسود موفّر للحبر"):""])}
                 style={{flex:"1",minWidth:"120px",maxWidth:"180px",border:printStyle===st.id?`2px solid ${col}`:"1.5px solid var(--ia-border2)",borderRadius:"10px",padding:"10px 12px",background:printStyle===st.id?softAdapt(company.cardBg,dark):"var(--ia-inp-bg)",cursor:"pointer",fontFamily:"inherit",transition:"all .15s",display:"flex",alignItems:"center",gap:"8px"}}>
                 <span style={{fontSize:"18px"}}>{st.icon}</span>
-                <div style={{textAlign:"right",minWidth:0,flex:1}}>
-                  <div style={{fontSize:"12.5px",fontWeight:900,color:printStyle===st.id?colTx:"var(--ia-text)"}}>{st.label}</div>
-                  <div style={{fontSize:"10px",color:"var(--ia-sub)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{st.id==="classic"?"التصميم الأصلي":st.id==="modern"?"ألوان الشركة":"أبيض وأسود"}</div>
+                <div style={{textAlign:"start",minWidth:0,flex:1}}>
+                  <div style={{fontSize:"12.5px",fontWeight:900,color:printStyle===st.id?colTx:"var(--ia-text)"}}>{tr(st.label)}</div>
+                  <div style={{fontSize:"10px",color:"var(--ia-sub)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{st.id==="classic"?tr("التصميم الأصلي"):st.id==="modern"?tr("ألوان الشركة"):tr("أبيض وأسود")}</div>
                 </div>
                 {printStyle===st.id&&<span style={{fontSize:"13px",color:colTx,fontWeight:"900"}}>✓</span>}
               </button>
             ))}
           </div>
           <div className="print-grid">
-            <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>من رقم الفاتورة</label>
-              <input className="inp" placeholder="INV10001 أو 10001" value={printRange.from} onChange={e=>setPrintRange(r=>({...r,from:e.target.value}))}/></div>
-            <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>إلى رقم الفاتورة</label>
-              <input className="inp" placeholder="INV10010 أو 10010" value={printRange.to} onChange={e=>setPrintRange(r=>({...r,to:e.target.value}))}/></div>
-            <button className="btn print-btn" style={{background:col,color:"#fff",height:"40px"}} onClick={doPrintRange}>🖨️ طباعة</button>
-            <button className="btn" title="تصدير الفواتير في النطاق إلى ملف PDF واحد" disabled={pdfBusy} style={{background:"#dc2626",color:"#fff",height:"40px"}} onClick={()=>{const list=printRangeList();doPdfExport(list,company,{toast:toast_,setBusy:setPdfBusy,styleId:printStyle});}}>{pdfBusy?"⏳ جاري…":"📄 تصدير PDF"}</button>
+            <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("من رقم الفاتورة")}</label>
+              <input className="inp" placeholder={tr("INV10001 أو 10001")} value={printRange.from} onChange={e=>setPrintRange(r=>({...r,from:e.target.value}))}/></div>
+            <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("إلى رقم الفاتورة")}</label>
+              <input className="inp" placeholder={tr("INV10010 أو 10010")} value={printRange.to} onChange={e=>setPrintRange(r=>({...r,to:e.target.value}))}/></div>
+            <button className="btn print-btn" style={{background:col,color:"#fff",height:"40px"}} onClick={doPrintRange}>{tr("🖨️ طباعة")}</button>
+            <button className="btn" title={tr("تصدير الفواتير في النطاق إلى ملف PDF واحد")} disabled={pdfBusy} style={{background:"#dc2626",color:"#fff",height:"40px"}} onClick={()=>{const list=printRangeList();doPdfExport(list,company,{toast:toast_,setBusy:setPdfBusy,styleId:printStyle});}}>{pdfBusy?tr("⏳ جاري…"):tr("📄 تصدير PDF")}</button>
           </div>
-          <p style={{fontSize:"11px",color:"var(--ia-muted)",marginTop:"8px"}}>⚠️ يجب السماح بالـ Popups في المتصفح لتعمل الطباعة</p>
+          <p style={{fontSize:"11px",color:"var(--ia-muted)",marginTop:"8px"}}>{tr("⚠️ يجب السماح بالـ Popups في المتصفح لتعمل الطباعة")}</p>
         </div>
         <div className="card" style={{padding:"20px"}}>
-          <div style={{fontSize:"11px",fontWeight:700,color:"var(--ia-muted)",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"10px"}}>أو اضغط على فاتورة لطباعتها — {invoices.length} فاتورة</div>
+          <div style={{fontSize:"11px",fontWeight:700,color:"var(--ia-muted)",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"10px"}}>{tr("أو اضغط على فاتورة لطباعتها —")} {invoices.length} {tr("فاتورة")}</div>
           <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
             {invoices.slice().sort((a,b)=>parseInt(a.invNum?.replace(/\D/g,"")||0)-parseInt(b.invNum?.replace(/\D/g,"")||0)).map(inv=>{
               const st=getStatus(inv);
@@ -3646,7 +3564,7 @@ return(
                   <span style={{fontWeight:800,fontSize:"12.5px"}}>{fKWD(iT(inv))}</span>
                   <span style={{color:"var(--ia-muted)",fontSize:"10px"}}>📅 {fDate(inv.date)}</span>
                 </div>
-                <div style={{color:colTx,marginTop:"5px",fontSize:"10px",fontWeight:700}}>🖨️ اضغط للطباعة</div>
+                <div style={{color:colTx,marginTop:"5px",fontSize:"10px",fontWeight:700}}>{tr("🖨️ اضغط للطباعة")}</div>
               </div>
               );
             })}
@@ -3710,10 +3628,10 @@ return(
 
     {/* Footer */}
     <div style={{textAlign:"center",padding:"18px 14px 22px",marginTop:"auto",borderTop:"1px solid #e5e7eb",fontSize:"12px",color:"var(--ia-muted)",paddingBottom:"calc(22px + env(safe-area-inset-bottom))"}}>
-      تم البرمجة والتطوير بواسطة{" "}
+      {tr("تم البرمجة والتطوير بواسطة")}{" "}
       <a href="https://wa.me/201033514479" target="_blank" rel="noopener noreferrer"
         style={{color:col,textDecoration:"none",fontWeight:700}}>
-        أحمد عزت الصياد
+        {tr("أحمد عزت الصياد")}
       </a>
     </div>
 

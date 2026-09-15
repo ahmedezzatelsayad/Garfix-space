@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { onAuthChange } from "../firebase/auth";
 import { getUserProfile, isMasterAdmin, ALL_COMPANIES } from "../firebase/users";
+import { tr } from "@/lib/i18n-app";
 
 // Local replacement for firebase/auth User type (fake local auth in firebase/auth.js)
 // r16: الحقول الاختيارية role/companies يملؤها الخادم للمشتركين المسجّلين (AppUser)
@@ -81,7 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setProfile({
               uid: firebaseUser.uid,
               email: firebaseUser.email ?? "",
-              displayName: firebaseUser.displayName || "أحمد عزت الصياد",
+              displayName: firebaseUser.displayName || tr("أحمد عزت الصياد"),
               companies: ALL_COMPANIES,
               role: "admin",
             });
@@ -99,7 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     setProfile({
                       uid: firebaseUser.uid,
                       email: data.profile.email,
-                      displayName: data.profile.displayName || firebaseUser.displayName || "مشترك",
+                      displayName: data.profile.displayName || firebaseUser.displayName || tr("مشترك"),
                       companies: Array.isArray(data.profile.companies) ? data.profile.companies : [],
                       role: "subscriber",
                     });
@@ -110,7 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               setProfile({
                 uid: firebaseUser.uid,
                 email: firebaseUser.email ?? "",
-                displayName: firebaseUser.displayName || "مشترك",
+                displayName: firebaseUser.displayName || tr("مشترك"),
                 companies: Array.isArray(firebaseUser.companies) ? firebaseUser.companies : [],
                 role: "subscriber",
               });

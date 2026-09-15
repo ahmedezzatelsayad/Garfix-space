@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { api } from "../api";
 import { txAdapt } from "../theme";
+import { tr, dateLocale } from "@/lib/i18n-app";
 
 // ─── Reminders panel (invoice detail) ────────────────────────────
 // Audit trail of the WhatsApp payment reminders sent for this invoice.
@@ -22,13 +23,13 @@ const timeAgoAr = iso => {
   if (isNaN(d.getTime())) return "";
   const diff = Date.now() - d.getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "الآن";
-  if (mins < 60) return `قبل ${mins} دقيقة`;
+  if (mins < 1) return tr("الآن");
+  if (mins < 60) return tr("قبل {0} دقيقة",[mins]);
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `قبل ${hours} ساعة`;
+  if (hours < 24) return tr("قبل {0} ساعة",[hours]);
   const days = Math.floor(hours / 24);
-  if (days < 30) return `قبل ${days} يوم`;
-  return d.toLocaleDateString("ar-KW");
+  if (days < 30) return tr("قبل {0} يوم",[days]);
+  return d.toLocaleDateString(dateLocale());
 };
 
 export default function RemindersPanel({ inv, company }) {
@@ -82,14 +83,14 @@ export default function RemindersPanel({ inv, company }) {
       {/* Header */}
       <div style={{ background: "linear-gradient(135deg,#15803d 0%,#16a34a 100%)", color: "#fff", padding: "12px 18px", display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
         <span style={{ fontSize: "17px" }}>📣</span>
-        <div style={{ fontWeight: 900, fontSize: "14px" }}>سجل التذكيرات</div>
+        <div style={{ fontWeight: 900, fontSize: "14px" }}>{tr("سجل التذكيرات")}</div>
         <span style={{ background: "rgba(255,255,255,.18)", borderRadius: "20px", padding: "2px 10px", fontSize: "11px", fontWeight: 700 }}>
-          {reminders.length} تذكير
+          {reminders.length} {tr("تذكير")}
         </span>
         <div style={{ flex: 1 }} />
         {reminders.length > 0 && (
           <span style={{ fontSize: "11px", background: "rgba(255,255,255,.18)", padding: "3px 10px", borderRadius: "20px", fontWeight: 700 }}>
-            آخر تذكير {timeAgoAr(reminders[0].createdAt)}
+            {tr("آخر تذكير")} {timeAgoAr(reminders[0].createdAt)}
           </span>
         )}
       </div>
@@ -97,11 +98,11 @@ export default function RemindersPanel({ inv, company }) {
       {/* List */}
       <div style={{ padding: "8px 18px 16px" }}>
         {loading ? (
-          <div style={{ textAlign: "center", color: "var(--ia-muted)", padding: "18px 0", fontSize: "13px" }}>⏳ جارٍ تحميل السجل...</div>
+          <div style={{ textAlign: "center", color: "var(--ia-muted)", padding: "18px 0", fontSize: "13px" }}>{tr("⏳ جارٍ تحميل السجل...")}</div>
         ) : reminders.length === 0 ? (
           <div style={{ textAlign: "center", color: "var(--ia-muted)", padding: "18px 0", fontSize: "13px" }}>
             <div style={{ fontSize: "28px", marginBottom: "6px" }}>📭</div>
-            لم يُرسل أي تذكير لهذه الفاتورة بعد
+            {tr("لم يُرسل أي تذكير لهذه الفاتورة بعد")}
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "7px", maxHeight: "300px", overflowY: "auto" }}>
@@ -131,7 +132,7 @@ export default function RemindersPanel({ inv, company }) {
                     {r.message && (
                       <button
                         onClick={() => setExpanded(isOpen ? null : r.id)}
-                        title={isOpen ? "طي الرسالة" : "عرض الرسالة كاملة"}
+                        title={isOpen ? tr("طي الرسالة") : tr("عرض الرسالة كاملة")}
                         style={{ background: "transparent", border: `1px solid ${col}44`, color: `var(--ia-text2)`, borderRadius: "7px", padding: "4px 9px", fontFamily: "inherit", fontSize: "11px", cursor: "pointer", flexShrink: 0 }}
                       >
                         {isOpen ? "▲" : "▼"}

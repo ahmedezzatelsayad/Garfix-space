@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createUser, ALL_COMPANIES } from "../firebase/users";
+import { tr } from "@/lib/i18n-app";
 
 // r12: قائمة شركات ديناميكية من الخادم (fallback للافتراضيات الثابتة)
 
@@ -74,9 +75,9 @@ export default function CreateUserModal({ onClose, onCreated, companies }: Creat
 
   const handleCreate = async () => {
     if (!form.email || !form.password || form.companies.length===0) {
-      setErr("يرجى تعبئة جميع الحقول واختيار شركة واحدة على الأقل"); return;
+      setErr(tr("يرجى تعبئة جميع الحقول واختيار شركة واحدة على الأقل")); return;
     }
-    if (form.password.length < 6) { setErr("كلمة المرور يجب أن تكون 6 أحرف على الأقل"); return; }
+    if (form.password.length < 6) { setErr(tr("كلمة المرور يجب أن تكون 6 أحرف على الأقل")); return; }
     setLoading(true); setErr("");
     try {
       await createUser({
@@ -92,14 +93,14 @@ export default function CreateUserModal({ onClose, onCreated, companies }: Creat
       onClose();
     } catch (e: any) {
       const msgs: Record<string, string> = {
-        "auth/email-already-in-use": "هذا الإيميل مسجل مسبقاً — اختر إيميل آخر",
-        "auth/invalid-email":         "صيغة الإيميل غير صحيحة",
-        "auth/weak-password":         "كلمة المرور ضعيفة جداً (6 أحرف على الأقل)",
-        "auth/configuration-not-found":"يرجى تفعيل Email/Password في Firebase Console",
-        "auth/network-request-failed": "تعذّر الاتصال بالإنترنت — تحقق من الشبكة وأعد المحاولة",
-        "auth/too-many-requests":      "محاولات كثيرة — انتظر قليلاً ثم أعد المحاولة",
+        "auth/email-already-in-use": tr("هذا الإيميل مسجل مسبقاً — اختر إيميل آخر"),
+        "auth/invalid-email":         tr("صيغة الإيميل غير صحيحة"),
+        "auth/weak-password":         tr("كلمة المرور ضعيفة جداً (6 أحرف على الأقل)"),
+        "auth/configuration-not-found":tr("يرجى تفعيل Email/Password في Firebase Console"),
+        "auth/network-request-failed": tr("تعذّر الاتصال بالإنترنت — تحقق من الشبكة وأعد المحاولة"),
+        "auth/too-many-requests":      tr("محاولات كثيرة — انتظر قليلاً ثم أعد المحاولة"),
       };
-      setErr(msgs[e.code] || e.message || "حدث خطأ غير متوقع، يرجى المحاولة مجدداً");
+      setErr(msgs[e.code] || e.message || tr("حدث خطأ غير متوقع، يرجى المحاولة مجدداً"));
       setLoading(false);
     }
   };
@@ -117,8 +118,8 @@ export default function CreateUserModal({ onClose, onCreated, companies }: Creat
       }} onClick={e=>e.stopPropagation()}>
 
         <div style={{background:"#1e3a5f",padding:"18px 22px",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
-          <div style={{color:"#fff",fontWeight:900,fontSize:"16px"}}>➕ إضافة موظف جديد</div>
-          <button onClick={onClose} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"8px",padding:"6px 12px",color:"#fff",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>✕ إغلاق</button>
+          <div style={{color:"#fff",fontWeight:900,fontSize:"16px"}}>{tr("➕ إضافة موظف جديد")}</div>
+          <button onClick={onClose} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"8px",padding:"6px 12px",color:"#fff",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>{tr("✕ إغلاق")}</button>
         </div>
 
         <div style={{padding:"20px 22px",overflowY:"auto",flex:1}}>
@@ -126,25 +127,25 @@ export default function CreateUserModal({ onClose, onCreated, companies }: Creat
 
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px"}}>
               <div>
-                <label style={lbl}>الاسم الكامل</label>
-                <input style={inp} placeholder="اسم الموظف" value={form.displayName} onChange={e=>setForm(f=>({...f,displayName:e.target.value}))}/>
+                <label style={lbl}>{tr("الاسم الكامل")}</label>
+                <input style={inp} placeholder={tr("اسم الموظف")} value={form.displayName} onChange={e=>setForm(f=>({...f,displayName:e.target.value}))}/>
               </div>
               <div>
-                <label style={lbl}>البريد الإلكتروني *</label>
+                <label style={lbl}>{tr("البريد الإلكتروني *")}</label>
                 <input style={inp} type="email" placeholder="user@example.com" value={form.email} onChange={e=>{setForm(f=>({...f,email:e.target.value}));setErr("");}}/>
               </div>
             </div>
 
             <div>
-              <label style={lbl}>كلمة المرور *</label>
+              <label style={lbl}>{tr("كلمة المرور *")}</label>
               <div style={{position:"relative"}}>
-                <input style={{...inp,paddingLeft:"40px"}} type={showPass?"text":"password"} placeholder="6 أحرف على الأقل" value={form.password} onChange={e=>{setForm(f=>({...f,password:e.target.value}));setErr("");}}/>
+                <input style={{...inp,paddingInlineEnd:"40px"}} type={showPass?"text":"password"} placeholder={tr("6 أحرف على الأقل")} value={form.password} onChange={e=>{setForm(f=>({...f,password:e.target.value}));setErr("");}}/>
                 <span onClick={()=>setShowPass(p=>!p)} style={{position:"absolute",left:"12px",top:"50%",transform:"translateY(-50%)",cursor:"pointer",fontSize:"15px",color:"var(--ia-muted)"}}>{showPass?"🙈":"👁️"}</span>
               </div>
             </div>
 
             <div>
-              <label style={lbl}>الشركات المسموح بها *</label>
+              <label style={lbl}>{tr("الشركات المسموح بها *")}</label>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px"}}>
                 {COMPANY_IDS.map((id: string)=>{
                   const active=form.companies.includes(id);
@@ -159,21 +160,21 @@ export default function CreateUserModal({ onClose, onCreated, companies }: Creat
                 })}
               </div>
               <div style={{marginTop:"6px",display:"flex",gap:"8px"}}>
-                <button onClick={()=>setForm(f=>({...f,companies:COMPANY_IDS}))} style={{fontSize:"11px",color:"var(--ia-link)",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:0}}>تحديد الكل</button>
+                <button onClick={()=>setForm(f=>({...f,companies:COMPANY_IDS}))} style={{fontSize:"11px",color:"var(--ia-link)",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:0}}>{tr("تحديد الكل")}</button>
                 <span style={{color:"var(--ia-muted)"}}>|</span>
-                <button onClick={()=>setForm(f=>({...f,companies:[]}))} style={{fontSize:"11px",color:"var(--ia-red-tx)",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:0}}>إلغاء الكل</button>
+                <button onClick={()=>setForm(f=>({...f,companies:[]}))} style={{fontSize:"11px",color:"var(--ia-red-tx)",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:0}}>{tr("إلغاء الكل")}</button>
               </div>
             </div>
 
             <div>
-              <label style={lbl}>نوع الصلاحية</label>
+              <label style={lbl}>{tr("نوع الصلاحية")}</label>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"8px"}}>
                 {ROLES.map(r=>{
                   const active=form.role===r.value;
                   return(
                     <div key={r.value} onClick={()=>setRole(r.value)} style={{border:`2px solid `,borderRadius:"10px",padding:"11px 10px",cursor:"pointer",background:active?r.color+"12":"var(--ia-row-alt)",transition:"all .15s"}}>
-                      <div style={{fontWeight:700,fontSize:"12px",color:active?r.color:"var(--ia-text2)",marginBottom:"3px"}}>{r.label}</div>
-                      <div style={{fontSize:"10px",color:"var(--ia-muted)",lineHeight:1.4}}>{r.desc}</div>
+                      <div style={{fontWeight:700,fontSize:"12px",color:active?r.color:"var(--ia-text2)",marginBottom:"3px"}}>{tr(r.label)}</div>
+                      <div style={{fontSize:"10px",color:"var(--ia-muted)",lineHeight:1.4}}>{tr(r.desc)}</div>
                     </div>
                   );
                 })}
@@ -182,7 +183,7 @@ export default function CreateUserModal({ onClose, onCreated, companies }: Creat
 
             {form.role==="employee"&&(
               <div style={{background:"var(--ia-vio-bg)",borderRadius:"12px",padding:"14px",border:"1.5px solid var(--ia-vio-bd)"}}>
-                <div style={{fontSize:"11px",fontWeight:800,color:"var(--ia-vio-tx)",letterSpacing:".5px",textTransform:"uppercase",marginBottom:"10px"}}>⚙️ الصلاحيات التفصيلية</div>
+                <div style={{fontSize:"11px",fontWeight:800,color:"var(--ia-vio-tx)",letterSpacing:".5px",textTransform:"uppercase",marginBottom:"10px"}}>{tr("⚙️ الصلاحيات التفصيلية")}</div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"6px"}}>
                   {PERM_LIST.map(p=>{
                     const active=!!form.permissions[p.key];
@@ -191,15 +192,15 @@ export default function CreateUserModal({ onClose, onCreated, companies }: Creat
                         <div style={{width:"16px",height:"16px",borderRadius:"4px",border:`2px solid `,background:active?"#7c3aed":"var(--ia-card)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
                           {active&&<span style={{color:"#fff",fontSize:"10px",fontWeight:900}}>✓</span>}
                         </div>
-                        <span style={{fontSize:"11.5px",fontWeight:active?700:400,color:active?"var(--ia-vio-tx)":"var(--ia-sub)"}}>{p.icon} {p.label}</span>
+                        <span style={{fontSize:"11.5px",fontWeight:active?700:400,color:active?"var(--ia-vio-tx)":"var(--ia-sub)"}}>{p.icon} {tr(p.label)}</span>
                       </div>
                     );
                   })}
                 </div>
                 <div style={{marginTop:"8px",display:"flex",gap:"8px"}}>
-                  <button onClick={()=>setForm(f=>({...f,permissions:Object.fromEntries(PERM_LIST.map(p=>[p.key,1]))}))} style={{fontSize:"11px",color:"var(--ia-vio-tx)",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:0}}>تفعيل الكل</button>
+                  <button onClick={()=>setForm(f=>({...f,permissions:Object.fromEntries(PERM_LIST.map(p=>[p.key,1]))}))} style={{fontSize:"11px",color:"var(--ia-vio-tx)",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:0}}>{tr("تفعيل الكل")}</button>
                   <span style={{color:"var(--ia-muted)"}}>|</span>
-                  <button onClick={()=>setForm(f=>({...f,permissions:Object.fromEntries(PERM_LIST.map(p=>[p.key,0]))}))} style={{fontSize:"11px",color:"var(--ia-red-tx)",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:0}}>إلغاء الكل</button>
+                  <button onClick={()=>setForm(f=>({...f,permissions:Object.fromEntries(PERM_LIST.map(p=>[p.key,0]))}))} style={{fontSize:"11px",color:"var(--ia-red-tx)",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:0}}>{tr("إلغاء الكل")}</button>
                 </div>
               </div>
             )}
@@ -207,7 +208,7 @@ export default function CreateUserModal({ onClose, onCreated, companies }: Creat
             {err&&<div style={{background:"var(--ia-red-bg)",border:"1px solid var(--ia-red-bd)",borderRadius:"8px",padding:"9px 14px",color:"var(--ia-red-tx)",fontSize:"13px"}}>❌ {err}</div>}
 
             <button onClick={handleCreate} disabled={loading} style={{width:"100%",border:"none",borderRadius:"10px",padding:"13px",background:loading?"var(--ia-ghost-bg)":"#1e3a5f",color:loading?"var(--ia-muted)":"#fff",fontFamily:"inherit",fontSize:"15px",fontWeight:700,cursor:loading?"not-allowed":"pointer"}}>
-              {loading?"جارٍ الإنشاء...":"✅ إنشاء الموظف"}
+              {loading?tr("جارٍ الإنشاء..."):tr("✅ إنشاء الموظف")}
             </button>
 
           </div>

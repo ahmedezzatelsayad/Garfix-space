@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { loginUser, registerUser, requestPasswordReset, fetchFreeSeats } from "../firebase/auth";
 import { useTheme } from "../theme";
 import { useI18n, LanguageSwitcher } from "@/lib/i18n-context";
+import { tr } from "@/lib/i18n-app";
 
 /**
  * r16: صفحة الدخول الشاملة:
@@ -46,23 +47,23 @@ export default function FirebaseLogin() {
       await loginUser(email.trim(), pass);
     } catch (e: any) {
       const msgs: Record<string, string> = {
-        "auth/user-not-found":     "البريد الإلكتروني غير مسجل",
-        "auth/wrong-password":     "كلمة المرور غلط",
-        "auth/invalid-credential": "الإيميل أو الباسورد غلط",
-        "auth/too-many-requests":  "محاولات كثيرة، حاول بعد قليل",
-        "auth/invalid-email":      "صيغة الإيميل غير صحيحة",
+        "auth/user-not-found":     tr("البريد الإلكتروني غير مسجل"),
+        "auth/wrong-password":     tr("كلمة المرور غلط"),
+        "auth/invalid-credential": tr("الإيميل أو الباسورد غلط"),
+        "auth/too-many-requests":  tr("محاولات كثيرة، حاول بعد قليل"),
+        "auth/invalid-email":      tr("صيغة الإيميل غير صحيحة"),
       };
-      setErr(e.serverMessage || msgs[e.code] || `خطأ: ${e.code || e.message}`);
+      setErr(e.serverMessage || msgs[e.code] || tr("خطأ: {0}",[e.code || e.message]));
       setLoading(false);
     }
   };
 
   const doRegister = async () => {
     if (!name.trim() || !email.trim() || !pass || !pass2) {
-      setErr("أكمل كل الحقول المطلوبة"); return;
+      setErr(tr("أكمل كل الحقول المطلوبة")); return;
     }
     if (pass !== pass2) {
-      setErr("كلمتا المرور غير متطابقتين"); return;
+      setErr(tr("كلمتا المرور غير متطابقتين")); return;
     }
     setLoading(true); setErr(""); setOkMsg("");
     try {
@@ -73,9 +74,9 @@ export default function FirebaseLogin() {
         password: pass,
       });
       // نجاح — المستخدم دخل التطبيق مباشرة (registerUser يبني الجلسة محلياً)
-      setOkMsg(`🎉 تم إنشاء حسابك بنجاح${typeof remaining === "number" ? ` — متبقي ${remaining} مقعداً مجانياً` : ""}`);
+      setOkMsg(tr("🎉 تم إنشاء حسابك بنجاح{0}",[typeof remaining === "number" ? tr(" — متبقي {0} مقعداً مجانياً",[remaining]) : ""]));
     } catch (e: any) {
-      setErr(e.message || "تعذر إنشاء الحساب");
+      setErr(e.message || tr("تعذر إنشاء الحساب"));
       setSeats(null);
       fetchFreeSeats().then(s => setSeats(s)).catch(() => {});
       setLoading(false);
@@ -83,13 +84,13 @@ export default function FirebaseLogin() {
   };
 
   const doForgot = async () => {
-    if (!email.trim()) { setErr("أدخل بريدك الإلكتروني"); return; }
+    if (!email.trim()) { setErr(tr("أدخل بريدك الإلكتروني")); return; }
     setLoading(true); setErr(""); setOkMsg("");
     try {
       const message = await requestPasswordReset(email.trim());
       setOkMsg(`📧 ${message}`);
     } catch (e: any) {
-      setErr(e.message || "تعذر إرسال رسالة الاستعادة");
+      setErr(e.message || tr("تعذر إرسال رسالة الاستعادة"));
     } finally {
       setLoading(false);
     }
@@ -105,14 +106,14 @@ export default function FirebaseLogin() {
       <span style={{ fontSize: 16 }}>🎁</span>
       {seats.freeOpen ? (
         <span style={{ color: "#e5c558", fontSize: 12.5, fontWeight: 800 }}>
-          مجاناً لأول {seats.limit} مشترك
+          {tr("مجاناً لأول")} {seats.limit} {tr("مشترك")}
           <span style={{ color: "rgba(255,255,255,.55)", fontWeight: 700, marginInlineStart: 8 }}>
-            — متبقي {seats.remaining} مقعداً
+            {tr("— متبقي")} {seats.remaining} {tr("مقعداً")}
           </span>
         </span>
       ) : (
         <span style={{ color: "#fca5a5", fontSize: 12.5, fontWeight: 800 }}>
-          انتهت المقاعد المجانية ({seats.limit}/{seats.limit})
+          {tr("انتهت المقاعد المجانية (")}{seats.limit}/{seats.limit})
         </span>
       )}
       <span style={{
@@ -157,7 +158,7 @@ export default function FirebaseLogin() {
       </div>
 
       {/* Light/dark theme toggle (persisted app-wide) */}
-      <button onClick={toggle} title={dark?"التبديل إلى الوضع النهاري":"التبديل إلى الوضع الليلي"} aria-label="تبديل السمة" type="button" style={{position:"fixed",top:"16px",insetInlineEnd:"16px",background:"rgba(255,255,255,.07)",border:"1px solid rgba(255,255,255,.14)",borderRadius:"8px",padding:"7px 12px",fontSize:"14px",cursor:"pointer",zIndex:10,transition:"all .2s"}}>{dark?"☀️":"🌙"}</button>
+      <button onClick={toggle} title={dark?tr("التبديل إلى الوضع النهاري"):tr("التبديل إلى الوضع الليلي")} aria-label={tr("تبديل السمة")} type="button" style={{position:"fixed",top:"16px",insetInlineEnd:"16px",background:"rgba(255,255,255,.07)",border:"1px solid rgba(255,255,255,.14)",borderRadius:"8px",padding:"7px 12px",fontSize:"14px",cursor:"pointer",zIndex:10,transition:"all .2s"}}>{dark?"☀️":"🌙"}</button>
       {/* r18: منتقي لغات العالم — أعلى الشاشة بجوار مبدّل السمة */}
       <div style={{position:"fixed",top:"16px",insetInlineStart:"16px",zIndex:10}}><LanguageSwitcher compact /></div>
 
@@ -171,12 +172,12 @@ export default function FirebaseLogin() {
           </div>
 
           <div style={{color:"rgba(201,162,39,.65)",fontSize:"10px",fontWeight:700,letterSpacing:"3px",textTransform:"uppercase",marginBottom:"12px"}}>
-            نظام إدارة الحسابات المتكامل
+            {tr("نظام إدارة الحسابات المتكامل")}
           </div>
           <div style={{color:"#fff",fontSize:"23px",fontWeight:900,lineHeight:1.25,marginBottom:"6px",textShadow:"0 2px 20px rgba(201,162,39,.15)"}}>
-            الشركة القابضة المتحدة
+            {tr("الشركة القابضة المتحدة")}
           </div>
-          <div style={{color:"#c9a227",fontSize:"16px",fontWeight:700,marginBottom:"5px"}}>ذ.م.م</div>
+          <div style={{color:"#c9a227",fontSize:"16px",fontWeight:700,marginBottom:"5px"}}>{tr("ذ.م.م")}</div>
           <div style={{color:"rgba(255,255,255,.22)",fontSize:"10px",letterSpacing:"2.5px",textTransform:"uppercase"}}>
             United Holding Group LLC
           </div>
@@ -251,7 +252,7 @@ export default function FirebaseLogin() {
 
               <div style={{marginBottom:"14px"}}>
                 <label style={{fontSize:"11px",color:"rgba(201,162,39,.75)",display:"block",marginBottom:"7px",fontWeight:700,letterSpacing:".6px"}}>{t("login.name")} *</label>
-                <input className="g-inp" placeholder="أحمد محمد" value={name}
+                <input className="g-inp" placeholder={tr("أحمد محمد")} value={name}
                   onChange={e=>{setName(e.target.value);setErr("");}}/>
               </div>
 
@@ -263,7 +264,7 @@ export default function FirebaseLogin() {
 
               <div style={{marginBottom:"14px"}}>
                 <label style={{fontSize:"11px",color:"rgba(201,162,39,.75)",display:"block",marginBottom:"7px",fontWeight:700,letterSpacing:".6px"}}>{t("login.phone")}</label>
-                <input className="g-inp" type="tel" dir="ltr" style={{textAlign:"right"}} placeholder="+965 9XXX XXXX" value={phone}
+                <input className="g-inp" type="tel" dir="ltr" style={{textAlign:"start"}} placeholder="+965 9XXX XXXX" value={phone}
                   onChange={e=>{setPhone(e.target.value);setErr("");}}/>
               </div>
 
@@ -271,7 +272,7 @@ export default function FirebaseLogin() {
                 <label style={{fontSize:"11px",color:"rgba(201,162,39,.75)",display:"block",marginBottom:"7px",fontWeight:700,letterSpacing:".6px"}}>{t("login.password")} *</label>
                 <div style={{position:"relative"}}>
                   <input className="g-inp" type={showPass?"text":"password"} placeholder="••••••••••" value={pass}
-                    onChange={e=>{setPass(e.target.value);setErr("");}} style={{paddingLeft:"42px"}}/>
+                    onChange={e=>{setPass(e.target.value);setErr("");}} style={{paddingInlineEnd:"42px"}}/>
                   <span onClick={()=>setShowPass(p=>!p)} style={{position:"absolute",left:"13px",top:"50%",transform:"translateY(-50%)",cursor:"pointer",fontSize:"15px",opacity:.4}}>{showPass?"🙈":"👁️"}</span>
                 </div>
               </div>
@@ -305,7 +306,7 @@ export default function FirebaseLogin() {
               }}>{seats&&!seats.freeOpen ? t("pricing.seatsFull") : loading ? "⏳ …" : `✨ ${t("login.signUp")} ←`}</button>
 
               <p style={{color:"rgba(255,255,255,.35)",fontSize:11.5,margin:"14px 0 0",textAlign:"center",lineHeight:1.8}}>
-                بإنشائك الحساب ستحصل على شركة خاصة بك بعد أول دخول — فواتير وعملاء وتقارير بلا أي تكلفة
+                {tr("بإنشائك الحساب ستحصل على شركة خاصة بك بعد أول دخول — فواتير وعملاء وتقارير بلا أي تكلفة")}
               </p>
             </>
           ) : (
@@ -326,12 +327,12 @@ export default function FirebaseLogin() {
                 <div style={{position:"relative"}}>
                   <input className="g-inp" type={showPass?"text":"password"} placeholder="••••••••••"
                     value={pass} onChange={e=>{setPass(e.target.value);setErr("");}}
-                    onKeyDown={e=>e.key==="Enter"&&doLogin()} style={{paddingLeft:"42px"}}/>
+                    onKeyDown={e=>e.key==="Enter"&&doLogin()} style={{paddingInlineEnd:"42px"}}/>
                   <span onClick={()=>setShowPass(p=>!p)} style={{position:"absolute",left:"13px",top:"50%",transform:"translateY(-50%)",cursor:"pointer",fontSize:"15px",opacity:.4}}>{showPass?"🙈":"👁️"}</span>
                 </div>
               </div>
 
-              <div style={{textAlign:"left",marginBottom:"20px"}}>
+              <div style={{textAlign:"end",marginBottom:"20px"}}>
                 <button type="button" onClick={()=>switchMode("forgot")} style={{
                   background:"none",border:"none",color:"rgba(201,162,39,.75)",fontFamily:"inherit",
                   fontSize:11.5,fontWeight:700,cursor:"pointer",padding:0,

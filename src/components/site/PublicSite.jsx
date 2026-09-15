@@ -10,6 +10,7 @@ import ResetPasswordPage from "./ResetPasswordPage";
 import PricingPage from "./PricingPage";
 import { SITE_CSS, DEFAULT_CONTENT } from "./site-shared";
 import { LangProvider, useI18n, LanguageSwitcher } from "@/lib/i18n-context";
+import { tr } from "@/lib/i18n-app";
 
 /**
  * r13: الموقع العام متعدد الصفحات — يظهر للزائر قبل الدخول، ويمكن معاينته بعد الدخول
@@ -62,9 +63,9 @@ function SiteInner({ page = "home", authed = false, onEnterApp = () => {} }) {
     const apply = () => {
       // r16: الرئيسية تحمل العنوان الكامل (يطابق metadata الخادم — أفضل لـ SEO)
       document.title = page === "home"
-        ? `${content.site_name} | نظام إدارة الفواتير والحسابات — الكويت`
+        ? tr("{0} | نظام إدارة الفواتير والحسابات — الكويت",[tr(content.site_name)])
         : pageTitle
-          ? `${pageTitle} | ${content.site_name}`
+          ? `${pageTitle} | ${tr(content.site_name)}`
           : content.site_name;
     };
     apply();
@@ -143,7 +144,7 @@ function SiteInner({ page = "home", authed = false, onEnterApp = () => {} }) {
               href="#/"
               onClick={(e) => nav(e, "#/")}
               style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", flexShrink: 0 }}
-              aria-label={content.site_name}
+              aria-label={tr(content.site_name)}
             >
               <span
                 style={{
@@ -155,12 +156,12 @@ function SiteInner({ page = "home", authed = false, onEnterApp = () => {} }) {
                 🏛️
               </span>
               <span style={{ display: "flex", flexDirection: "column", lineHeight: 1.15 }}>
-                <b className="s-brand-name" style={{ color: "#fff", fontSize: 14.5, fontWeight: 900 }}>{content.site_name}</b>
+                <b className="s-brand-name" style={{ color: "#fff", fontSize: 14.5, fontWeight: 900 }}>{tr(content.site_name)}</b>
                 <span className="s-brand-sub" style={{ color: "rgba(255,255,255,.35)", fontSize: 9.5, letterSpacing: 1.5 }}>{content.site_name_en}</span>
               </span>
             </a>
 
-            <nav className="s-nav" style={{ gap: 4, marginInlineStart: 18 }} aria-label="التنقل الرئيسي">
+            <nav className="s-nav" style={{ gap: 4, marginInlineStart: 18 }} aria-label={tr("التنقل الرئيسي")}>
               {links.map((l) => (
                 <a key={l.hash} href={l.hash} onClick={(e) => nav(e, l.hash)} className={`s-nav-link${page === l.id ? " active" : ""}`}>
                   {l.label}
@@ -224,15 +225,14 @@ function SiteInner({ page = "home", authed = false, onEnterApp = () => {} }) {
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
                   <span style={{ fontSize: 22 }}>🏛️</span>
-                  <b style={{ fontSize: 15 }}>{content.site_name}</b>
+                  <b style={{ fontSize: 15 }}>{tr(content.site_name)}</b>
                 </div>
                 <p style={{ color: "rgba(255,255,255,.5)", fontSize: 12.5, lineHeight: 1.9, margin: 0, maxWidth: 340 }}>
-                  نظام إدارة حسابات وفواتير عربي متكامل — بُني خصيصاً للسوق الكويتي: تعدد الشركات، العملات،
-                  المدفوعات الجزئية، والتذكيرات عبر واتساب.
+                  {tr("نظام إدارة حسابات وفواتير عربي متكامل — بُني خصيصاً للسوق الكويتي: تعدد الشركات، العملات،\n                  المدفوعات الجزئية، والتذكيرات عبر واتساب.")}
                 </p>
               </div>
               <div>
-                <div className="s-label" style={{ marginBottom: 12 }}>روابط سريعة</div>
+                <div className="s-label" style={{ marginBottom: 12 }}>{tr("روابط سريعة")}</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {links.map((l) => (
                     <a key={l.hash} href={l.hash} onClick={(e) => nav(e, l.hash)} style={{ color: "rgba(255,255,255,.6)", textDecoration: "none", fontSize: 13 }}>
@@ -241,13 +241,13 @@ function SiteInner({ page = "home", authed = false, onEnterApp = () => {} }) {
                   ))}
                   {!authed && (
                     <a href="#/login" onClick={(e) => nav(e, "#/login")} style={{ color: "rgba(255,255,255,.6)", textDecoration: "none", fontSize: 13 }}>
-                      تسجيل الدخول
+                      {tr("تسجيل الدخول")}
                     </a>
                   )}
                 </div>
               </div>
               <div>
-                <div className="s-label" style={{ marginBottom: 12 }}>تواصل</div>
+                <div className="s-label" style={{ marginBottom: 12 }}>{tr("تواصل")}</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8, color: "rgba(255,255,255,.6)", fontSize: 13 }}>
                   {content.contact_phone && (
                     <a href={`tel:${content.contact_phone.replace(/\s/g, "")}`} style={{ color: "inherit", textDecoration: "none" }}>
@@ -265,11 +265,11 @@ function SiteInner({ page = "home", authed = false, onEnterApp = () => {} }) {
             </div>
 
             <div style={{ borderTop: "1px solid rgba(255,255,255,.07)", marginTop: 24, paddingTop: 16, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", justifyContent: "space-between", color: "rgba(255,255,255,.35)", fontSize: 11.5 }}>
-              <span>© {new Date().getFullYear()} {content.site_name} — جميع الحقوق محفوظة</span>
+              <span>© {new Date().getFullYear()} {tr(content.site_name)} {tr("— جميع الحقوق محفوظة")}</span>
               <span>
-                تم البرمجة والتطوير بواسطة{" "}
+                {tr("تم البرمجة والتطوير بواسطة")}{" "}
                 <a href="https://wa.me/201033514479" target="_blank" rel="noopener noreferrer" style={{ color: "#c9a227", textDecoration: "none", fontWeight: 700 }}>
-                  أحمد عزت الصياد
+                  {tr("أحمد عزت الصياد")}
                 </a>
               </span>
             </div>

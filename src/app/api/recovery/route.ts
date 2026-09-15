@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { cacheDelPattern } from "@/lib/cache";
 import type { Prisma } from "@prisma/client";
 import { requireAdmin } from "@/lib/auth-server";
+import { isLegacyBackup, migrateLegacyBackup } from "@/lib/backup-legacy";
 
 type Tx = Prisma.TransactionClient;
 
@@ -68,7 +69,19 @@ export async function POST(req: NextRequest) {
     if (!body || typeof body !== "object") {
       return NextResponse.json({ error: "ملف غير صالح — ليس JSON" }, { status: 400 });
     }
-    const dump = body as Record<string, unknown>;
+    let dump = body as Record<string, unknown>;
+    let legacySkipped: Record<string, number> | null = null;
+    // r21: النسخ الاحتياطية القديمة (النظام الأصلي Express/Drizzle) — تُرحَّل إلى التنسيق الحالي
+    if (isLegacyBackup(dump)) {
+      // الشركات الحالية تُقرأ قبل المعاملة لتُحفظ ببياناتها الغنية في الترحيل
+      const currentCompanies = await db.company.findMany();
+      const migrated = migrateLegacyBackup(
+        dump,
+        currentCompanies.map((c) => ({ ...c, createdAt: c.createdAt?.toISOString?.() ?? c.createdAt, updatedAt: c.updatedAt?.toISOString?.() ?? c.updatedAt })) as unknown as Array<Record<string, unknown>>,
+      );
+      dump = migrated.dump as unknown as Record<string, unknown>;
+      legacySkipped = migrated.skipped;
+    }
     if (dump.app !== "garfix-accounts" || !dump.data || typeof dump.data !== "object") {
       return NextResponse.json(
         { error: "هذا الملف ليس نسخة احتياطية من نظام جرفِكس (app/data غير مطابقين)" },
@@ -137,6 +150,7 @@ export async function POST(req: NextRequest) {
       restored,
       backupGeneratedAt: typeof dump.generatedAt === "string" ? dump.generatedAt : null,
       engine: typeof dump.engine === "string" ? dump.engine : null,
+      legacySkipped,
       message: "تمت الاستعادة بنجاح — أعد تحميل الصفحة لرؤية البيانات المستعادة",
     });
   } catch (err) {

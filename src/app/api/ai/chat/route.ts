@@ -72,7 +72,8 @@ export async function POST(req: NextRequest) {
     }
 
     const snapshot = await buildProjectContext({ companySlug, companyName });
-    const systemPrompt = contextToSystemPrompt(snapshot);
+    const lang = typeof body.lang === "string" ? body.lang : undefined;
+    const systemPrompt = contextToSystemPrompt(snapshot, lang);
 
     const messages: ChatMessage[] = [{ role: "system", content: systemPrompt }];
     for (const m of history.slice(-20)) {

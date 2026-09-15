@@ -1,0 +1,1326 @@
+العنوان	Address
+عميل	Customer
+إلغاء	Cancel
+الاسم	Name
+فاتورة	Invoice
+العميل	Customer
+التاريخ	Date
+التلفون	Phone
+ملاحظات	Notes
+الهاتف	Phone
+المنتجات	Products
+البريد	Email
+الإجمالي	Total
+مدفوعة	Paid
+تاريخ الاستحقاق	Due Date
+منتج	Product
+✕ إغلاق	✕ Close
+الحالة	Status
+آخر شراء	Last Purchase
+⏳ جارٍ الحفظ...	⏳ Saving...
+مشترك	Subscriber
+غير مدفوعة	Unpaid
+ملغية	Cancelled
+كي نت	KNET
+نقدي	Cash
+بطاقة	Card
+رقم الفاتورة	Invoice No.
+تاريخ الفاتورة	Invoice Date
+الكمية	Qty
+المدفوع	Paid
+الملف فارغ أو غير صحيح	File is empty or invalid
+المبلغ	Amount
+عدد الفواتير	Invoices Count
+إجمالي الإنفاق	Total Spending
+نعم، احذف	Yes, Delete
+🖨️ طباعة	🖨️ Print
+فشل الحفظ	Save failed
+⏳ جارٍ الحفظ…	⏳ Saving…
+فواتير	Invoices
+أحمد عزت السيد	Ahmed Ezzat Elsayad
+توفير أونلاين شوب	Tawfeer Online Shop
+جزئي	Partial
+عميلنا العزيز {0}،	Dear customer {0},
+شكراً لتعاونكم 🌹	Thank you for your cooperation 🌹
+رقم	No.
+اسم العميل	Customer Name
+رقم الهاتف	Phone Number
+اسم المنتج	Product Name
+الوصف	Description
+المبلغ المستحق	Amount Due
+التبديل إلى الوضع النهاري	Switch to light mode
+التبديل إلى الوضع الليلي	Switch to dark mode
+تبديل السمة	Toggle theme
+✏️ تعديل	✏️ Edit
+{0} فاتورة	{0} invoice(s)
+الإيرادات	Revenue
+الضريبة (	Tax (
+التوصيل	Delivery
+المنطقة / العنوان	Area / Address
+💾 حفظ التعديلات	💾 Save Changes
+من	from
+الفواتير	Invoices
+🗑️ تم الحذف	🗑️ Deleted
+تأكيد الحذف	Confirm Deletion
+اسم المنتج *	Product Name *
+أحمد عزت الصياد	Ahmed Ezzat Elsayad
+أيام التأخير	Days Overdue
+سعر الشراء	Purchase Price
+اختياري	optional
+منتج ·	Product ·
+استعادة	Restore
+عملاء	Customers
+إلغاء الكل	Clear All
+الشركة القابضة المتحدة	United Holding Group
+نظام إدارة الحسابات المتكامل	Integrated Accounts Management System
+فشل التنفيذ	Execution failed
+الشركة	Company
+مجاناً لأول	Free for the first
+محلكم أونلاين ستور	Mahhal Online Store
+بوص نيولايف	Boss Neolife
+لقطة أونلاين	Laqta Online Store
+أونلاين	Online
+📄 الفاتورة رقم {0} بتاريخ {1}	📄 Invoice No. {0} dated {1}
+المنتج	Product
+الصنف	Item
+سعر الوحدة	Unit Price
+تعذر قراءة ملف Excel — تأكد أنه بصيغة .xlsx أو .xls	Could not read the Excel file — make sure it is .xlsx or .xls
+ملف Excel فارغ	Empty Excel file
+جديد	New
+⏳ جارٍ الاستيراد...	⏳ Importing...
+← رجوع	← Back
+فشل تصدير PDF	PDF export failed
+إجمالي المشتريات	Total Purchases
+للميتا (هاتف)	for Meta (phone)
+إضافة شركة جديدة	Add New Company
+خروج	Logout
+إجمالي العملاء	Total Customers
+تعديل بيانات العميل	Edit Customer Details
+إضافة عميل جديد	Add New Customer
+لا يوجد عملاء محفوظون للتصدير	No saved customers to export
+عميل)	customer)
+العملاء	Customers
+ملف غير صالح	Invalid file
+❌ تعذّر قراءة الملف	❌ Could not read the file
+خطأ غير معروف	Unknown error
+فاتورة •	Invoice •
+استيراد CSV / Excel	Import CSV / Excel
+الرصيد المستحق	Outstanding Balance
+💾 حفظ	💾 Save
+✅ تم النسخ	✅ Copied
+تحديد الكل	Select All
+يوم	day(s)
+يرجى إدخال التلفون أو الاسم	Please enter a phone number or name
+الإدخال المجمع	Bulk Input
+نهائياً	permanently
+🛒 توليد فاتورة مشتريات	🛒 Generate Purchase Invoice
+لا توجد فواتير	No invoices
+⏰ متأخرة	⏰ Overdue
+إرسال تذكير بالسداد عبر واتساب (رسالة جاهزة)	Send payment reminder via WhatsApp (ready-made message)
+طباعة الفاتورة	Print Invoice
+تعديل الفاتورة	Edit Invoice
+حذف الفاتورة	Delete Invoice
+⏳ جاري…	⏳ Working…
+🗑️ حذف	🗑️ Delete
+بيانات العميل	Customer Details
+رقم التلفون *	Phone Number *
+المدفوع (KD)	Paid (KD)
+السعر {0}	Price {0}
++ إضافة منتج	+ Add Product
+التوصيل (	Delivery (
+) — 0 للمجاني	) — 0 for free
+🧾 الضريبة (٪) — اختيارية	🧾 Tax (%) — optional
+ — افتراضي الشركة {0}٪	 — company default {0}%
+المجموع:	Subtotal:
+التوصيل:	Delivery:
+الإجمالي:	Total:
+تم البرمجة والتطوير بواسطة	Programmed & developed by
+تحويل	Transfer
+غير مستحقة	Not Due
+لم يحل موعد السداد	Payment not due yet
+٣١–٦٠ يوم	31–60 days
+٦١–٩٠ يوم	61–90 days
++٩٠ يوم	+90 days
+تأخير طويل	Long delay
+سعر الشراء KD	Purchase Price KD
+اسم المورد	Supplier Name
+جارٍ الحفظ...	Saving...
+⏳ جارٍ التحميل...	⏳ Loading...
+🌍 الدول العربية	🌍 Arab Countries
+🌏 باقي دول العالم	🌏 Rest of the World
+الشركات	Companies
+أخرى	Other
+عرض فقط 👁️	View only 👁️
+موظف طلبات 👤	Orders Clerk 👤
+وصول كامل ✏️	Full access ✏️
+صيغة الإيميل غير صحيحة	Invalid email format
+نوع الصلاحية	Permission Type
+⚙️ الصلاحيات التفصيلية	⚙️ Detailed Permissions
+تفعيل الكل	Enable All
+💾 حفظ الإعدادات	💾 Save Settings
+قبل {0} دقيقة	{0} minutes ago
+قبل {0} ساعة	{0} hours ago
+قبل {0} يوم	{0} days ago
+تسجيل دفعة	Record Payment
+ملاحظة	Note
+❌ حدث خطأ أثناء الحفظ	❌ An error occurred while saving
+❌ حدث خطأ أثناء الحذف	❌ An error occurred while deleting
+قطعة	pcs
+واتساب	WhatsApp
+يدوي	Manual
+أعلى	Top
+المؤسس والرئيس التنفيذي	Founder & CEO
+الكويت — حولي	Kuwait — Hawally
+فشل الحفظ:	Save failed:
+حذف	Delete
+🔄 إعادة المحاولة	🔄 Retry
+معطّلة	Disabled
+المشترك	Subscriber
+البلد	Country
+الخطة	Plan
+الاستخدام	Usage
+عضو منذ	Member since
+كلمتا المرور غير متطابقتين	Passwords do not match
+دخول النظام ←	Enter System ←
+تذكير ودّي من {0} 🙏	Friendly reminder from {0} 🙏
+💰 الإجمالي: {0}	💰 Total: {0}
+✅ المدفوع: {0} — المتبقي: {1}	✅ Paid: {0} — Remaining: {1}
+المبلغ المطلوب: {0}	Amount requested: {0}
+📅 تاريخ الاستحقاق: {0}{1}	📅 Due date: {0}{1}
+ (متأخرة {0} يوم)	 ({0} days overdue)
+نرجو التكرم بتسوية المبلغ المتبقي في أقرب وقت 🙏	Kindly settle the remaining balance at your earliest convenience 🙏
+طلب دفع من {0} 💳	Payment request from {0} 💳
+💰 المبلغ المطلوب: {0}	💰 Amount requested: {0}
+🔗 للسداد الإلكتروني (كي نت):\n{0}	🔗 To pay online (KNET):\n{0}
+تاريخ	Date
+هاتف	Phone
+جوال	Mobile
+عنوان	Address
+وصف	Description
+كمية	Qty
+سعر	Price
+السعر	Price
+توصيل	Delivery
+شحن	Shipping
+مدفوع	Paid
+يرجى رفع ملف CSV أو Excel بصيغة .xlsx أو .xls	Please upload a CSV or Excel file in .xlsx or .xls format
+📥 استيراد الفواتير (CSV / Excel)	📥 Import Invoices (CSV / Excel)
+رفع الملف	Upload File
+معاينة البيانات	Data Preview
+تم الاستيراد	Imported
+📋 الصيغ المدعومة: Excel (.xlsx / .xls) و CSV	📋 Supported formats: Excel (.xlsx / .xls) and CSV
+أعدّ ملفك في	Prepare your file in
+أو صدّره من أي نظام محاسبة	or export it from any accounting system
+رؤوس الأعمدة تدعم	Column headers support
+العربية والإنجليزية	Arabic and English
+معاً	together
+تكرار رقم الفاتورة في أكثر من سطر يُدمج تلقائياً كبنود متعددة	Repeated invoice numbers across rows are automatically merged as multiple line items
+الفواتير المكررة (بنفس الرقم) يمكن تخطيها اختيارياً	Duplicate invoices (same number) can optionally be skipped
+اسحب ملف CSV أو Excel هنا	Drag a CSV or Excel file here
+أو اضغط للاختيار من جهازك	or click to choose from your device
+اختر ملف CSV / Excel	Choose CSV / Excel File
+الأعمدة المدعومة:	Supported columns:
+رقم الفاتورة، التاريخ، اسم العميل، الهاتف، العنوان، اسم المنتج، الكمية، السعر، التوصيل، المدفوع، الملاحظات	Invoice number, date, customer name, phone, address, product name, qty, price, delivery, paid, notes
+تم تحليل	Parsed
+مكررة)	duplicates)
+الأعمدة المكتشفة:	Detected columns:
+تخطى المكررة	Skip duplicates
+حالة	Status
+مكرر	Duplicate
+💾 استيراد {0} فاتورة	💾 Import {0} invoice(s)
+تم الاستيراد بنجاح!	Imported successfully!
+تم إضافة	Added
+فاتورة من الملف	invoice(s) from the file
+تم تخطى	Skipped
+فاتورة مكررة	duplicate invoice(s)
+عرض الفواتير ←	View Invoices ←
+كلاسيكي	Classic
+عصري	Modern
+بسيط	Minimal
+مدفوعة جزئياً	Partially Paid
+<div class="watermark">ملغية</div>	<div class="watermark">CANCELLED</div>
+فاتورة {0} — {1}	Invoice {0} — {1}
+فواتير ({0}) — {1}	Invoices ({0}) — {1}
+يرجى السماح بالـ Popups	Please allow popups
+فاتورة_{0}	Invoice_{0}
+فواتير_{0}	Invoices_{0}
+✅ تم تصدير الفاتورة إلى PDF	✅ Invoice exported to PDF
+✅ تم تصدير	✅ Exported
+فواتير إلى PDF	invoices to PDF
+مجاني	Free
+الجوال	Mobile
+الايميل	Email
+المنطقة	Area
+الأعمدة المطلوبة: الاسم + التلفون	Required columns: Name + Phone
+سطر {0}: بدون تلفون — تم تخطيه	Row {0}: no phone — skipped
+نظام إدارة الفواتير	Invoicing System
+اختر الشركة	Choose Company
+مرحباً {0} — 	Hello {0} — 
+شركة متاحة لك	company available to you
+أنشئ شركتك الأولى وابدإ الفواتير	Create your first company and start invoicing
+أضف شركتك الأولى	Add your first company
+شركة واحدة خاصة بك: فواتير وعملاء وتقارير ومساعد ذكي — كاملة مجاناً ضمن أول 100 مشترك.	Your own company: invoices, customers, reports and a smart assistant — all free within the first 100 subscribers.
+بيانات كاملة + العملة من شاشة واحدة.	Full details + currency from one screen.
+＋ إنشاء شركتي الآن	＋ Create My Company Now
+لا توجد شركات مخصصة لحسابك	No companies assigned to your account
+تواصل مع المدير لإضافة صلاحيات	Contact the admin to add permissions
+تعديل بيانات الشركة	Edit Company Details
+بيانات كاملة + العملة	Full details + currency
+من شاشة واحدة	from one screen
+جارٍ تحميل لوحة التحكم	Loading dashboard
+اضغط للعرض	Click to view
+إجمالي الإيرادات	Total Revenue
+إيرادات هذا الشهر	This Month's Revenue
+مستحقات غير مدفوعة	Unpaid Receivables
+متوسط {0}	Average {0}
+📈 الإيرادات الشهرية	📈 Monthly Revenue
+🧾 عدد الفواتير شهرياً	🧾 Invoices per Month
+عدد	Count
+نمو	Growth
+% عن الشهر الماضي	% vs last month
+فـاتـورة	INVOICE
+صادرة إلى	Billed To
+المسؤول	Manager
+المنتج / الخدمة	Product / Service
+المجموع الجزئي	Subtotal
+إجمالي الفاتورة	Invoice Total
+ملاحظات:	Notes:
+سيتم حفظه في دليل	will be saved to the directory
+الاسم *	Name *
+مثال: عبدالله حسن	e.g. Abdullah Hassan
+التلفون *	Phone *
+البريد الإلكتروني (اختياري)	Email (optional)
+العنوان (اختياري)	Address (optional)
+اسم العميل مطلوب	Customer name is required
+رقم التلفون مطلوب	Phone number is required
+تعذّر الحفظ — تحقق من الاتصال ثم أعد المحاولة	Could not save — check the connection and try again
+➕ إضافة العميل	➕ Add Customer
+⬇️ تم تنزيل دليل العملاء (	⬇️ Customer directory downloaded (
+📊 تم تنزيل دليل العملاء Excel (	📊 Customer directory Excel downloaded (
+✅ تم استيراد {0} عميل{1}	✅ Imported {0} customer(s){1}
+ — تخطّي {0} مكرر/غير صالح	 — skipped {0} duplicate/invalid
+لم يُضف أي عميل جديد (كله مكرر)	No new customers added (all duplicates)
+✅ تم إضافة	✅ Added
+إلى الدليل	to the directory
+✅ تم تحديث بيانات	✅ Updated
+🗑️ تم حذف	🗑️ Deleted
+من الدليل	from the directory
+دليل العملاء المحفوظين	Saved Customers Directory
+للاستخدام السريع عند إنشاء الفواتير — يُحفظ لكل شركة على حدة	For quick use when creating invoices — saved per company
+محفوظ	saved
+🔍 بحث في الدليل…	🔍 Search directory…
+بحث في دليل العملاء	Search customer directory
+تنزيل الدليل كملف CSV (يفتح في Excel)	Download directory as CSV (opens in Excel)
+تنزيل الدليل كملف Excel (.xlsx)	Download directory as Excel (.xlsx)
+استيراد عملاء من ملف CSV أو Excel (الاسم + التلفون مطلوبان)	Import customers from CSV or Excel (name + phone required)
+⬆️ استيراد	⬆️ Import
+➕ عميل جديد	➕ New Customer
+لا يوجد عملاء محفوظون بعد	No saved customers yet
+أضف عميلك الأول ليظهر هنا، أو سيُضاف تلقائياً عند إنشاء أول فاتورة له	Add your first customer to see them here, or they will be added automatically when you create their first invoice
+➕ إضافة عميل	➕ Add Customer
+حذف من الدليل	Remove from directory
+لا نتائج مطابقة للبحث «	No results matching “
+» — جرّب اسماً أو رقماً آخر	” — try another name or number
+استيراد عملاء من CSV	Import customers from CSV
+صف صالح — سيُتخطى المكرر تلقائياً	Valid row — duplicates will be skipped automatically
+… و	… and
+عميل آخر	more customer(s)
+💾 استيراد {0} عميل	💾 Import {0} customer(s)
+حذف العميل من الدليل؟	Remove customer from directory?
+سيتم حذف	will delete
+من دليل العملاء.	from the customer directory.
+فواتيره السابقة لن تتأثر.	Their past invoices will not be affected.
+⛔ تم تفعيل المنع الصارم لتجاوز حدود الائتمان — لن يستطيع غير المديرين حفظ فواتير متجاوزة	⛔ Strict blocking for exceeding credit limits is now ON — non-admins cannot save invoices beyond the limit
+✅ تم تعطيل المنع الصارم — سيقتصر الأمر على التحذير فقط	✅ Strict blocking disabled — warnings only
+✅ تم تعيين حد الائتمان {0}	✅ Credit limit set to {0}
+🗑️ تم إزالة حد الائتمان	🗑️ Credit limit removed
+كشف_حساب_	Statement_
+✅ تم تصدير كشف الحساب PDF	✅ Account statement exported to PDF
+فشل تصدير كشف الحساب	Account statement export failed
+📋 كشف حساب من {0} حتى {1}	📋 Account statement from {0} to {1}
+🧾 عدد الفواتير: {0}	🧾 Invoices count: {0}
+💰 إجمالي المبيعات: {0}	💰 Total sales: {0}
+✅ المدفوع: {0}	✅ Paid: {0}
+⏳ الرصيد المستحق: {0}	⏳ Outstanding balance: {0}
+🎉 لا يوجد رصيد مستحق — حسابكم مسدد بالكامل	🎉 No outstanding balance — your account is fully settled
+⏰ أقدم استحقاق متأخر: {0} يوم	⏰ Oldest overdue: {0} days
+نرجو التكرم بمراجعة الحساب وتسوية الرصيد، ويمكننا إرسال كشف حساب PDF مفصل عند الطلب.	Kindly review the account and settle the balance; we can send a detailed PDF statement upon request.
+لا يوجد رقم هاتف لهذا العميل	This customer has no phone number
+📣 تم فتح محادثة كشف الحساب	📣 Account statement chat opened
+تصدير كشف حساب كامل: كل الفواتير والمدفوعات والرصيد وتقادم الذمم	Export full account statement: all invoices, payments, balance and aging
+⏳ جاري التجهيز…	⏳ Preparing…
+📄 كشف حساب PDF	📄 Statement PDF
+إرسال ملخص كشف الحساب عبر واتساب: عدد الفواتير، إجمالي المبيعات، المدفوع والرصيد المستحق — يُسجَّل في سجل التحصيل	Send statement summary via WhatsApp: invoices count, total sales, paid and outstanding — logged in the collection log
+📨 كشف الحساب واتساب ({0})	📨 Statement WhatsApp ({0})
+📨 كشف الحساب واتساب	📨 Statement WhatsApp
+💬 واتساب	💬 WhatsApp
+📞 اتصال	📞 Call
+دمج هذا العميل مع عميل آخر مكرر — تُنقل كل فواتيره وتُوحّد الاسم والرقم (مفيد لمن أُدخل برقمين مختلفين)	Merge this customer with another duplicate — all invoices move and the name and number unify (useful for entries with two numbers)
+🔀 دمج مكرر	🔀 Merge Duplicate
+أول شراء	First Purchase
+⛔ تجاوز الحد بمقدار {0}	⛔ Over limit by {0}
+🔴 قارب استنفاد الحد	🔴 Near limit
+🟡 استهلاك متوسط للحد	🟡 Moderate limit usage
+🟢 ضمن الحد الآمن	🟢 Within safe limit
+💳 حد الائتمان	💳 Credit Limit
+مستحق	Outstanding
+الحد	Limit
+% مستخدم	% used
+— الرجاء التحصيل قبل فتح فواتير جديدة	— Please collect before opening new invoices
+حد ائتمان (KD)	Credit limit (KD)
+الحد الأقصى للديون المسموح بها لهذا العميل	Maximum allowed debt for this customer
+💾 حفظ الحد	💾 Save Limit
+🗑️ إزالة	🗑️ Remove
+بدون حد — يُستخدم للتنبيه عند إنشاء فواتير جديدة	No limit — used for alerts when creating new invoices
+🛍️ المنتجات المشتراة (	🛍️ Purchased products (
+🧾 سجل الفواتير — اضغط لعرض الفاتورة	🧾 Invoice history — click to view the invoice
+✅ تم دمج {0} فاتورة بنجاح	✅ Merged {0} invoice(s) successfully
+فشل الدمج:	Merge failed:
+دمج العملاء المكررين	Merge Duplicate Customers
+نقل فواتير المصدر إلى العميل الهدف وتوحيد الاسم والرقم	Move the source customer's invoices to the target customer and unify the name and number
+المصدر — سيُدمج في الهدف (لا فواتير تبقى باسمه)	Source — merged into target (no invoices remain under its name)
+اختر العميل الهدف ⬇️	Choose the target customer ⬇️
+الهدف ✓	Target ✓
+فاتورة بعد الدمج	invoice(s) after merge
+تغيير	Change
+🔍 ابحث باسم أو رقم العميل الهدف...	🔍 Search target customer by name or number...
+لا يوجد عملاء آخرون مطابقون	No other matching customers
+سيُنقل	will move
+من «	from “
+» إلى «	” to “
+» ويتوحّد الاسم والرقم على العميل الهدف.	” and the name and number unify on the target customer.
+⚠️ لا يمكن التراجع مباشرة — احتفظ بنسخة احتياطية من تبويب 💾 النظام قبل الدمج عند الشك.	⚠️ Cannot be undone directly — keep a backup from the 💾 System tab before merging if in doubt.
+⏳ جارٍ الدمج…	⏳ Merging…
+⚠️ متأكد؟ اضغط مجدداً للتنفيذ	⚠️ Sure? Click again to execute
+🔀 تنفيذ الدمج	🔀 Execute Merge
+🔍 ابحث باسم العميل أو التلفون...	🔍 Search customer by name or phone...
+ترتيب: أعلى إنفاق	Sort: Top spending
+ترتيب: أكثر فواتير	Sort: Most invoices
+ترتيب: آخر شراء	Sort: Last purchase
+⬇️ تصدير Excel للميتا	⬇️ Export Excel for Meta
+متوسط الإنفاق / عميل	Average spend / customer
+متجاوزو حد الائتمان	Over credit limit
+المنع الصارم لتجاوز حدود الائتمان	Strict blocking for exceeding credit limits
+مُفعّل: لا يستطيع غير المديرين حفظ فاتورة تتجاوز حد ائتمان العميل — يُطبَّق على مستوى الشركة ويُزامن عبر الأجهزة.	ON: non-admins cannot save an invoice exceeding the customer's credit limit — applied company-wide and synced across devices.
+غير مُفعّل: يتجاوز الحد يُظهر تحذيراً فقط دون منع الحفظ.	OFF: exceeding the limit shows a warning only, without blocking the save.
+تبديل سياسة إنفاذ حدود الائتمان لهذه الشركة	Toggle credit-limit enforcement policy for this company
+🚫 تعطيل المنع الصارم	🚫 Disable Strict Blocking
+🔒 تفعيل المنع الصارم	🔒 Enable Strict Blocking
+لا توجد عملاء	No customers
+للميتا	for Meta
+لا يوجد رابط دفع مُعد — أضف قالب بوابة الدفع أولاً	No payment link template configured — add the payment gateway template first
+📋 تم نسخ رابط الدفع	📋 Payment link copied
+✅ تم حفظ قالب بوابة الدفع (يتزامن عبر أجهزتك)	✅ Payment gateway template saved (synced across your devices)
+🗑️ تم مسح قالب بوابة الدفع	🗑️ Payment gateway template cleared
+رابط الدفع الإلكتروني	Online payment link
+— المتبقي	— Remaining
+💰 المبلغ المطلوب (KD)	💰 Requested Amount (KD)
+إرجاع المبلغ إلى المتبقي الفعلي على الفاتورة	Reset the amount to the actual remaining on the invoice
+↺ المتبقي	↺ Remaining
+🔗 رابط الدفع الجاهز	🔗 Ready payment link
+⚙️ لم يُضبط رابط بوابة الدفع بعد.	⚙️ No payment gateway link configured yet.
+أضف قالب رابط بوابة الدفع (KPay / MyFatoorah / kNET…) مرة واحدة، وسيتولّى النظام توليد الروابط تلقائياً لكل فاتورة. يمكنك أيضاً إرسال طلب دفع عبر واتساب بدون رابط.	Add the payment gateway link template (KPay / MyFatoorah / kNET…) once and the system will generate links automatically for every invoice. You can also send a payment request via WhatsApp without a link.
+⚙️ إعداد الآن	⚙️ Set Up Now
+⚙️ قالب رابط بوابة الدفع	⚙️ Payment Gateway Link Template
+الصق رابط بوابة الدفع الخاص بالشركة واستخدم العناصر البديلة:	Paste the company's payment gateway link and use the placeholders:
+للمبلغ،	for the amount,
+لرقم الفاتورة.	for the invoice number.
+💾 يُحفظ لشركة	💾 Saved for company
+على الخادم — يتزامن تلقائياً عبر كل الأجهزة	on the server — synced automatically across all devices
+⚙️ تعديل قالب بوابة الدفع	⚙️ Edit Payment Gateway Template
+📣 معاينة رسالة الطلب (واتساب)	📣 Payment request message preview (WhatsApp)
+📋 نسخ رابط الدفع	📋 Copy payment link
+📣 إرسال واتساب	📣 Send via WhatsApp
+إغلاق	Close
+لا توجد فواتير محددة	No invoices selected
+📋 تم نسخ	📋 Copied
+رقم — الصقها في قائمة Broadcast في واتساب	number — paste it into a WhatsApp Broadcast list
+حدّد فاتورة واحدة على الأقل	Select at least one invoice
+🚀 جارٍ فتح واتساب لـ	🚀 Opening WhatsApp for
+تذكير جماعي بالسداد	Bulk payment reminders
+فاتورة متأخرة بإجمالي متبقٍ	overdue invoice with remaining total
+محدد •	selected •
+📋 نسخ الأرقام	📋 Copy Numbers
+🚀 إرسال (	🚀 Send (
+كل الفواتير المتأخرة بلا أرقام تلفون	all overdue invoices without phone numbers
+إرسال تذكير لهذا العميل	Send a reminder to this customer
+💡 سيفتح زر «إرسال» محادثة واتساب لكل عميل على حدة (برسالة جاهزة).\n      لإرسال قائمة تذكير واحدة للجميع استخدم «نسخ الأرقام» ثم أنشئ	💡 The "Send" button opens an individual WhatsApp chat per customer (with a ready-made message).\n      To send one reminder list to everyone, use "Copy Numbers" then create a
+في واتساب.\n      اسمح بالـ Popups للمتصفح.	list in WhatsApp.\n      Allow popups in your browser.
+✅ تم تحديث الفاتورة	✅ Invoice updated
+هل تريد حذف {0} فاتورة؟	Delete {0} invoice(s)?
+🗑️ تم حذف {0} فاتورة	🗑️ Deleted {0} invoice(s)
+⛔ منع الحفظ — تجاوز حد الائتمان: الرصيد {0} + هذه الفاتورة {1} = {2} (الحد {3}). يرجى التحصيل أولاً أو مراجعة الإدارة.	⛔ Save blocked — credit limit exceeded: balance {0} + this invoice {1} = {2} (limit {3}). Please collect first or contact management.
+⚠️ تم تجاوز حد الائتمان بفارق {0} — الحفظ مسموح لك بصفتك مدير النظام	⚠️ Credit limit exceeded by {0} — save allowed as system admin
+✅ تم حفظ الفاتورة	✅ Invoice saved
+✅ تم حفظ {0} فاتورة	✅ Saved {0} invoice(s)
+لم يُستخرج أي طلب من النص	No orders extracted from the text
+🤖 عولج {0} طلب بالذكاء الاصطناعي	🤖 {0} order(s) processed with AI
+تعذرّت المعالجة الذكية	Smart processing failed
+لا توجد فواتير في هذا النطاق	No invoices in this range
+الأحدث أولاً	Newest first
+الأقدم أولاً	Oldest first
+المبلغ: الأعلى	Amount: Highest
+المبلغ: الأقل	Amount: Lowest
+المتأخرة أولاً	Overdue first
+⬇️ تم تنزيل ملف CSV	⬇️ CSV file downloaded
+عدد المنتجات	Products Count
+المتبقي	Remaining
+📊 تم تنزيل ملف Excel	📊 Excel file downloaded
+📋 الفواتير	📋 Invoices
+👥 العملاء	👥 Customers
+📈 التقارير	📈 Reports
+➕ جديد	➕ New
+📦 مجمع	📦 Bulk
+💬 المساعد الذكي	💬 Smart Assistant
+🛒 المشتريات	🛒 Purchases
+👤 حسابي	👤 My Account
+🌐 الموقع	🌐 Website
+💾 النظام	💾 System
+تعديل فاتورة	Edit Invoice
+{0}{1} — نظام إدارة الحسابات	{0}{1} — Accounts Management System
+نظام إدارة الحسابات — الشركة القابضة المتحدة	Accounts Management System — United Holding Group
+جارٍ التحميل...	Loading...
+✅ تم استيراد {0} فاتورة من الملف	✅ Imported {0} invoice(s) from the file
+المستخدمين	Users
+تعديل بيانات الشركة الحالية	Edit current company details
+سيتم حذف الفاتورة	will delete the invoice
+المساعد الذكي — اسأل بياناتك ونفّذ من هنا	Smart Assistant — ask about your data and execute from here
+ملخصات وتحليلات فورية + إنشاء فواتير وعملاء ودفوعات ببطاقة تأكيد	Instant summaries and analytics + create invoices, customers and payments with a confirmation card
+فتح المحادثة الكاملة ←	Open full chat ←
+✅ تم استيراد البيانات من الملف بنجاح	✅ Data imported from the file successfully
+🔍 ابحث بالتلفون أو الاسم أو رقم الفاتورة...	🔍 Search by phone, name or invoice number...
+تصدير CSV	Export CSV
+تصدير Excel	Export Excel
+/ صفحة	/ page
+فاتورة متأخرة عن الاستحقاق	invoice(s) overdue
+إرسال تذكير واتساب لكل العملاء المتأخرين	Send a WhatsApp reminder to all overdue customers
+تذكير جماعي	Bulk Reminder
+📋 الكل	📋 All
+محدد	Selected
+🖨️ طباعة المحددة	🖨️ Print Selected
+🗑️ حذف المحددة	🗑️ Delete Selected
+✕ إلغاء التحديد	✕ Clear Selection
+📥 استورد فواتيرك (CSV / Excel)	📥 Import your invoices (CSV / Excel)
+فاتورة مستوردة من ملف	Invoice imported from a file
+تصدير PDF	Export PDF
+→ السابق	→ Previous
+التالي ←	Next ←
+تصدير الفاتورة إلى ملف PDF	Export the invoice to a PDF file
+📣 تذكير واتساب	📣 WhatsApp Reminder
+توليد رابط دفع إلكتروني (كي نت) وإرساله للعميل	Generate an online payment link (KNET) and send it to the customer
+💳 رابط الدفع	💳 Payment Link
+يوم عن الاستحقاق	day(s) past due
+➕ فاتورة جديدة —	➕ New Invoice —
+📇 اختر من دليل العملاء (	📇 Choose from customer directory (
+محفوظ)	saved)
+— إدخال يدوي (عميل جديد) —	— Manual entry (new customer) —
+الاسم (اختياري)	Name (optional)
+⛔ تجاوز حد الائتمان — الرصيد الحالي {0} + هذه الفاتورة {1} = {2} (الحد {3}) بفارق {4}. يُنصح بالتحصيل أولاً.	⛔ Credit limit exceeded — current balance {0} + this invoice {1} = {2} (limit {3}) by {4}. Collecting first is recommended.
+⚠️ اقتراب من حد الائتمان — {0} من {1} ({2}%) بعد إضافة هذه الفاتورة.	⚠️ Approaching credit limit — {0} of {1} ({2}%) after adding this invoice.
+💾 حفظ الفاتورة	💾 Save Invoice
+✏️ تعديل الفاتورة	✏️ Edit Invoice
+← إلغاء	← Cancel
+📇 اختر من دليل العملاء (استبدال البيانات)	📇 Choose from directory (replace data)
+— تعديل يدوي —	— Manual edit —
+حالة الطلب	Order Status
+تلقائي (حسب المدفوع)	Automatic (based on paid)
+ملغية ✕	Cancelled ✕
+📦 إدخال مجمع	📦 Bulk Entry
+🤖 بالذكاء الاصطناعي	🤖 With AI
+كل طلب يفصله سطر فارغ — يقبل صيغة الإيموجي أو	Each order separated by an empty line — accepts the emoji format or
+أي صيغة حرة	any free format
+(عربي/إنجليزي): المساعد الذكي يفهم ويستخرج الطلبات والأسعار والتوصيل	(Arabic/English): the smart assistant understands and extracts orders, prices and delivery
+📍 الاسم: محمد أبو العينين\n📞 الهاتف: 97479196\n🏠 العنوان: حولي\n🛠️ الطلب: ماتور بوص واحد حصان\n💰 السعر: 11.900\n🚚 التوصيل: مجاني	📍 Name: Mohammed Abul-Enein\n📞 Phone: 97479196\n🏠 Address: Hawally\n🛠️ Order: Boss 1HP motor\n💰 Price: 11.900\n🚚 Delivery: free
+جارٍ المعالجة بالذكاء الاصطناعي…	Processing with AI…
+يقرأ النص، يستخرج العملاء والمنتجات والكميات والأسعار والتوصيل	Reads the text, extracts customers, products, quantities, prices and delivery
+🤖 معالجة وإضافة بالذكاء الاصطناعي	🤖 Process & Add with AI
+🔍 معاينة سريعة	🔍 Quick Preview
+💡 «المعاينة السريعة» تستخدم المحلل المحلي لصيغة الإيموجي فقط — زرّ الذكاء الاصطناعي يفهم أي صيغة	💡 "Quick Preview" uses the local parser for the emoji format only — the AI button understands any format
+طلب جاهز	Order ready
+⚡ عولج بالذكاء الاصطناعي	⚡ Processed with AI
+| توصيل مجاني	| free delivery
+💾 إضافة الفواتير (	💾 Add Invoices (
+🤖 إعادة معالجة بالذكاء	🤖 Reprocess with AI
+← تعديل النص	← Edit Text
+تم حفظ	Saved
+فاتورة!	invoice(s)!
+إدخال جديد	New Entry
+عرض الفواتير	View Invoices
+🖨️ طباعة من رقم إلى رقم	🖨️ Print by Number Range
+نمط الفاتورة:	Invoice style:
+تم اختيار نمط {0}	Style {0} selected
+نمط {0}{1}	Style {0}{1}
+— بألوان الشركة	— with company colors
+— أبيض وأسود موفّر للحبر	— black & white, ink-saving
+التصميم الأصلي	The original design
+ألوان الشركة	Company colors
+أبيض وأسود	Black & white
+من رقم الفاتورة	From invoice number
+INV10001 أو 10001	INV10001 or 10001
+إلى رقم الفاتورة	To invoice number
+INV10010 أو 10010	INV10010 or 10010
+تصدير الفواتير في النطاق إلى ملف PDF واحد	Export invoices in the range to a single PDF file
+📄 تصدير PDF	📄 Export PDF
+⚠️ يجب السماح بالـ Popups في المتصفح لتعمل الطباعة	⚠️ Popups must be allowed in the browser for printing to work
+أو اضغط على فاتورة لطباعتها —	or click an invoice to print it —
+🖨️ اضغط للطباعة	🖨️ Click to Print
+٠–٣٠ يوم	0–30 days
+شاملة الملغاة)	including cancelled)
+دينار كويتي	Kuwaiti Dinar
+د.ك	KD
+ريال سعودي	Saudi Riyal
+ر.س	SAR
+درهم إماراتي	UAE Dirham
+د.إ	AED
+ريال قطري	Qatari Riyal
+ر.ق	QAR
+دينار بحريني	Bahraini Dinar
+د.ب	BHD
+ريال عماني	Omani Riyal
+ر.ع	OMR
+جنيه مصري	Egyptian Pound
+ج.م	EGP
+دولار أمريكي	US Dollar
+يورو	Euro
+جنيه إسترليني	British Pound
+ليرة تركية	Turkish Lira
+دينار أردني	Jordanian Dinar
+د.أ	JOD
+عالية	High
+متوسطة	Medium
+منخفضة	Low
+حدث خطأ في المعالجة	A processing error occurred
+حدث خطأ أثناء الحفظ	An error occurred while saving
+✅ تم إضافة المنتج للكتالوج	✅ Product added to catalog
+❌ فشل الحذف	❌ Delete failed
+✅ تم التحديث	✅ Updated
+❌ فشل التحديث	❌ Update failed
+🤖 معالجة AI للمشتريات	🤖 AI Processing for Purchases
+رجوع	Back
+كتالوج المنتجات ({0})	Product Catalog ({0})
+أدخل قائمة المنتجات (عربي أو إنجليزي أو مختلط)	Enter the products list (Arabic, English or mixed)
+أمثلة:	Examples:
+3 m19 headphones, ٥ شواحن ايفون, 2 powerbank 20k, اربع سماعات JBL, cable type c × 10	3 m19 headphones, 5 iPhone chargers, 2 powerbank 20k, four JBL speakers, cable type c × 10
+3 m19 headphones\n٥ شواحن ايفون\n2 powerbank 20k\nاربع سماعات JBL\ncable type c × 10	3 m19 headphones\n5 iPhone chargers\n2 powerbank 20k\nfour JBL speakers\ncable type c × 10
+🤖 معالجة بالذكاء الاصطناعي	🤖 Process with AI
+📦 أضف كتالوج المنتجات أولاً	📦 Add the product catalog first
+🔍 سيتم المطابقة مع	🔍 Will match against
+منتج في الكتالوج	product(s) in the catalog
+جارٍ المعالجة بالذكاء الاصطناعي...	Processing with AI...
+يتم تحليل النص واستخراج المنتجات وتطبيعها	Analyzing the text, extracting and normalizing products
+المنتجات المكتشفة	Detected Products
+بعد الدمج	After merge
+إجمالي الكميات	Total Quantity
+← إعادة الإدخال	← Re-enter
+نتائج الذكاء الاصطناعي — راجع وعدّل قبل الحفظ	AI results — review and edit before saving
+النص الأصلي	Original Text
+الاسم المطبّع	Normalized Name
+الثقة	Confidence
+📦 المنتجات المدمجة — هذا ما سيُحفظ في فاتورة المشتريات	📦 Merged products — this is what will be saved to the purchase invoice
+الكمية الكلية	Total Qty
+الإجمالي الكلي	Grand Total
+بيانات فاتورة المشتريات	Purchase Invoice Details
+💾 حفظ فاتورة المشتريات ({0} منتج)	💾 Save Purchase Invoice ({0} products)
+➕ إضافة منتج جديد للكتالوج	➕ Add New Product to Catalog
+مثال: سماعة JBL	e.g. JBL speaker
+أسماء بديلة (مفصولة بفاصلة)	Aliases (comma-separated)
+jbl, سماعات, headphone jbl	jbl, speakers, headphone jbl
+سعر البيع KD	Selling Price KD
+جارٍ الإضافة...	Adding...
+➕ إضافة للكتالوج	➕ Add to Catalog
+قائمة المنتجات في الكتالوج	Products list in the catalog
+الكتالوج فارغ — أضف منتجاتك أعلاه	The catalog is empty — add your products above
+الأسماء البديلة	Aliases
+الشراء KD	Purchase KD
+البيع KD	Selling KD
+← رجوع للإدخال	← Back to Entry
+تم حفظ فاتورة المشتريات!	Purchase invoice saved!
+قطعة إجمالية	total pcs
+🤖 إدخال جديد	🤖 New Entry
+📦 إدارة الكتالوج	📦 Manage Catalog
+تعذّر تحميل بيانات الحساب	Could not load account data
+فشل إرسال الطلب	Failed to send the request
+فشل الإلغاء	Cancel failed
+حساب مؤسسي مدمج — وصول غير محدود بلا حصص	Built-in organizational account — unlimited access, no quotas
+الصفة	Title
+تُطبَّق على الواجهة فوراً	Applies to the interface instantly
+فشل إنشاء النسخة الاحتياطية:	Backup creation failed:
+الملف كبير جداً (الحد 100MB)	File too large (limit 100MB)
+هذا الملف ليس نسخة احتياطية من نظام جرفِكس	This file is not a Garfix system backup
+المدفوعات	Payments
+الكتالوج	Catalog
+المشتريات	Purchases
+التذكيرات	Reminders
+الإعدادات	Settings
+محادثات AI	AI Conversations
+رسائل AI	AI Messages
+النسخة الاحتياطية	Backup
+تنزيل نسخة كاملة من قاعدة PostgreSQL	Download a full copy of the PostgreSQL database
+تشمل النسخة: الشركات، العملاء، الفواتير، المدفوعات، الكتالوج، المشتريات، التذكيرات، الإعدادات ومحادثات المساعد الذكي.	The backup includes: companies, customers, invoices, payments, catalog, purchases, reminders, settings and smart assistant conversations.
+🔐 مفتاح DeepSeek	🔐 DeepSeek Key
+لا يُضم	is not included
+إلى النسخة الاحتياطية (يبقى محفوظاً على الخادم).	in the backup (it stays saved on the server).
+⏳ جارٍ تجهيز النسخة…	⏳ Preparing backup…
+⬇️ تنزيل نسخة احتياطية (JSON)	⬇️ Download Backup (JSON)
+آخر نسخة:	Last backup:
+Recovery — الاستعادة	Recovery — Restore
+استبدال كامل من ملف نسخة احتياطية	Full replacement from a backup file
+⚠️ عملية	⚠️
+استبدالية	destructive
+: كل البيانات الحالية تُمحى وتُستبدال بمحتوى الملف — داخل معاملة ذرّية واحدة (نجاح كامل أو تراجع كامل). إعدادات DeepSeek لا تتأثر.	: all current data is wiped and replaced with the file's content — inside one atomic transaction (all-or-nothing). DeepSeek settings are unaffected.
+📂 اختيار ملف النسخة الاحتياطية…	📂 Choosing backup file…
+✅ ملف صالح	✅ Valid file
+صف إجمالاً • أُنشئ	rows total • created
+للتأكيد اكتب كلمة	To confirm, type the word
+«استعادة»	"restore"
+⏳ جارٍ الاستعادة…	⏳ Restoring…
+♻️ تنفيذ الاستعادة الآن	♻️ Execute Restore Now
+جارٍ محو البيانات الحالية وإدراج	Wiping current data and inserting
+صفاً…	rows…
+ℹ️ أعد تحميل الصفحة (F5) لرؤية البيانات المستعادة في كل التبويبات.	ℹ️ Reload the page (F5) to see the restored data in all tabs.
+حالة النظام الحيّة	Live system status
+(تتحدث كل 15 ثانية)	(refreshes every 15 seconds)
+🟢 النظام سليم	🟢 System healthy
+🟡 تحذير — يعمل بوضع بديل	🟡 Warning — running in fallback mode
+متصل ويعمل	connected and running
+غير متصل!	offline!
+زمن الاستجابة	Response time
+المحرك	Engine
+Valkey 8.1 (كاش)	Valkey 8.1 (cache)
+متصل — {0}	connected — {0}
+غير متصل — {0}	offline — {0}
+نسبة الإصابة	Hit rate
+إصابات / كتابات	hits / writes
+اسم الشركة (الإنجليزي) مطلوب	Company name (English) is required
+الاسم العربي مطلوب	Arabic name is required
+✅ تمت إضافة الشركة بنجاح	✅ Company added successfully
+✅ تم حفظ بيانات الشركة	✅ Company details saved
+تعذّر الحفظ	Could not save
+➕ إضافة شركة جديدة	➕ Add New Company
+✏️ تعديل بيانات الشركة	✏️ Edit Company Details
+اسم الشركة العربي	Arabic company name
+تمت إضافة الشركة — ستظهر في شاشة الاختيار	Company added — it will appear in the selection screen
+تم حفظ البيانات وتحديثها في كل مكان	Details saved and updated everywhere
+الاسم العربي…	Arabic name…
+الأساسيات	Basics
+الاسم العربي *	Arabic Name *
+كود قصير (لاتيني، اختياري)	Short code (Latin, optional)
+الأيقونة	Icon
+العملة — {0}	Currency — {0}
+💡 كل مبالغ الفواتير والتقارير والطباعة ستنسّق بعملة الشركة النشطة — مثال:	💡 All invoice, report and print amounts will be formatted with the active company's currency — example:
+🧾 الضريبة — اختيارية	🧾 Tax — optional
+تفعيل الضريبة	Enable tax
+⚡ استخدم	⚡ Use
+% (ضريبة بلد العملة)	% (the currency's country tax)
+🚫 الفواتير بلا ضريبة — يمكن تفعيلها لاحقاً	🚫 Invoices without tax — can be enabled later
+💡 النسبة الافتراضية تُقترح تلقائياً عند إنشاء الفواتير وتُعدّل يدوياً لكل فاتورة حسب رغبتك	💡 The default rate is suggested automatically when creating invoices and editable per invoice as you like
+بيانات الاتصال	Contact Details
+هاتف الشركة	Company phone
+البريد الإلكتروني	Email
+المدير	Manager
+أحمد عزت	Ahmed Ezzat
+هاتف المدير	Manager phone
+المدينة	City
+المرجع/البائع (Seller Ref)	Reference/Seller (Seller Ref)
+الهوية البصرية	Visual Identity
+اللون الأساسي	Primary color
+لون التمييز	Accent color
+خلفية البطاقات	Card background
+＋ إضافة الشركة	＋ Add Company
+توفير أونلاين شوب 🛒	Tawfeer Online Shop 🛒
+محلكم أونلاين ستور 🏪	Mahhal Online Store 🏪
+بوص نيولايف ⚡	Boss Neolife ⚡
+لقطة أونلاين ♾️	Laqta Online Store ♾️
+إنشاء فواتير	Create invoices
+طباعة الفواتير	Print invoices
+تعديل الفواتير	Edit invoices
+حذف الفواتير	Delete invoices
+عرض العملاء	View customers
+تعديل العملاء	Edit customers
+حذف العملاء	Delete customers
+تصدير البيانات	Export data
+يشوف الفواتير والعملاء فقط	Views invoices and customers only
+صلاحيات مخصصة قابلة للتعديل	Custom editable permissions
+إنشاء وتعديل وحذف وتصدير	Create, edit, delete and export
+يرجى تعبئة جميع الحقول واختيار شركة واحدة على الأقل	Please fill all fields and choose at least one company
+كلمة المرور يجب أن تكون 6 أحرف على الأقل	Password must be at least 6 characters
+هذا الإيميل مسجل مسبقاً — اختر إيميل آخر	This email is already registered — choose another
+كلمة المرور ضعيفة جداً (6 أحرف على الأقل)	Password too weak (at least 6 characters)
+يرجى تفعيل Email/Password في Firebase Console	Please enable Email/Password in Firebase Console
+تعذّر الاتصال بالإنترنت — تحقق من الشبكة وأعد المحاولة	Could not connect to the internet — check the network and try again
+محاولات كثيرة — انتظر قليلاً ثم أعد المحاولة	Too many attempts — wait a moment and try again
+حدث خطأ غير متوقع، يرجى المحاولة مجدداً	An unexpected error occurred, please try again
+➕ إضافة موظف جديد	➕ Add New Employee
+الاسم الكامل	Full Name
+اسم الموظف	Employee name
+البريد الإلكتروني *	Email *
+كلمة المرور *	Password *
+6 أحرف على الأقل	At least 6 characters
+الشركات المسموح بها *	Allowed companies *
+جارٍ الإنشاء...	Creating...
+✅ إنشاء الموظف	✅ Create Employee
+تعذّر تحميل الإعدادات	Could not load settings
+✅ تم حفظ إعدادات DeepSeek	✅ DeepSeek settings saved
+✅ الاتصال ناجح — {0} ملّي ثانية	✅ Connection OK — {0} ms
+❌ فشل الاتصال — انظر التفاصيل	❌ Connection failed — see details
+❌ تعذّر إجراء الاختبار	❌ Could not run the test
+أدخل مفتاح API واختبره أولاً قبل التفعيل	Enter an API key and test it before enabling
+🔵 تم تفعيل DeepSeek لكل مميزات الذكاء الاصطناعي	🔵 DeepSeek enabled for all AI features
+⏸️ تم التحويل للمزوّد المدمج	⏸️ Switched to the built-in provider
+فشل التبديل	Switch failed
+DeepSeek API — مزوّد الذكاء الاصطناعي	DeepSeek API — AI Provider
+معالجة كل مميزات الذكاء الاصطناعي في المشروع: المساعد الذكي 🤖 + معالجة العناصر 📦	Powers all AI features in the project: smart assistant 🤖 + items processing 📦
+مفعّل — الموديل المدفوع يعمل	Enabled — the paid model is running
+معطّل — المزوّد المدمج يعمل	Disabled — the built-in provider is running
+غير مضبوط — المزوّد المدمج يعمل	Not configured — the built-in provider is running
+آخر اختبار:	Last test:
+مفتاح API	API key
+محفوظ:	saved:
+أدخل مفتاحاً جديداً للاستبدال — أو اتركه فارغاً للإبقاء	Enter a new key to replace — or leave empty to keep
+إخفاء	Hide
+إظهار	Show
+💡 احصل على المفتاح من	💡 Get the key from
+— يُخزَّن في قاعدة البيانات على خادمك فقط ولا يظهر أبداً في الواجهة أو النسخ الاحتياطية.	— stored in your server's database only and never shown in the UI or backups.
+اتركه فارغاً الآن والصق مفتاحك ثم اضغط «اختبار الاتصال» (الاختبار يحفظه تلقائياً).	Leave it empty now, paste your key then press "Test connection" (the test saves it automatically).
+⚙️ إعدادات متقدمة — رابط الخدمة (Base URL)	⚙️ Advanced settings — service URL (Base URL)
+اختيار الموديل (مدفوع)	Model selection (paid)
+(تُحتسب بالاستخدام من رصيد DeepSeek)	(billed per usage from your DeepSeek balance)
+السرعة	Speed
+العمق	Depth
+🧠 موديل التفكير يعرض «سلسلة التفكير» في المساعد الذكي قبل الجواب النهائي — مثالي للتحليل المالي المعقّد لكنه أبطأ.	🧠 The reasoning model shows its "chain of thought" in the smart assistant before the final answer — ideal for complex financial analysis but slower.
+🔄 جارٍ اختبار الاتصال…	🔄 Testing connection…
+🔌 اختبار الاتصال	🔌 Test Connection
+⚠️ متأكد؟ اضغط مجدداً للتعطيل	⚠️ Sure? Click again to disable
+🚫 تعطيل DeepSeek	🚫 Disable DeepSeek
+🔵 تفعيل DeepSeek	🔵 Enable DeepSeek
+المفعّل حالياً:	Currently active:
+المزوّد المدمج	Built-in provider
+جارٍ اختبار الاتصال الفعلي…	Testing the real connection…
+جلب قائمة الموديلات + إكمال مصغّر وقياس زمن الاستجابة	Fetching models list + a tiny completion + measuring response time
+الاتصال ناجح — المفتاح يعمل	Connection OK — the key works
+فشل الاتصال	Connection failed
+ردّ نموذج الاختبار: «	Test model reply: “
+كيف يعمل التوجيه؟	How does routing work?
+DeepSeek مفعّل	DeepSeek enabled
+كل استدعاءات الذكاء (المساعد الذكي، معالجة العناصر بالـ AI) تذهب إلى DeepSeek بالموديل المختار — بثّ حيّ حقيقي.	All AI calls (smart assistant, AI items processing) go to DeepSeek with the chosen model — true live streaming.
+سقوط آمن تلقائي	Automatic safe fallback
+إن تعطّل DeepSeek أو انتهت صلاحيته، يكمل النظام فوراً بالمزوّد المدمج دون توقف الخدمة.	If DeepSeek fails or expires, the system instantly continues with the built-in provider without downtime.
+محفوظات على الخادم	Server-side history
+المحادثات ورسائلها تُخزَّن في PostgreSQL مع الكاش في Valkey — تعمل من أي جهاز.	Conversations and messages are stored in PostgreSQL with Valkey caching — works from any device.
+نسخة احتياطية	Backup
+تسخين الكاش	Cache warmup
+تنظيف النسخ	Backup cleanup
+صيانة القاعدة	Database maintenance
+قبل {0} ثانية	{0} seconds ago
+{0} ثانية	{0} sec
+{0} دقيقة	{0} min
+{0} ساعة	{0} hr
+{0} يوم	{0} day
+✅ أُضيفت مهمة «{0}» إلى الطابور — رقم #{1}	✅ Job "{0}" queued — number #{1}
+⚠️ تعذر إضافة المهمة: {0}	⚠️ Could not add the job: {0}
+🔄 أعيدت المهمة للمحاولة	🔄 Job requeued
+لوحة طوابير المهام متاحة	Jobs queue panel available
+لمدير النظام فقط	for the system admin only
+— سجّل الدخول بحساب المدير لعرضها.	— log in with the admin account to view it.
+منتظرة	Waiting
+نشطة	Active
+مكتملة	Completed
+فاشلة	Failed
+مؤجلة (مجدولة)	Delayed (scheduled)
+موقوفة	Stalled
+طوابير المهام الخلفية (BullMQ)	Background job queues (BullMQ)
+🟢 العامل يعمل	🟢 Worker running
+🔴 العامل متوقف	🔴 Worker stopped
+⟳ تحديث	⟳ Refresh
+عامل المهام	Job worker
+متصل ويستهلك	connected and consuming
+غير متصل	offline
+المعالجة	Processing
+الفاشلة	Failed
+مدة التشغيل	Uptime
+آخر مهمة	Last job
+⚙️ تعالج الآن:	⚙️ Now processing:
+⚠️ آخر خطأ في العامل:	⚠️ Last worker error:
+تنفيذ فوري	Run now
+(تُضاف للطابور وينفذها العامل خلال ثوانٍ)	(queued and executed by the worker within seconds)
+…جارٍ الإضافة	…Adding
+نسخة كاملة قابلة للاستعادة بـ Recovery	Full backup restorable with Recovery
+تسخين لوحات 4 شركات + الصفحات العامة	Warm the dashboards of 4 companies + public pages
+حذف النسخ الأقدم من 14 يوماً	Delete backups older than 14 days
+VACUUM ANALYZE — استعادة الأداء	VACUUM ANALYZE — restore performance
+الجدولة الدورية (Job Schedulers)	Recurring schedules (Job Schedulers)
+(توقيت Africa/Cairo)	(Africa/Cairo timezone)
+· التالية:	· next:
+آخر المهام	Recent jobs
+(تتحدث كل 5 ثوانٍ)	(refreshes every 5 seconds)
+لا مهام بعد — شغّل مهمة من الأزرار أعلاه أو انتظر المجدولة الدورية.	No jobs yet — run one from the buttons above or wait for the scheduler.
+المهمة	Job
+المدة	Duration
+انتهت	Finished
+النتيجة	Result
+↻ مجدولة	↻ Scheduled
+✓ مكتملة	✓ Completed
+✗ فاشلة	✗ Failed
+↻ أعِد المحاولة	↻ Retry
+🔥 سُخّنت {0} نقطة نهاية{1}	🔥 Warmed {0} endpoint(s){1}
+ · {0} أخطاء	 · {0} errors
+بلا أخطاء	No errors
+🧹 حُذفت {0} ملفاً{1}	🧹 Deleted {0} file(s){1}
+🛠️ {0} في {1}	🛠️ {0} in {1}
+💵 نقدي	💵 Cash
+🏦 كي نت	🏦 KNET
+📱 تحويل	📱 Transfer
+💳 بطاقة	💳 Card
+أدخل مبلغاً صحيحاً أكبر من صفر	Enter a valid amount greater than zero
+المبلغ يتجاوز المتبقي ({0})	Amount exceeds the remaining ({0})
+تعذّر حفظ الدفعة — تحقق من الاتصال	Could not save the payment — check the connection
+حذف دفعة {0}؟ سيتم خصمها من المبلغ المدفوع	Delete payment {0}? It will be deducted from the paid amount
+سجل الدفعات	Payments History
+دفعة •	payment •
++ تسجيل دفعة	+ Record Payment
+✓ مدفوعة بالكامل	✓ Fully paid
+المدفوع:	Paid:
+المتبقي:	Remaining:
+⏳ جارٍ تحميل الدفعات...	⏳ Loading payments...
+لا توجد دفعات مسجّلة	No payments recorded
+— سجّل أول دفعة لهذه الفاتورة	— record the first payment for this invoice
+حذف الدفعة	Delete Payment
+• المتبقي	• Remaining
+المبلغ (KD) *	Amount (KD) *
+طريقة الدفع	Payment Method
+💾 حفظ الدفعة	💾 Save Payment
+<span>🏭 المورد: <b>{0}</b></span>	<span>🏭 Supplier: <b>{0}</b></span>
+يرجى السماح بالـ Popups في المتصفح	Please allow popups in the browser
+فاتورة_مشتريات_	PurchaseInvoice_
+✅ تم تصدير فاتورة المشتريات	✅ Purchase invoice exported
+إلى PDF	to PDF
+⚠️ اختر فاتورة واحدة على الأقل	⚠️ Select at least one invoice
+⚠️ لا توجد منتجات في الفواتير المحددة	⚠️ No products in the selected invoices
+✅ تم إنشاء فاتورة المشتريات {0}	✅ Purchase invoice {0} created
+🛒 فواتير المشتريات	🛒 Purchase Invoices
+➕ إنشاء فاتورة مشتريات	➕ Create Purchase Invoice
+لا توجد فواتير مشتريات بعد	No purchase invoices yet
+➕ أنشئ أول فاتورة مشتريات	➕ Create the first purchase invoice
+تصدير فاتورة المشتريات إلى ملف PDF	Export the purchase invoice to a PDF file
+سيتم حذف فاتورة المشتريات	will delete the purchase invoice
+🛒 إنشاء فاتورة مشتريات	🛒 Create Purchase Invoice
+اختر الفواتير (	Select invoices (
+محدد)	selected)
+🔍 ابحث بالاسم أو رقم الفاتورة...	🔍 Search by name or invoice number...
+الرقم	No.
+المنتجات المدمجة (	Merged products (
+قطعة)	pcs)
+الكمية الإجمالية	Total Qty
+سعر الشراء (KD) — اختياري	Purchase price (KD) — optional
+اسم المورد (اختياري)	Supplier name (optional)
+تاريخ فاتورة المشتريات	Purchase invoice date
+ملاحظات (اختياري)	Notes (optional)
+💾 حفظ فاتورة المشتريات	💾 Save Purchase Invoice
+اتصال	Call
+طلب دفع	Payment Request
+كشف حساب	Statement
+الآن	Now
+سجل التذكيرات	Reminders Log
+تذكير	Reminder
+آخر تذكير	Last reminder
+⏳ جارٍ تحميل السجل...	⏳ Loading log...
+لم يُرسل أي تذكير لهذه الفاتورة بعد	No reminders sent for this invoice yet
+طي الرسالة	Collapse message
+عرض الرسالة كاملة	View full message
+٣ أشهر	3 months
+٦ أشهر	6 months
+سنة	1 year
+الكل	All
+١–٣٠ يوم	1–30 days
+تأخير قصير	Short delay
+تأخير متوسط	Medium delay
+مخاطرة عالية	High risk
+نسبة التحصيل ممتازة ({0}%) — استمر في نفس النهج	Collection rate is excellent ({0}%) — keep it up
+نسبة التحصيل {0}% — يمكن متابعة العملاء غير المدفوعين لرفعها	Collection rate {0}% — following up unpaid customers can raise it
+نسبة التحصيل منخفضة ({0}%) — {1} KD مستحقة عليك متابعتها	Collection rate is low ({0}%) — {1} KD outstanding needs your follow-up
+{0} فاتورة متأخرة عن الاستحقاق بإجمالي {1} — تواصل مع العملاء	{0} overdue invoice(s) totaling {1} — contact the customers
+{0} فاتورة متأخرة أكثر من ٩٠ يوم ({1}) — أولوية تحصيل قصوى	{0} invoice(s) overdue by more than 90 days ({1}) — top collection priority
+{0} فاتورة في نطاق ٦١–٩٠ يوم ({1}) — اقتربت من مرحلة المخاطرة	{0} invoice(s) in the 61–90 day range ({1}) — approaching the risk stage
+أفضل شهر في الفترة: {0} بإيرادات {1}	Best month in the period: {0} with {1} revenue
+المنتج الأكثر مبيعاً: {0} ({1} قطعة)	Best-selling product: {0} ({1} pcs)
+أفضل عميل: {0} بإجمالي {1}	Top customer: {0} totaling {1}
+النصف الأخير من الفترة {0} بنسبة {1}% من النصف الأول	The second half of the period is {0} at {1}% of the first half
+أقل	lower
+لا توجد بيانات كافية في هذه الفترة — جرّب توسيع النطاق الزمني	Not enough data in this period — try widening the date range
+لا توجد بيانات لعرض التقارير	No data to show reports
+أنشئ فواتير أو استوردها من ملف CSV / Excel لتظهر التحليلات	Create invoices or import them from a CSV / Excel file for analytics
+📊 التقارير والتحليلات —	📊 Reports & Analytics —
+إيرادات الفترة	Period Revenue
+نسبة التحصيل	Collection Rate
+محصّل	Collected
+متوسط الفاتورة	Average Invoice
+فاتورة فعّالة	active invoice(s)
+متأخرة	Overdue
+أفضل شهر	Best month
+متبقٍ مستحق:	Outstanding remaining:
+📈 اتجاه الإيرادات والمحصّل شهرياً	📈 Monthly revenue and collection trend
+المحصّل	Collected
+المحصّل فعلياً	Actually collected
+🍩 توزيع المبالغ حسب الحالة	🍩 Amount distribution by status
+لا توجد مبالغ	No amounts
+⏰ تقادم الذمم (Aging)	⏰ Receivables aging
+مستحقة	due
+توزيع المتبقي حسب أيام التأخير	Remaining distribution by days overdue
+توزيع {0} على فئات التقادم	Distribution of {0} across aging buckets
+{0}: {1} — {2} فاتورة	{0}: {1} — {2} invoice(s)
+لا توجد مستحقات غير مدفوعة في هذه الفترة — كل الفواتير محصّلة!	No unpaid receivables in this period — all invoices collected!
+نشاط تذكيرات التحصيل	Collection reminders activity
+تذكير مرسل	reminder(s) sent
+ — آخر تذكير {0}	 — last reminder {0}
+هذا الشهر	This month
+مُطالَب بها	claimed
+👑 أفضل ٥ عملاء	👑 Top 5 customers
+فاتورة • محصّل	invoice • collected
+لا يوجد عملاء في الفترة	No customers in the period
+📦 المنتجات الأكثر مبيعاً	📦 Best-selling products
+لا توجد منتجات في الفترة	No products in the period
+🧾 عدد الفواتير الصادرة شهرياً	🧾 Invoices issued per month
+العدد	Count
+💡 تحليلات تلقائية	💡 Automatic insights
+✅ تم حفظ إعدادات Resend	✅ Resend settings saved
+📨 أُرسل بريد الاختبار — تحقق من صندوق الوارد	📨 Test email sent — check the inbox
+فشل الإرسال	Send failed
+جارٍ تحميل إعدادات البريد...	Loading mail settings...
+📧 خدمة البريد	📧 Mail Service
+تشغّل ميزة	powers the
+«هل نسيت كلمة السر؟»	"Forgot your password?"
+— عند طلب أي مشترك استعادة كلمة مروره\n        يُرسل له رابط إعادة التعيين بريدياً (صالح 30 دقيقة ولمرة واحدة).	— when any subscriber requests a password reset,\n        a reset link is emailed to them (valid 30 minutes, one time).
+أنشئ حساباً في	Create an account at
+، انسخ مفتاح API (يبدأ بـ	, copy the API key (starts with
+) والصقه هنا.	) and paste it here.
+خدمة البريد مهيأة وتعمل	Mail service is configured and running
+غير مهيأة — أضف المفتاح أدناه	Not configured — add the key below
+⚙️ بيانات الاتصال	⚙️ Connection Details
+مفتاح Resend API	Resend API key
+(اتركه فارغاً للإبقاء على الحالي)	(leave empty to keep the current one)
+بريد المرسل	Sender email
+اسم المرسل (اختياري)	Sender name (optional)
+نظام إدارة الحسابات	Accounts Management System
+💡 بياناتك المجانية في Resend تستخدم	💡 Your free Resend tier includes
+— للبريد باسم نطاقك فعّل نطاقك من لوحة Resend أولاً.	— for email from your own domain, verify the domain in the Resend dashboard first.
+🧪 اختبار الإرسال	🧪 Send Test
+أرسل بريداً تجريبياً لأي عنوان تملكه للتأكد أن المفتاح والمرسل يعملان فعلاً.	Send a test email to an address you own to verify the key and sender actually work.
+⏳ جارٍ الإرسال...	⏳ Sending...
+📨 أرسل بريداً تجريبياً	📨 Send Test Email
+اسم الموقع (العربي)	Site name (Arabic)
+اسم الموقع (اللاتيني)	Site name (Latin)
+شارة البطل	Hero badge
+عنوان الصفحة الرئيسية	Homepage headline
+إدارة مالية ذكية لكل شركاتك…	Smart financial management for all your companies…
+النص التعريفي	Intro text
+من الفاتورة الأولى حتى آخر دينار…	From the first invoice to the last dinar…
+اسم المؤسس	Founder name
+لقب المؤسس	Founder title
+أفاتار المؤسس (إيموجي)	Founder avatar (emoji)
+صورة المؤسس (رابط https)	Founder photo (https URL)
+نص رسالة المؤسس	Founder message text
+اكتب الرسالة هنا… (فاصل فقرات: سطر فارغ)	Write the message here… (paragraph separator: empty line)
+التوقيع	Signature
+هاتف التواصل	Contact phone
+بريد التواصل	Contact email
+اسم العضو	Member name
+الدور	Role
+مدير العمليات	Operations Manager
+نبذة	Bio
+نبذة قصيرة تظهر بصفحة الفريق	A short bio shown on the team page
+أفاتار (إيموجي)	Avatar (emoji)
+صورة (رابط https)	Photo (https URL)
+بريد	Email
+لينكدإن	LinkedIn
+تويتر/إكس	Twitter/X
+الترتيب (رقم)	Order (number)
+تعذّر تحميل محتوى الموقع:	Could not load site content:
+✅ تم حفظ محتوى الموقع ({0} حقل) — تحديث الصفحات فوري	✅ Site content saved ({0} fields) — pages update instantly
+اسم العضو مطلوب	Member name is required
+عضو الفريق	team member
+✅ تم تحديث العضو	✅ Member updated
+✅ تمت إضافة العضو — يظهر فوراً بصفحة الفريق	✅ Member added — shows instantly on the team page
+📝 العضو أصبح مسودة (لن يظهر بالموقع)	📝 Member is now a draft (won't show on the site)
+👁 العضو أصبح منشوراً	👁 Member is now published
+فشل التبديل:	Toggle failed:
+فشل إعادة الترتيب:	Reorder failed:
+حذف «{0}» من الفريق نهائياً؟	Delete "{0}" from the team permanently?
+🗑 تم حذف العضو	🗑 Member deleted
+فشل الحذف:	Delete failed:
+الموقع العام — الرئيسية والفريق ورسالة المؤسس	Public site — home, team and founder message
+كل ما تحفظه هنا يظهر فوراً للزوار قبل تسجيل الدخول	Everything you save here shows instantly to visitors before login
+👁 الرئيسية	👁 Home
+👥 الفريق	👥 Team
+✉️ رسالة المؤسس	✉️ Founder Message
+💡 أزرار المعاينة تفتح صفحات الموقع فوق النظام — زر «↩️ العودة للنظام» في شريط الموقع يعيدك هنا.\n          الزائر غير المسجّل يرى الموقع تلقائياً بمجرد فتح التطبيق.	💡 Preview buttons open site pages above the system — the "↩️ Back to system" button in the site bar brings you back here.\n          Logged-out visitors see the site automatically when they open the app.
+رسالة المؤسس ومحتوى الصفحة الرئيسية	Founder message and homepage content
+فاصل الفقرات في الرسالة: سطر فارغ واحد	Paragraph separator in the message: one empty line
+💾 حفظ المحتوى	💾 Save Content
+أعضاء الفريق	Team members
+{0} عضو — الترتيب بالأسهم، والنشر بعين 👁	{0} member(s) — reorder with arrows, publish with the 👁 eye
+＋ إضافة عضو	＋ Add Member
+لا يوجد أعضاء بعد — أضف أول عضو بزر «＋ إضافة عضو»	No members yet — add the first one with "＋ Add Member"
+ترتيب	Order
+· 👁 منشور	· 👁 published
+· 📝 مسودة	· 📝 draft
+أسفل	Bottom
+تحويل لمسودة	Turn into draft
+نشر	Publish
+تعديل	Edit
+تعديل: {0}	Edit: {0}
+عضو	member
+إضافة عضو جديد	Add New Member
+الحقول الاختيارية الفارغة تُتجاهل	Empty optional fields are ignored
+👁 منشور (يظهر بصفحة الفريق)	👁 Published (shows on the team page)
+💾 حفظ العضو	💾 Save Member
+ملخص مبيعات الشهر وأهم المؤشرات	Summarize the month's sales and key metrics
+أعلى العملاء مديونية وما الاقتراحات للتحصيل؟	Top debtor customers and collection suggestions?
+حلّل الكتالوج واقترح هوامش ربح أفضل	Analyze the catalog and suggest better profit margins
+فحص الفواتير غير المدفوعة وترتيبها بالأولوية	Check unpaid invoices and prioritize them
+اكتب لي رسالة تذكير ودّية لأهم عميل مدين	Write me a friendly reminder for the top debtor
+قارن أداء الشهور الأخيرة وحدّد الاتجاه	Compare recent months' performance and identify the trend
+أنشئ فاتورة جديدة للعميل سارة الأحمد ببندَين: «منتج تجريبي» كمية 2 بسعر 15.500	Create a new invoice for customer Sara Alahmad with two items: "Demo product" qty 2 at 15.500
+أضف عميل جديد باسم محمد العتيبي ورقم +96591234567	Add a new customer named Mohammed Alotaibi with number +96591234567
+سجّل دفعة 10 دنانير على فاتورة INV10005	Record a 10-dinar payment on invoice INV10005
+إنشاء فاتورة جديدة	Create a new invoice
+إضافة صنف للكتالوج	Add an item to the catalog
+تسجيل تذكير	Log a reminder
+مكالمة	A call
+تعذّر تحميل المحادثة	Could not load the conversation
+حذف هذه المحادثة نهائياً؟	Delete this conversation permanently?
+خطأ من مزوّد الذكاء الاصطناعي	Error from the AI provider
+تعذّر الاتصال بالمساعد	Could not reach the assistant
+تم التنفيذ	Executed
+تعذّر الاتصال بالخادم	Could not reach the server
+محادثة جديدة	New conversation
+# 🤖 محادثة مساعد جرفِكس الذكي — {0}	# 🤖 Garfix Smart Assistant conversation — {0}
+> {0} • {1} • {2} رسالة	> {0} • {1} • {2} message(s)
+## 👤 أنت\n\n{0}	## 👤 You\n\n{0}
+## 🤖 المساعد{0}\n\n{1}{2}	## 🤖 Assistant{0}\n\n{1}{2}
+\n\n*(إجراءات نُفِّذت: {0})*	\n\n*(Actions executed: {0})*
+🟢 المزوّد المدمج	🟢 Built-in provider
+مساعد جرفِكس الذكي	Garfix Smart Assistant
+متصل ببيانات	connected to the data of
+— تحليل، تقارير، وإجراءات تنفيذية حقيقية	— analytics, reports and real executive actions
+ • {0} رسالة	 • {0} message(s)
+🗂️ المحادثات	🗂️ Conversations
+تنزيل هذه المحادثة كملف Markdown	Download this conversation as Markdown
+⬇️ تصدير	⬇️ Export
+➕ محادثة جديدة	➕ New Conversation
+لا توجد محادثات محفوظة بعد	No saved conversations yet
+رسالة •	message •
+اسألني أي شيء عن مشروعك	Ask me anything about your business
+أرى بيانات	I can see the data of
+الحيّة: الفواتير، المدفوعات، المستحقات، العملاء والكتالوج — ويمكنني تحليلها وكتابة الرسائل والتقارير.	live: invoices, payments, receivables, customers and catalog — and I can analyze them and write messages and reports.
+⚡ جرّب أيضاً: اطلب مني إنشاء فاتورة أو إضافة عميل أو تسجيل دفعة — سأجهّزها لك وتؤكدها بضغطة زر	⚡ Also try: ask me to create an invoice, add a customer or record a payment — I'll prepare it and you confirm with one click
+⚡ أمثلة إجرائية — سأنفّذها فعلياً	⚡ Action examples — I will actually execute them
+مساعد جرفِكس	Garfix Assistant
+نسخ الرد	Copy reply
+✓ تم النسخ	✓ Copied
+🧠 سلسلة التفكير (	🧠 Chain of thought (
+حرف)	chars)
+يفكّر…	Thinking…
+اكتب سؤالك أو اطلب إجراءً (مثال: أنشئ فاتورة…) — Enter للإرسال • Shift+Enter لسطر جديد	Type your question or request an action (e.g.: create an invoice…) — Enter to send • Shift+Enter for a new line
+⏹ إيقاف	⏹ Stop
+📨 إرسال	📨 Send
+بند	Line item
+البنود	Line items
+الاستحقاق	Due date
+الطريقة	Method
+سعر البيع	Selling price
+أسماء بديلة	Aliases
+القناة	Channel
+الرسالة	Message
+اقتراح من المساعد — راجع التفاصيل ثم نفّذ	Assistant suggestion — review the details then execute
+جارٍ التنفيذ…	Executing…
+✅ نُفِّذ بنجاح	✅ Executed successfully
+تم التجاهل	Ignored
+إجراء من محادثة سابقة	Action from a previous conversation
+تجاهل الإجراء	Ignore Action
+✅ تنفيذ الإجراء الآن	✅ Execute Action Now
+تجاهل	Ignore
+جارٍ تنفيذ	Executing
+قيد المراجعة	Under review
+معتمد ✓	Approved ✓
+مرفوض ✕	Rejected ✕
+تعذّر تحميل بيانات الاشتراكات	Could not load subscriptions data
+لا تغييرات للحفظ	No changes to save
+✅ حُفظت خطة «{0}»	✅ Plan "{0}" saved
+تغيير خطة «{0}» إلى «{1}»؟	Change plan "{0}" to "{1}"?
+✅ خطة «{0}» أصبحت «{1}»	✅ Plan "{0}" is now "{1}"
+❌ فشل تحميل الاشتراكات	❌ Failed to load subscriptions
+شركات	companies
+إجمالي المشتركين	Total subscribers
+طلبات معلّقة	Pending requests
+مقاعد مجانية متبقية	Free seats remaining
+الإيراد الشهري المتوقع	Expected monthly revenue
+🎛️ محرر الخطط	🎛️ Plans Editor
+(اضغط الخطة لتوسيعها)	(click a plan to expand)
+الاسم (عربي)	Name (Arabic)
+السعر بالدولار	Price in USD
+حد الشركات	Companies limit
+حد العملاء	Customers limit
+فواتير AI شهرياً	AI invoices per month
+الشارة (اختياري)	Badge (optional)
+⭐ الأكثر شيوعاً	⭐ Most popular
+الترتيب	Order
+الخطة مفعّلة	Plan is active
+مفعّلة	Active
+المزايا (ميزة لكل سطر)	Features (one per line)
+💾 حفظ الخطة	💾 Save Plan
+آخر تحديث:	Last update:
+📨 طلبات الترقية (	📨 Upgrade requests (
+لا طلبات بعد — ستظهر هنا طلبات المشتركين لترقية خططهم	No requests yet — subscriber upgrade requests will appear here
+اعتماد ترقية «{0}» إلى «{1}»؟	Approve upgrade "{0}" to "{1}"?
+✅ اعتُمدت ترقية «{0}» إلى «{1}»	✅ Upgrade "{0}" to "{1}" approved
+✅ اعتماد	✅ Approve
+رفض طلب ترقية «{0}»؟	Reject upgrade request "{0}"?
+🚫 رُفض طلب «{0}»	🚫 Request "{0}" rejected
+❌ رفض	❌ Reject
+عالجها:	handle them:
+👥 المشتركون (	👥 Subscribers (
+ من {0}	 of {0}
+ابحث بالاسم أو البريد…	Search by name or email…
+بحث المشتركين	Search subscribers
+لا مشتركين بعد — سجّل الدخول كمشترك لتظهر بياناته هنا	No subscribers yet — log in as a subscriber to see their data here
+تغيير خطة {0}	Change plan {0}
+لا نتائج مطابقة للبحث	No matching results
+توفير 🛒	Tawfeer 🛒
+محلكم 🏪	Mahhal 🏪
+بوص ⚡	Boss ⚡
+لقطة ♾️	Laqta ♾️
+عرض فقط	View only
+وصول كامل	Full access
+موظف طلبات	Orders clerk
+مدير	Admin
+انتهت مهلة الاتصال (12 ث) — تحقق من الإنترنت أو قواعد Firestore ثم أعد المحاولة.	Connection timed out (12s) — check the internet or Firestore rules then retry.
+مرفوض (permission-denied) — افتح Firebase Console ← Firestore ← Rules وتأكد أن القاعدة تسمح لـ request.auth != null بالقراءة.	Denied (permission-denied) — open Firebase Console ← Firestore ← Rules and make sure the rule allows reads for request.auth != null.
+مجموعة users غير موجودة في Firestore — أضف أول مستخدم وستُنشأ تلقائياً.	The users collection does not exist in Firestore — add the first user and it will be created automatically.
+تعذّر الاتصال بـ Firestore — تحقق من الإنترنت وأعد المحاولة.	Could not connect to Firestore — check the internet and retry.
+خطأ Firestore{0}: {1}	Firestore error{0}: {1}
+غير معروف	Unknown
+✅ تم إنشاء بيانات المستخدمين الـ 5 بنجاح	✅ The 5 users created successfully
+❌ فشل {0} من 5 — {1}	❌ {0} of 5 failed — {1}
+❌ خطأ:	❌ Error:
+✅ تم تحديث بيانات المستخدم	✅ User data updated
+🗑️ تم حذف المستخدم	🗑️ User deleted
+❌ حجم الصورة كبير جداً (الحد 2MB)	❌ Image too large (limit 2MB)
+✅ تم رفع الشعار بنجاح	✅ Logo uploaded successfully
+🗑️ تم حذف الشعار	🗑️ Logo deleted
+👥 المستخدمون	👥 Users
+💳 الاشتراكات	💳 Subscriptions
+🏢 شعارات الشركات	🏢 Company Logos
+📧 بريد Resend	📧 Resend Mail
+⚙️ لوحة إدارة النظام	⚙️ System Admin Panel
+الشركة القابضة المتحدة ذ.م.م	United Holding Group LLC
+➕ موظف جديد	➕ New Employee
+⏳ جارٍ الإنشاء...	⏳ Creating...
+🚀 تفعيل الحسابات الـ5	🚀 Activate the 5 accounts
+جارٍ تحميل المستخدمين...	Loading users...
+❌ فشل تحميل المستخدمين	❌ Failed to load users
+لا يوجد موظفون مسجلون بعد	No employees registered yet
+➕ أضف أول موظف	➕ Add the first employee
+صلاحية	Permission
+💡 ارفع شعار لكل شركة — سيظهر في الفواتير عند الطباعة والمعاينة. الحجم الأقصى 2MB.	💡 Upload a logo for each company — it shows on invoices when printing and previewing. Max size 2MB.
+✅ شعار مخصص مرفوع	✅ Custom logo uploaded
+⚪ لا يوجد شعار — يستخدم الشعار الافتراضي	⚪ No logo — the default logo is used
+تغيير الشعار	Change logo
+رفع شعار	Upload logo
+✅ تم إنشاء المستخدم	✅ User created
+سيتم حذف سجل	will delete the record
+البريد الإلكتروني غير مسجل	Email not registered
+كلمة المرور غلط	Wrong password
+الإيميل أو الباسورد غلط	Wrong email or password
+محاولات كثيرة، حاول بعد قليل	Too many attempts, try again shortly
+خطأ: {0}	Error: {0}
+أكمل كل الحقول المطلوبة	Complete all required fields
+🎉 تم إنشاء حسابك بنجاح{0}	🎉 Your account was created successfully{0}
+ — متبقي {0} مقعداً مجانياً	 — {0} free seat(s) remaining
+تعذر إنشاء الحساب	Could not create the account
+أدخل بريدك الإلكتروني	Enter your email
+تعذر إرسال رسالة الاستعادة	Could not send the reset email
+— متبقي	— remaining
+مقعداً	seat(s)
+انتهت المقاعد المجانية (	Free seats exhausted (
+ذ.م.م	LLC
+أحمد محمد	Ahmed Mohammed
+بإنشائك الحساب ستحصل على شركة خاصة بك بعد أول دخول — فواتير وعملاء وتقارير بلا أي تكلفة	By creating the account you get your own company after first login — invoices, customers and reports at no cost
+✦ كلمة من القلب	✦ A word from the heart
+رسالة المؤسس	Founder's Message
+🎯 الدقة قبل كل شيء	🎯 Accuracy above all
+🤝 البساطة التي يستحقها التاجر	🤝 The simplicity merchants deserve
+🚀 التطوير المستمر	🚀 Continuous development
+تعرّف على الفريق ←	Meet the team ←
+العودة للرئيسية	Back to home
+شركات مُدارة	Companies managed
+فاتورة مُصدَرة	Invoices issued
+عميل مسجّل	Customers registered
+عملات مدعومة	Currencies supported
+منتج A	Product A
+منتج B	Product B
+15.000 د.ك	15.000 KD
+ابدأ الآن — مجاناً ←	Start now — free ←
+تعرّف على الفريق	Meet the team
+متبقي	remaining
+مقعداً — سجّل الآن واحصل على شركتك الخاصة بفواتير وعملاء وتقارير	seat(s) — register now and get your own company with invoices, customers and reports
+أنشئ حسابك ←	Create your account ←
+كل ما تحتاجه إدارة مالية كاملة	Everything full financial management needs
+مصمّم لطريقة عمل التجار الكويتيين فعلاً — لا شاشات معقّدة ولا مصطلحات مترجمة حرفياً	Designed for how Kuwaiti merchants actually work — no complex screens or literally-translated jargon
+شركات المجموعة	Group companies
+كل شركة بحسابها المستقل وعملتها الخاصة — وتُدار من لوحة واحدة	Each company with its own account and currency — managed from one dashboard
+مدير:	Manager:
+«إدارة المال ليست جداول وأرقاماً — بل ثقة تُبنى بفاتورة واضحة ورصيد محسوب بدقة.»	"Money management isn't spreadsheets and numbers — it's trust built with a clear invoice and an accurately calculated balance."
+اقرأ رسالة المؤسس ←	Read the founder's message ←
+جاهز تنظّم مالية شركاتك؟	Ready to organize your companies' finances?
+أنشئ حسابك الآن — مجاناً لأول 100 مشترك، بدون بطاقة ولا التزام.	Create your account now — free for the first 100 subscribers, no card, no commitment.
+سجّل الدخول الآن — بياناتك بانتظارك في لوحة واحدة.	Log in now — your data awaits in one dashboard.
+أنشئ حسابك المجاني ←	Create your free account ←
+الأكثر	Most popular
+تعذّر تحميل الأسعار	Could not load pricing
+{0} | نظام إدارة الفواتير والحسابات — الكويت	{0} | Invoicing & Accounts System — Kuwait
+التنقل الرئيسي	Main navigation
+نظام إدارة حسابات وفواتير عربي متكامل — بُني خصيصاً للسوق الكويتي: تعدد الشركات، العملات،\n                  المدفوعات الجزئية، والتذكيرات عبر واتساب.	A complete Arabic invoicing & accounts system — built for the Kuwaiti market: multi-company, multi-currency,\n                  partial payments and WhatsApp reminders.
+روابط سريعة	Quick links
+تسجيل الدخول	Log in
+تواصل	Contact
+— جميع الحقوق محفوظة	— All rights reserved
+أدخل كلمة المرور الجديدة وتأكيدها	Enter and confirm the new password
+✅ تم تعيين كلمة المرور الجديدة — يمكنك الدخول الآن	✅ New password set — you can log in now
+تعذر إعادة التعيين — اطلب رابطاً جديداً	Could not reset — request a new link
+← الدخول	← Log in
+كلمة مرور جديدة	New password
+اختر كلمة مرور قوية لحسابك — 8 أحرف على الأقل	Choose a strong password — at least 8 characters
+⚠️ الرابط لا يحتوي رمز استعادة صالحاً.	⚠️ The link has no valid reset token.
+اطلب رسالة جديدة من صفحة الدخول («هل نسيت كلمة السر؟»)	Request a new message from the login page ("Forgot your password?")
+العودة لتسجيل الدخول ←	Back to login ←
+كلمة المرور الجديدة	New Password
+تأكيد كلمة المرور	Confirm Password
+💾 حفظ كلمة المرور الجديدة	💾 Save New Password
+الرمز صالح 30 دقيقة ولمرة واحدة فقط — من رسالة الاستعادة	The token is valid 30 minutes and one time only — from the reset email
+✦ عائلة واحدة	✦ One family
+فريق العمل	The Team
+الأشخاص الذين يقفون خلف كل فاتورة صحيحة وكل تقرير في وقته	The people behind every accurate invoice and every on-time report
+⭐ المؤسس	⭐ The Founder
+صاحب الرؤية الذي بدأ النظام من سؤال بسيط — وما زال يقرأ كل ملاحظة تصلنا بنفسه.	The visionary who started the system from a simple question — and still reads every note we receive himself.
+رسالة المؤسس ←	Founder's message ←
+بنية مركّزة بقيادة المؤسس مباشرة	A focused structure led directly by the founder
+كل ملاحظة وكل طلب ميزة يمرّ على المؤسس نفسه — هكذا نضمن أن النظام يكبر بما ينفع التجّار فعلاً، لا بما يبدو جيداً في العروض فقط.	Every note and feature request goes through the founder himself — that's how we guarantee the system grows with what actually benefits merchants, not just what looks good in demos.
+بريد {0}	Email {0}
+لينكدإن {0}	LinkedIn {0}
+تويتر {0}	Twitter {0}
+إدارة مالية ذكية لكل شركاتك، في مكان واحد	Smart financial management for all your companies, in one place
+من الفاتورة الأولى حتى آخر دينار محصَّل: فواتير فورية، مدفوعات جزئية، تذكيرات واتساب، تقارير لحظية، ومساعد ذكي يقرأ بياناتك ويجيبك — بعملة كل شركة وبالعربية الكاملة.	From the first invoice to the last collected dinar: instant invoices, partial payments, WhatsApp reminders, live reports, and a smart assistant that reads your data and answers — in each company's currency and full Arabic.
+بدأنا من سؤال واحد بسيط سأله لي صاحب متجر في الكويت: «ليش كل شهر بقضي ساعتين أطابق الفواتير باليد؟» — من ذلك السؤال وُلد هذا النظام.\n\nأؤمن أن إدارة المال ليست جداول وأرقاماً، بل ثقة: ثقة العميل بأن فاتورته واضحة، وثقة التاجر بأن رصيده محسوب بدقة إلى آخر قرش، وثقة الفريق بأن كل عملية مكتوبة ومسؤولة.\n\nهذا المشروع بالنسبة لي ليس منتجاً نقطة وننتهي، بل رحلة نشارككم فيها: نظام ينمو مع كل شركة تنضم إلينا، ويتعلم من كل فاتورة تُصدر.\n\nشكراً لثقتكم — وكل عام والتجارة الكويتية بخير وازدهار.	We started from one simple question a shop owner in Kuwait asked me: "Why do I spend two hours every month matching invoices by hand?" — from that question this system was born.\n\nI believe money management isn't spreadsheets and numbers, it's trust: the customer's trust that their invoice is clear, the merchant's trust that their balance is calculated precisely to the last fils, and the team's trust that every operation is written down and accountable.\n\nFor me this project isn't a ship-and-done product, it's a journey we share with you: a system that grows with every company that joins us and learns from every invoice issued.\n\nThank you for your trust — and may the Kuwaiti trade flourish every year.
+فواتير فورية	Instant invoices
+أنشئ فاتورة احترافية في أقل من دقيقة — مع طباعة PDF عربية كاملة وروابط دفع KNET.	Create a professional invoice in under a minute — with full Arabic PDF printing and KNET payment links.
+مدفوعات جزئية	Partial payments
+سجّل الدفعات على أجزاء وراقب الرصيد المتبقي لكل فاتورة ولكل عميل تلقائياً.	Record payments in parts and track the remaining balance per invoice and per customer automatically.
+تذكيرات واتساب	WhatsApp reminders
+تذكير واحد أو حملة جماعية لكل المتأخرين — برسائل عربية جاهزة وسجل مراجعة كامل.	One reminder or a bulk campaign for all overdue — with ready Arabic messages and a full review log.
+تقارير لحظية	Live reports
+لوحة مؤشرات حية: مبيعات الشهر، أعلى المديونيات، الإيراد بالشهر، وأداء كل شركة.	Live KPI dashboard: monthly sales, top debts, revenue by month, and each company's performance.
+مساعد ذكي	Smart assistant
+اسأله بالعربية عن أي رقم في نظامك — يجيب من بياناتك الحقيقية، ويدعم DeepSeek.	Ask it in Arabic about any number in your system — it answers from your real data, and supports DeepSeek.
+شركات متعددة	Multiple companies
+أربع شركات (والمزيد) بحساب مستقل لكل واحدة — وبعملتها الخاصة: دينار، ريال، دولار…	Four companies (and more) with an independent account each — and its own currency: dinar, riyal, dollar…
+<tr><td colspan="7" style="padding:18px;text-align:center;color:#9ca3af;">لا توجد فواتير لهذا العميل</td></tr>	<tr><td colspan="7" style="padding:18px;text-align:center;color:#9ca3af;">No invoices for this customer</td></tr>

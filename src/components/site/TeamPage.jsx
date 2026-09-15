@@ -1,6 +1,7 @@
 "use client";
 
 import { memberAvatar } from "./site-shared";
+import { tr } from "@/lib/i18n-app";
 
 /** r13: صفحة الفريق — بطاقة المؤسس + شبكة أعضاء الفريق (من /api/site/team)
  *  r16: أسماء الفريق حُذفت بطلب المؤسس — الصفحة تركّز على المؤسس أحمد عزت الصياد،
@@ -16,10 +17,10 @@ export default function TeamPage({ team, content }) {
     <div>
       <section className="s-section" style={{ paddingBottom: 20 }}>
         <div style={{ textAlign: "center" }} className="s-fade">
-          <div className="s-chip">✦ عائلة واحدة</div>
-          <h1 className="s-section-title" style={{ marginTop: 14 }}>فريق العمل</h1>
+          <div className="s-chip">{tr("✦ عائلة واحدة")}</div>
+          <h1 className="s-section-title" style={{ marginTop: 14 }}>{tr("فريق العمل")}</h1>
           <p className="s-section-sub" style={{ marginBottom: 0 }}>
-            الأشخاص الذين يقفون خلف كل فاتورة صحيحة وكل تقرير في وقته
+            {tr("الأشخاص الذين يقفون خلف كل فاتورة صحيحة وكل تقرير في وقته")}
           </p>
         </div>
 
@@ -33,15 +34,15 @@ export default function TeamPage({ team, content }) {
         >
           {memberAvatar({ name: content.founder_name, emoji: content.founder_emoji, photoUrl: content.founder_photo }, 96)}
           <div style={{ flex: 1, minWidth: 240 }}>
-            <div className="s-chip" style={{ marginBottom: 8, fontSize: 10.5 }}>⭐ المؤسس</div>
+            <div className="s-chip" style={{ marginBottom: 8, fontSize: 10.5 }}>{tr("⭐ المؤسس")}</div>
             <b style={{ fontSize: 20, display: "block", marginBottom: 4 }}>{content.founder_name}</b>
             <div style={{ color: "#c9a227", fontSize: 13, fontWeight: 700, marginBottom: 10 }}>{content.founder_title}</div>
             <p style={{ margin: 0, color: "rgba(255,255,255,.55)", fontSize: 13, lineHeight: 1.9 }}>
-              صاحب الرؤية الذي بدأ النظام من سؤال بسيط — وما زال يقرأ كل ملاحظة تصلنا بنفسه.
+              {tr("صاحب الرؤية الذي بدأ النظام من سؤال بسيط — وما زال يقرأ كل ملاحظة تصلنا بنفسه.")}
             </p>
           </div>
           <a className="s-btn s-btn-outline" href="#/founder" onClick={goFounder} style={{ flexShrink: 0 }}>
-            رسالة المؤسس ←
+            {tr("رسالة المؤسس ←")}
           </a>
         </div>
 
@@ -64,9 +65,9 @@ export default function TeamPage({ team, content }) {
           {members !== null && members.length === 0 && (
             <div className="s-card" style={{ gridColumn: "1/-1", textAlign: "center", padding: 44 }}>
               <div style={{ fontSize: 36, marginBottom: 12 }}>🏛️</div>
-              <b style={{ fontSize: 16 }}>بنية مركّزة بقيادة المؤسس مباشرة</b>
+              <b style={{ fontSize: 16 }}>{tr("بنية مركّزة بقيادة المؤسس مباشرة")}</b>
               <p style={{ color: "rgba(255,255,255,.5)", fontSize: 13, margin: "8px auto 0", maxWidth: 420, lineHeight: 1.9 }}>
-                كل ملاحظة وكل طلب ميزة يمرّ على المؤسس نفسه — هكذا نضمن أن النظام يكبر بما ينفع التجّار فعلاً، لا بما يبدو جيداً في العروض فقط.
+                {tr("كل ملاحظة وكل طلب ميزة يمرّ على المؤسس نفسه — هكذا نضمن أن النظام يكبر بما ينفع التجّار فعلاً، لا بما يبدو جيداً في العروض فقط.")}
               </p>
             </div>
           )}
@@ -84,17 +85,17 @@ export default function TeamPage({ team, content }) {
                 )}
                 <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
                   {m.email && (
-                    <a className="s-social" href={`mailto:${m.email}`} aria-label={`بريد ${m.name}`} title={m.email}>
+                    <a className="s-social" href={`mailto:${m.email}`} aria-label={tr("بريد {0}",[m.name])} title={m.email}>
                       ✉️
                     </a>
                   )}
                   {m.linkedin && (
-                    <a className="s-social" href={m.linkedin} target="_blank" rel="noopener noreferrer" aria-label={`لينكدإن ${m.name}`}>
+                    <a className="s-social" href={m.linkedin} target="_blank" rel="noopener noreferrer" aria-label={tr("لينكدإن {0}",[m.name])}>
                       in
                     </a>
                   )}
                   {m.twitter && (
-                    <a className="s-social" href={m.twitter} target="_blank" rel="noopener noreferrer" aria-label={`تويتر ${m.name}`}>
+                    <a className="s-social" href={m.twitter} target="_blank" rel="noopener noreferrer" aria-label={tr("تويتر {0}",[m.name])}>
                       𝕏
                     </a>
                   )}

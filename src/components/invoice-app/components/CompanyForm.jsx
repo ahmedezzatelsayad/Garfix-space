@@ -10,6 +10,7 @@ import { useState, useMemo } from "react";
 import { api } from "../api";
 import { CURRENCIES } from "../currency";
 import { txAdapt } from "../theme";
+import { tr } from "@/lib/i18n-app";
 
 const EMOJI_CHOICES = ["🛒","🏪","⚡","♾️","🏢","🏬","🧺","📱","💻","👗","🍳","🚗","💎","🎁","🥇","🌿"];
 
@@ -54,8 +55,8 @@ export default function CompanyForm({ mode, company, onClose, onSaved, toast }) 
 
   const save = async () => {
     setErr("");
-    if (!form.name.trim()) { setErr("اسم الشركة (الإنجليزي) مطلوب"); return; }
-    if (!form.nameAr.trim()) { setErr("الاسم العربي مطلوب"); return; }
+    if (!form.name.trim()) { setErr(tr("اسم الشركة (الإنجليزي) مطلوب")); return; }
+    if (!form.nameAr.trim()) { setErr(tr("الاسم العربي مطلوب")); return; }
     setBusy(true);
     try {
       const payload = {
@@ -69,10 +70,10 @@ export default function CompanyForm({ mode, company, onClose, onSaved, toast }) 
         await api.updateCompany(company.sk, rest);
       }
       setDone(true);
-      toast?.(isNew ? "✅ تمت إضافة الشركة بنجاح" : "✅ تم حفظ بيانات الشركة");
+      toast?.(isNew ? tr("✅ تمت إضافة الشركة بنجاح") : tr("✅ تم حفظ بيانات الشركة"));
       setTimeout(() => onSaved?.(), 700);
     } catch (e) {
-      setErr(e?.message || "تعذّر الحفظ");
+      setErr(e?.message || tr("تعذّر الحفظ"));
     } finally {
       setBusy(false);
     }
@@ -107,10 +108,10 @@ export default function CompanyForm({ mode, company, onClose, onSaved, toast }) 
             <div style={{ fontSize: "34px", lineHeight: 1 }}>{form.emoji || "🏢"}</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: "17px", fontWeight: 900, color: "#fff" }}>
-                {isNew ? "➕ إضافة شركة جديدة" : "✏️ تعديل بيانات الشركة"}
+                {isNew ? tr("➕ إضافة شركة جديدة") : tr("✏️ تعديل بيانات الشركة")}
               </div>
               <div style={{ fontSize: "12px", color: "rgba(255,255,255,.75)", marginTop: "2px" }}>
-                {form.nameAr || "اسم الشركة العربي"} {cur.flag} {cur.code}
+                {form.nameAr || tr("اسم الشركة العربي")} {cur.flag} {cur.code}
               </div>
             </div>
             <button onClick={busy ? undefined : onClose} disabled={busy}
@@ -125,7 +126,7 @@ export default function CompanyForm({ mode, company, onClose, onSaved, toast }) 
             <div style={{ textAlign: "center", padding: "38px 10px" }}>
               <div style={{ fontSize: "46px", marginBottom: "10px" }}>✅</div>
               <div style={{ fontSize: "16px", fontWeight: 900, color: "var(--ia-ok-tx)" }}>
-                {isNew ? "تمت إضافة الشركة — ستظهر في شاشة الاختيار" : "تم حفظ البيانات وتحديثها في كل مكان"}
+                {isNew ? tr("تمت إضافة الشركة — ستظهر في شاشة الاختيار") : tr("تم حفظ البيانات وتحديثها في كل مكان")}
               </div>
             </div>
           ) : (
@@ -137,8 +138,8 @@ export default function CompanyForm({ mode, company, onClose, onSaved, toast }) 
           }}>
             <div style={{ width: "40px", height: "40px", borderRadius: "11px", background: `${form.color}1a`, border: `1px solid ${form.color}33`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px", flexShrink: 0 }}>{form.emoji || "🏢"}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: "14px", fontWeight: 900, color: "var(--ia-text)" }}>{form.nameAr || "الاسم العربي…"}</div>
-              <div style={{ fontSize: "11px", color: "var(--ia-sub)", direction: "ltr", textAlign: "right" }}>{form.name || "English Name"}</div>
+              <div style={{ fontSize: "14px", fontWeight: 900, color: "var(--ia-text)" }}>{form.nameAr || tr("الاسم العربي…")}</div>
+              <div style={{ fontSize: "11px", color: "var(--ia-sub)", direction: "ltr", textAlign: "start" }}>{form.name || "English Name"}</div>
             </div>
             <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
               <span style={{ fontSize: "11px", fontWeight: 700, padding: "3px 10px", borderRadius: "20px", background: `${form.color}18`, border: `1px solid ${form.color}44`, color: form.color, direction: "ltr" }}>{form.phone || "+965…"}</span>
@@ -147,16 +148,16 @@ export default function CompanyForm({ mode, company, onClose, onSaved, toast }) 
           </div>
 
           {/* ── ① الأساسيات ── */}
-          <SectionTitle n="1" t="الأساسيات" c={form.color} />
+          <SectionTitle n="1" t={tr("الأساسيات")} c={form.color} />
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-            <Field label="الاسم العربي *"><input {...inp} placeholder="توفير أونلاين شوب" value={form.nameAr} onChange={(e) => setF("nameAr", e.target.value)} /></Field>
+            <Field label={tr("الاسم العربي *")}><input {...inp} placeholder={tr("توفير أونلاين شوب")} value={form.nameAr} onChange={(e) => setF("nameAr", e.target.value)} /></Field>
             <Field label="English Name *"><input {...inp} placeholder="Tawfeer Online Shop" value={form.name} onChange={(e) => setF("name", e.target.value)} /></Field>
             {isNew && (
-              <Field label="كود قصير (لاتيني، اختياري)">
+              <Field label={tr("كود قصير (لاتيني، اختياري)")}>
                 <input {...inp} placeholder="tawfeer" value={form.code} onChange={(e) => setF("code", e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} />
               </Field>
             )}
-            <Field label="الأيقونة">
+            <Field label={tr("الأيقونة")}>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
                 {EMOJI_CHOICES.map((em) => (
                   <button key={em} type="button" onClick={() => setF("emoji", em)} style={{
@@ -171,7 +172,7 @@ export default function CompanyForm({ mode, company, onClose, onSaved, toast }) 
           </div>
 
           {/* ── ② العملة ── */}
-          <SectionTitle n="2" t={`العملة — ${cur.ar}`} c="#0d9488" />
+          <SectionTitle n="2" t={tr("العملة — {0}",[cur.ar])} c="#0d9488" />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(108px, 1fr))", gap: "7px" }}>
             {Object.values(CURRENCIES).map((c) => {
               const on = c.code === form.currency;
@@ -179,12 +180,12 @@ export default function CompanyForm({ mode, company, onClose, onSaved, toast }) 
                 <button key={c.code} type="button" onClick={() => setF("currency", c.code)} style={{
                   display: "flex", alignItems: "center", gap: "8px", padding: "9px 10px", borderRadius: "10px",
                   border: on ? "2px solid #0d9488" : "1px solid var(--ia-bd)", cursor: "pointer",
-                  background: on ? "#0d948815" : "var(--ia-card)", transition: "all .15s", textAlign: "right",
+                  background: on ? "#0d948815" : "var(--ia-card)", transition: "all .15s", textAlign: "start",
                 }}>
                   <span style={{ fontSize: "18px" }}>{c.flag}</span>
                   <span style={{ flex: 1 }}>
                     <span style={{ display: "block", fontSize: "11.5px", fontWeight: 900, color: "var(--ia-text)" }}>{c.ar}</span>
-                    <span style={{ display: "block", fontSize: "10px", color: "var(--ia-sub)", direction: "ltr", textAlign: "right" }}>{c.code} • {c.short}</span>
+                    <span style={{ display: "block", fontSize: "10px", color: "var(--ia-sub)", direction: "ltr", textAlign: "start" }}>{c.code} • {c.short}</span>
                   </span>
                   {on && <span style={{ fontSize: "12px", color: "#0d9488", fontWeight: 900 }}>✓</span>}
                 </button>
@@ -192,16 +193,16 @@ export default function CompanyForm({ mode, company, onClose, onSaved, toast }) 
             })}
           </div>
           <div style={{ fontSize: "11px", color: "var(--ia-sub)", marginTop: "7px", lineHeight: 1.7 }}>
-            💡 كل مبالغ الفواتير والتقارير والطباعة ستنسّق بعملة الشركة النشطة — مثال: <b style={{ color: "var(--ia-text)" }}>{(1234.5).toFixed(cur.decimals)} {cur.short}</b>
+            {tr("💡 كل مبالغ الفواتير والتقارير والطباعة ستنسّق بعملة الشركة النشطة — مثال:")} <b style={{ color: "var(--ia-text)" }}>{(1234.5).toFixed(cur.decimals)} {cur.short}</b>
           </div>
 
           {/* ── ②½ الضرائب (اختيارية) ── */}
-          <SectionTitle n="3" t="🧾 الضريبة — اختيارية" c="#b45309" />
+          <SectionTitle n="3" t={tr("🧾 الضريبة — اختيارية")} c="#b45309" />
           <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "10px", alignItems: "center", background: "var(--ia-chip)", border: "1px solid var(--ia-bd)", borderRadius: "12px", padding: "12px 14px" }}>
             <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "13px", fontWeight: 800, color: "var(--ia-text)" }}>
               <input type="checkbox" checked={form.taxEnabled} onChange={(e) => setF("taxEnabled", e.target.checked)}
                 style={{ width: "18px", height: "18px", accentColor: "#b45309", cursor: "pointer" }} />
-              تفعيل الضريبة
+              {tr("تفعيل الضريبة")}
             </label>
             {form.taxEnabled ? (
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -212,34 +213,34 @@ export default function CompanyForm({ mode, company, onClose, onSaved, toast }) 
                 {vatHint > 0 && String(form.defaultTaxRate) === "" && (
                   <button type="button" onClick={() => setF("defaultTaxRate", String(vatHint))}
                     style={{ background: "#b4530918", border: "1px solid #b4530955", color: "#b45309", borderRadius: "8px", padding: "5px 10px", fontSize: "11px", fontWeight: 800, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
-                    ⚡ استخدم {vatHint}% (ضريبة بلد العملة)
+                    {tr("⚡ استخدم")} {vatHint}{tr("% (ضريبة بلد العملة)")}
                   </button>
                 )}
               </div>
             ) : (
-              <span style={{ fontSize: "12px", color: "var(--ia-sub)", fontWeight: 700 }}>🚫 الفواتير بلا ضريبة — يمكن تفعيلها لاحقاً</span>
+              <span style={{ fontSize: "12px", color: "var(--ia-sub)", fontWeight: 700 }}>{tr("🚫 الفواتير بلا ضريبة — يمكن تفعيلها لاحقاً")}</span>
             )}
           </div>
           <div style={{ fontSize: "11px", color: "var(--ia-sub)", marginTop: "7px", lineHeight: 1.7 }}>
-            💡 النسبة الافتراضية تُقترح تلقائياً عند إنشاء الفواتير وتُعدّل يدوياً لكل فاتورة حسب رغبتك
+            {tr("💡 النسبة الافتراضية تُقترح تلقائياً عند إنشاء الفواتير وتُعدّل يدوياً لكل فاتورة حسب رغبتك")}
           </div>
 
           {/* ── ③ بيانات الاتصال ── */}
-          <SectionTitle n="4" t="بيانات الاتصال" c={form.color} />
+          <SectionTitle n="4" t={tr("بيانات الاتصال")} c={form.color} />
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-            <Field label="هاتف الشركة"><input {...inp} dir="ltr" placeholder="+96598737207" value={form.phone} onChange={(e) => setF("phone", e.target.value)} /></Field>
-            <Field label="البريد الإلكتروني"><input {...inp} dir="ltr" placeholder="info@company.store" value={form.email} onChange={(e) => setF("email", e.target.value)} /></Field>
-            <Field label="المدير"><input {...inp} placeholder="أحمد عزت" value={form.manager} onChange={(e) => setF("manager", e.target.value)} /></Field>
-            <Field label="هاتف المدير"><input {...inp} dir="ltr" placeholder="+9659…" value={form.managerPhone} onChange={(e) => setF("managerPhone", e.target.value)} /></Field>
-            <Field label="العنوان"><input {...inp} placeholder="Kuwait City - Hawally 10078" value={form.address} onChange={(e) => setF("address", e.target.value)} /></Field>
-            <Field label="المدينة"><input {...inp} placeholder="Hawalli" value={form.city} onChange={(e) => setF("city", e.target.value)} /></Field>
-            <Field label="المرجع/البائع (Seller Ref)"><input {...inp} placeholder="Tawfeer" value={form.sellerRef} onChange={(e) => setF("sellerRef", e.target.value)} /></Field>
+            <Field label={tr("هاتف الشركة")}><input {...inp} dir="ltr" placeholder="+96598737207" value={form.phone} onChange={(e) => setF("phone", e.target.value)} /></Field>
+            <Field label={tr("البريد الإلكتروني")}><input {...inp} dir="ltr" placeholder="info@company.store" value={form.email} onChange={(e) => setF("email", e.target.value)} /></Field>
+            <Field label={tr("المدير")}><input {...inp} placeholder={tr("أحمد عزت")} value={form.manager} onChange={(e) => setF("manager", e.target.value)} /></Field>
+            <Field label={tr("هاتف المدير")}><input {...inp} dir="ltr" placeholder="+9659…" value={form.managerPhone} onChange={(e) => setF("managerPhone", e.target.value)} /></Field>
+            <Field label={tr("العنوان")}><input {...inp} placeholder="Kuwait City - Hawally 10078" value={form.address} onChange={(e) => setF("address", e.target.value)} /></Field>
+            <Field label={tr("المدينة")}><input {...inp} placeholder="Hawalli" value={form.city} onChange={(e) => setF("city", e.target.value)} /></Field>
+            <Field label={tr("المرجع/البائع (Seller Ref)")}><input {...inp} placeholder="Tawfeer" value={form.sellerRef} onChange={(e) => setF("sellerRef", e.target.value)} /></Field>
           </div>
 
           {/* ── ⑤ الهوية البصرية ── */}
-          <SectionTitle n="5" t="الهوية البصرية" c={form.accent} />
+          <SectionTitle n="5" t={tr("الهوية البصرية")} c={form.accent} />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px" }}>
-            {([["color", "اللون الأساسي"], ["accent", "لون التمييز"], ["cardBg", "خلفية البطاقات"]]).map(([k, label]) => (
+            {([["color", tr("اللون الأساسي")], ["accent", tr("لون التمييز")], ["cardBg", tr("خلفية البطاقات")]]).map(([k, label]) => (
               <Field key={k} label={label}>
                 <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
                   <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(form[k]) ? form[k] : "#334155"}
@@ -265,12 +266,12 @@ export default function CompanyForm({ mode, company, onClose, onSaved, toast }) 
               cursor: busy ? "wait" : "pointer", fontFamily: "inherit",
               boxShadow: `0 6px 18px ${form.color}44`, opacity: busy ? 0.7 : 1,
             }}>
-              {busy ? "⏳ جارٍ الحفظ…" : isNew ? "＋ إضافة الشركة" : "💾 حفظ التعديلات"}
+              {busy ? tr("⏳ جارٍ الحفظ…") : isNew ? tr("＋ إضافة الشركة") : tr("💾 حفظ التعديلات")}
             </button>
             <button onClick={onClose} disabled={busy} style={{
               background: "var(--ia-card)", border: "1px solid var(--ia-bd)", color: "var(--ia-sub)",
               borderRadius: "10px", padding: "10px 22px", fontSize: "13px", fontWeight: 700, cursor: busy ? "default" : "pointer", fontFamily: "inherit",
-            }}>إلغاء</button>
+            }}>{tr("إلغاء")}</button>
           </div>
           </>
           )}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { resetPasswordWithToken } from "../invoice-app/firebase/auth";
+import { tr } from "@/lib/i18n-app";
 
 /**
  * r16: صفحة إعادة تعيين كلمة المرور — تُفتح من رابط رسالة البريد (#/reset?token=…)
@@ -27,16 +28,16 @@ export default function ResetPasswordPage() {
   };
 
   const doReset = async () => {
-    if (!pass || !pass2) { setErr("أدخل كلمة المرور الجديدة وتأكيدها"); return; }
-    if (pass !== pass2) { setErr("كلمتا المرور غير متطابقتين"); return; }
+    if (!pass || !pass2) { setErr(tr("أدخل كلمة المرور الجديدة وتأكيدها")); return; }
+    if (pass !== pass2) { setErr(tr("كلمتا المرور غير متطابقتين")); return; }
     setLoading(true); setErr(""); setOkMsg("");
     try {
       await resetPasswordWithToken(token, pass);
-      setOkMsg("✅ تم تعيين كلمة المرور الجديدة — يمكنك الدخول الآن");
+      setOkMsg(tr("✅ تم تعيين كلمة المرور الجديدة — يمكنك الدخول الآن"));
       setPass(""); setPass2("");
       setTimeout(() => { location.hash = "#/login"; }, 1600);
     } catch (e) {
-      setErr(e.message || "تعذر إعادة التعيين — اطلب رابطاً جديداً");
+      setErr(e.message || tr("تعذر إعادة التعيين — اطلب رابطاً جديداً"));
     } finally {
       setLoading(false);
     }
@@ -60,7 +61,7 @@ export default function ResetPasswordPage() {
         background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.14)",
         borderRadius: 8, padding: "7px 14px", color: "#fff", textDecoration: "none",
         fontSize: 13, fontWeight: 700, fontFamily: "Cairo,sans-serif",
-      }}>← الدخول</a>
+      }}>{tr("← الدخول")}</a>
 
       <div style={{ width: "100%", maxWidth: 420, animation: "fadeUp .5s ease" }}>
         <div style={{ textAlign: "center", marginBottom: 26 }}>
@@ -70,8 +71,8 @@ export default function ResetPasswordPage() {
             display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30,
             boxShadow: "0 6px 24px rgba(201,162,39,.4)",
           }}>🔐</div>
-          <div style={{ color: "#fff", fontSize: 21, fontWeight: 900, marginBottom: 6 }}>كلمة مرور جديدة</div>
-          <div style={{ color: "rgba(255,255,255,.45)", fontSize: 12.5 }}>اختر كلمة مرور قوية لحسابك — 8 أحرف على الأقل</div>
+          <div style={{ color: "#fff", fontSize: 21, fontWeight: 900, marginBottom: 6 }}>{tr("كلمة مرور جديدة")}</div>
+          <div style={{ color: "rgba(255,255,255,.45)", fontSize: 12.5 }}>{tr("اختر كلمة مرور قوية لحسابك — 8 أحرف على الأقل")}</div>
         </div>
 
         <div style={{
@@ -82,29 +83,29 @@ export default function ResetPasswordPage() {
           {!token ? (
             <>
               <div style={{ background: "rgba(220,38,38,.1)", border: "1px solid rgba(220,38,38,.28)", borderRadius: 8, padding: "12px 14px", color: "#fca5a5", fontSize: 12.5, lineHeight: 1.9, textAlign: "center" }}>
-                ⚠️ الرابط لا يحتوي رمز استعادة صالحاً.<br />اطلب رسالة جديدة من صفحة الدخول («هل نسيت كلمة السر؟»)
+                {tr("⚠️ الرابط لا يحتوي رمز استعادة صالحاً.")}<br />{tr("اطلب رسالة جديدة من صفحة الدخول («هل نسيت كلمة السر؟»)")}
               </div>
               <button onClick={goLogin} style={{
                 width: "100%", marginTop: 16, border: "none", borderRadius: 9, padding: 13,
                 background: "linear-gradient(135deg,#c9a227,#9a7318)", color: "#fff",
                 fontFamily: "inherit", fontSize: 14, fontWeight: 800, cursor: "pointer",
-              }}>العودة لتسجيل الدخول ←</button>
+              }}>{tr("العودة لتسجيل الدخول ←")}</button>
             </>
           ) : (
             <>
               <div style={{ marginBottom: 14 }}>
-                <label style={{ fontSize: 11, color: "rgba(201,162,39,.75)", display: "block", marginBottom: 7, fontWeight: 700 }}>كلمة المرور الجديدة</label>
+                <label style={{ fontSize: 11, color: "rgba(201,162,39,.75)", display: "block", marginBottom: 7, fontWeight: 700 }}>{tr("كلمة المرور الجديدة")}</label>
                 <div style={{ position: "relative" }}>
                   <input className="r-inp" type={showPass ? "text" : "password"} placeholder="••••••••••" value={pass}
-                    onChange={e => { setPass(e.target.value); setErr(""); }} style={{ paddingLeft: 42 }}/>
+                    onChange={e => { setPass(e.target.value); setErr(""); }} style={{ paddingInlineEnd: 42 }}/>
                   <span onClick={() => setShowPass(p => !p)} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", cursor: "pointer", fontSize: 15, opacity: .4 }}>{showPass ? "🙈" : "👁️"}</span>
                 </div>
               </div>
               <div style={{ marginBottom: 18 }}>
-                <label style={{ fontSize: 11, color: "rgba(201,162,39,.75)", display: "block", marginBottom: 7, fontWeight: 700 }}>تأكيد كلمة المرور</label>
+                <label style={{ fontSize: 11, color: "rgba(201,162,39,.75)", display: "block", marginBottom: 7, fontWeight: 700 }}>{tr("تأكيد كلمة المرور")}</label>
                 <input className="r-inp" type={showPass ? "text" : "password"} placeholder="••••••••••" value={pass2}
                   onChange={e => { setPass2(e.target.value); setErr(""); }}
-                  onKeyDown={e => e.key === "Enter" && doReset()} style={{ paddingLeft: 42 }}/>
+                  onKeyDown={e => e.key === "Enter" && doReset()} style={{ paddingInlineEnd: 42 }}/>
               </div>
 
               {err && (
@@ -125,10 +126,10 @@ export default function ResetPasswordPage() {
                 fontFamily: "inherit", fontSize: 15, fontWeight: 800,
                 cursor: (loading || !pass || !pass2) ? "not-allowed" : "pointer",
                 boxShadow: (loading || !pass || !pass2) ? "none" : "0 6px 22px rgba(201,162,39,.45)",
-              }}>{loading ? "⏳ جارٍ الحفظ..." : "💾 حفظ كلمة المرور الجديدة"}</button>
+              }}>{loading ? tr("⏳ جارٍ الحفظ...") : tr("💾 حفظ كلمة المرور الجديدة")}</button>
 
               <p style={{ color: "rgba(255,255,255,.3)", fontSize: 11, margin: "14px 0 0", textAlign: "center", lineHeight: 1.8 }}>
-                الرمز صالح 30 دقيقة ولمرة واحدة فقط — من رسالة الاستعادة
+                {tr("الرمز صالح 30 دقيقة ولمرة واحدة فقط — من رسالة الاستعادة")}
               </p>
             </>
           )}

@@ -6,23 +6,25 @@
  */
 export interface CurrencyInfo {
   ar: string;
+  en?: string;
   short: string;
+  shortEn?: string;
   code: string;
   flag: string;
   decimals: number;
 }
 
 export const CURRENCIES: Record<string, CurrencyInfo> = {
-  KWD: { ar: "دينار كويتي", short: "د.ك", code: "KWD", flag: "🇰🇼", decimals: 3 },
-  SAR: { ar: "ريال سعودي", short: "ر.س", code: "SAR", flag: "🇸🇦", decimals: 2 },
-  AED: { ar: "درهم إماراتي", short: "د.إ", code: "AED", flag: "🇦🇪", decimals: 2 },
-  QAR: { ar: "ريال قطري", short: "ر.ق", code: "QAR", flag: "🇶🇦", decimals: 2 },
-  BHD: { ar: "دينار بحريني", short: "د.ب", code: "BHD", flag: "🇧🇭", decimals: 3 },
-  OMR: { ar: "ريال عماني", short: "ر.ع", code: "OMR", flag: "🇴🇲", decimals: 3 },
-  EGP: { ar: "جنيه مصري", short: "ج.م", code: "EGP", flag: "🇪🇬", decimals: 2 },
-  USD: { ar: "دولار أمريكي", short: "$", code: "USD", flag: "🇺🇸", decimals: 2 },
-  EUR: { ar: "يورو", short: "€", code: "EUR", flag: "🇪🇺", decimals: 2 },
-  GBP: { ar: "جنيه إسترليني", short: "£", code: "GBP", flag: "🇬🇧", decimals: 2 },
+  KWD: { ar: "دينار كويتي", en: "Kuwaiti Dinar", short: "د.ك", shortEn: "KD", code: "KWD", flag: "🇰🇼", decimals: 3 },
+  SAR: { ar: "ريال سعودي", en: "Saudi Riyal", short: "ر.س", shortEn: "SAR", code: "SAR", flag: "🇸🇦", decimals: 2 },
+  AED: { ar: "درهم إماراتي", en: "UAE Dirham", short: "د.إ", shortEn: "AED", code: "AED", flag: "🇦🇪", decimals: 2 },
+  QAR: { ar: "ريال قطري", en: "Qatari Riyal", short: "ر.ق", shortEn: "QAR", code: "QAR", flag: "🇶🇦", decimals: 2 },
+  BHD: { ar: "دينار بحريني", en: "Bahraini Dinar", short: "د.ب", shortEn: "BHD", code: "BHD", flag: "🇧🇭", decimals: 3 },
+  OMR: { ar: "ريال عماني", en: "Omani Riyal", short: "ر.ع", shortEn: "OMR", code: "OMR", flag: "🇴🇲", decimals: 3 },
+  EGP: { ar: "جنيه مصري", en: "Egyptian Pound", short: "ج.م", shortEn: "EGP", code: "EGP", flag: "🇪🇬", decimals: 2 },
+  USD: { ar: "دولار أمريكي", en: "US Dollar", short: "$", shortEn: "$", code: "USD", flag: "🇺🇸", decimals: 2 },
+  EUR: { ar: "يورو", en: "Euro", short: "€", shortEn: "€", code: "EUR", flag: "🇪🇺", decimals: 2 },
+  GBP: { ar: "جنيه إسترليني", en: "British Pound", short: "£", shortEn: "£", code: "GBP", flag: "🇬🇧", decimals: 2 },
   TRY: { ar: "ليرة تركية", short: "₺", code: "TRY", flag: "🇹🇷", decimals: 2 },
   JOD: { ar: "دينار أردني", short: "د.أ", code: "JOD", flag: "🇯🇴", decimals: 3 },
 };

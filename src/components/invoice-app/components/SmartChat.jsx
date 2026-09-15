@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import { useTheme, txAdapt, softAdapt } from "../theme";
 import { fmtMoney } from "../currency";
+import { tr, appLang, companyName } from "@/lib/i18n-app";
 
 /* r10: المساعد الذكي — شات متصل بكامل المشروع
  * r15: إكمال المساعد — إجراءات تنفيذية حقيقية (إنسان في الحلقة):
@@ -135,7 +136,7 @@ export default function SmartChat({ company, onDataChanged }) {
           })
       );
     } catch {
-      setError("تعذّر تحميل المحادثة");
+      setError(tr("تعذّر تحميل المحادثة"));
       setMessages([]);
     }
   };
@@ -151,7 +152,7 @@ export default function SmartChat({ company, onDataChanged }) {
 
   const deleteConversation = async (e, id) => {
     e.stopPropagation();
-    if (!confirm("حذف هذه المحادثة نهائياً؟")) return;
+    if (!confirm(tr("حذف هذه المحادثة نهائياً؟"))) return;
     try {
       await fetch(`/api/ai/conversations?id=${id}`, { method: "DELETE" });
       setConversations(prev => prev.filter(c => c.id !== id));
@@ -187,7 +188,7 @@ export default function SmartChat({ company, onDataChanged }) {
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, conversationId: activeId, companySlug: sk || undefined, companyName: company?.nameAr }),
+        body: JSON.stringify({ message: text, conversationId: activeId, companySlug: sk || undefined, companyName: companyName(company), lang: appLang() }),
         signal: ctrl.signal,
       });
 
@@ -224,7 +225,7 @@ export default function SmartChat({ company, onDataChanged }) {
             return copy;
           });
         } else if (ev === "error") {
-          setError(data.error || "خطأ من مزوّد الذكاء الاصطناعي");
+          setError(data.error || tr("خطأ من مزوّد الذكاء الاصطناعي"));
         } else if (ev === "done") {
           setMessages(prev => {
             const copy = [...prev];
@@ -266,7 +267,7 @@ export default function SmartChat({ company, onDataChanged }) {
       });
       loadConversations(); // تحديث القائمة الجانبية (العنوان/الوقت)
     } catch (e) {
-      if (e.name !== "AbortError") setError(e.message || "تعذّر الاتصال بالمساعد");
+      if (e.name !== "AbortError") setError(e.message || tr("تعذّر الاتصال بالمساعد"));
       // إزالة الفقاعة الفارغة لو أُلغيت
       setMessages(prev => {
         const last = prev[prev.length - 1];
@@ -310,7 +311,7 @@ export default function SmartChat({ company, onDataChanged }) {
         actions[actIdx] = {
           ...actions[actIdx],
           status: data.ok ? "done" : "failed",
-          result: data.ok ? (data.summary || "تم التنفيذ") : ((data.errors || []).join(" — ") || "فشل التنفيذ"),
+          result: data.ok ? (data.summary || tr("تم التنفيذ")) : ((data.errors || []).join(" — ") || tr("فشل التنفيذ")),
         };
         copy[msgIdx] = { ...msg, actions };
         return copy;
@@ -325,7 +326,7 @@ export default function SmartChat({ company, onDataChanged }) {
         const msg = copy[msgIdx];
         if (!msg || !msg.actions) return prev;
         const actions = [...msg.actions];
-        actions[actIdx] = { ...actions[actIdx], status: "failed", result: e.message || "تعذّر الاتصال بالخادم" };
+        actions[actIdx] = { ...actions[actIdx], status: "failed", result: e.message || tr("تعذّر الاتصال بالخادم") };
         copy[msgIdx] = { ...msg, actions };
         return copy;
       });
@@ -356,15 +357,15 @@ export default function SmartChat({ company, onDataChanged }) {
   /* ————— تصدير المحادثة (Markdown) ————— */
   const exportConversation = () => {
     if (!messages.length) return;
-    const title = conversations.find(c => c.id === activeId)?.title || "محادثة جديدة";
+    const title = conversations.find(c => c.id === activeId)?.title || tr("محادثة جديدة");
     const lines = [
-      `# 🤖 محادثة مساعد جرفِكس الذكي — ${company?.nameAr || "الشركة"}`,
+      tr("# 🤖 محادثة مساعد جرفِكس الذكي — {0}",[company?.nameAr || tr("الشركة")]),
       ``,
-      `> ${title} • ${new Date().toLocaleString("ar")} • ${messages.length} رسالة`,
+      tr("> {0} • {1} • {2} رسالة",[title,new Date().toLocaleString("ar"),messages.length]),
       ``,
       ...messages.map(m => (m.role === "user"
-        ? `## 👤 أنت\n\n${m.content}`
-        : `## 🤖 المساعد${m.model ? ` (${m.model})` : ""}\n\n${m.content}${(m.actions || []).filter(a => a.status === "done").length ? `\n\n*(إجراءات نُفِّذت: ${(m.actions || []).filter(a => a.status === "done").map(a => ACTION_META[a.action]?.title || a.action).join("، ")})*` : ""}`)),
+        ? tr("## 👤 أنت\n\n{0}",[m.content])
+        : tr("## 🤖 المساعد{0}\n\n{1}{2}",[m.model ? ` (${m.model})` : "",m.content,(m.actions || []).filter(a => a.status === "done").length ? tr("\n\n*(إجراءات نُفِّذت: {0})*",[(m.actions || []).filter(a => a.status === "done").map(a => ACTION_META[a.action]?.title || a.action).join("، ")]) : ""]))),
     ];
     const blob = new Blob([lines.join("\n\n")], { type: "text/markdown;charset=utf-8" });
     const a = document.createElement("a");
@@ -399,7 +400,7 @@ export default function SmartChat({ company, onDataChanged }) {
         color: txAdapt(isDS ? "#1d4ed8" : "#15803d", dark),
         borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap",
       }}>
-        {isDS ? `🔵 ${streamMeta.model}` : "🟢 المزوّد المدمج"}
+        {isDS ? `🔵 ${streamMeta.model}` : tr("🟢 المزوّد المدمج")}
       </span>
     );
   }, [streamMeta, dark]);
@@ -418,21 +419,21 @@ export default function SmartChat({ company, onDataChanged }) {
           boxShadow: `0 4px 12px ${col}44`,
         }}>🤖</div>
         <div style={{ flex: 1, minWidth: 140 }}>
-          <div style={{ fontWeight: 900, fontSize: 15 }}>مساعد جرفِكس الذكي</div>
+          <div style={{ fontWeight: 900, fontSize: 15 }}>{tr("مساعد جرفِكس الذكي")}</div>
           <div style={{ fontSize: 11.5, color: "var(--ia-sub)" }}>
-            متصل ببيانات {company?.nameAr || "الشركة"} — تحليل، تقارير، وإجراءات تنفيذية حقيقية
-            {totalMsgs > 0 ? ` • ${totalMsgs} رسالة` : ""}
+            {tr("متصل ببيانات")} {company?.nameAr || tr("الشركة")} {tr("— تحليل، تقارير، وإجراءات تنفيذية حقيقية")}
+            {totalMsgs > 0 ? tr(" • {0} رسالة",[totalMsgs]) : ""}
           </div>
         </div>
         {providerChip}
         <button className="btn btn-outline" onClick={() => setShowSidebar(s => !s)}
           style={{ display: conversations.length ? "inline-flex" : "none" }}>
-          🗂️ المحادثات {conversations.length ? `(${conversations.length})` : ""}
+          {tr("🗂️ المحادثات")} {conversations.length ? `(${conversations.length})` : ""}
         </button>
         <button className="btn btn-outline" onClick={exportConversation}
-          title="تنزيل هذه المحادثة كملف Markdown"
-          style={{ display: messages.length ? "inline-flex" : "none" }}>⬇️ تصدير</button>
-        <button className="btn" style={{ background: col, color: "#fff" }} onClick={newConversation}>➕ محادثة جديدة</button>
+          title={tr("تنزيل هذه المحادثة كملف Markdown")}
+          style={{ display: messages.length ? "inline-flex" : "none" }}>{tr("⬇️ تصدير")}</button>
+        <button className="btn" style={{ background: col, color: "#fff" }} onClick={newConversation}>{tr("➕ محادثة جديدة")}</button>
       </div>
 
       {/* القائمة الجانبية (قابلة للطي) */}
@@ -441,7 +442,7 @@ export default function SmartChat({ company, onDataChanged }) {
           {convLoading ? (
             <div className="sk sk-sm" style={{ margin: 8 }} />
           ) : conversations.length === 0 ? (
-            <div style={{ padding: 12, fontSize: 12.5, color: "var(--ia-sub)", textAlign: "center" }}>لا توجد محادثات محفوظة بعد</div>
+            <div style={{ padding: 12, fontSize: 12.5, color: "var(--ia-sub)", textAlign: "center" }}>{tr("لا توجد محادثات محفوظة بعد")}</div>
           ) : (
             conversations.map(c => (
               <div key={c.id}
@@ -456,10 +457,10 @@ export default function SmartChat({ company, onDataChanged }) {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 12.5, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.title}</div>
                   <div style={{ fontSize: 10.5, color: "var(--ia-sub)" }}>
-                    {c.messageCount} رسالة • {new Date(c.updatedAt).toLocaleString("ar", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    {c.messageCount} {tr("رسالة •")} {new Date(c.updatedAt).toLocaleString("ar", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                   </div>
                 </div>
-                <button onClick={e => deleteConversation(e, c.id)} title="حذف"
+                <button onClick={e => deleteConversation(e, c.id)} title={tr("حذف")}
                   style={{ border: "none", background: "transparent", color: txAdapt("#dc2626", dark), cursor: "pointer", fontSize: 14, padding: 4 }}>🗑️</button>
               </div>
             ))
@@ -473,28 +474,28 @@ export default function SmartChat({ company, onDataChanged }) {
           {emptyState ? (
             <div style={{ textAlign: "center", padding: "28px 10px" }}>
               <div style={{ fontSize: 44, marginBottom: 6 }}>🤖</div>
-              <div style={{ fontWeight: 900, fontSize: 16, marginBottom: 4 }}>اسألني أي شيء عن مشروعك</div>
+              <div style={{ fontWeight: 900, fontSize: 16, marginBottom: 4 }}>{tr("اسألني أي شيء عن مشروعك")}</div>
               <div style={{ fontSize: 12.5, color: "var(--ia-sub)", marginBottom: 8, maxWidth: 460, marginInline: "auto" }}>
-                أرى بيانات {company?.nameAr || "الشركة"} الحيّة: الفواتير، المدفوعات، المستحقات، العملاء والكتالوج — ويمكنني تحليلها وكتابة الرسائل والتقارير.
+                {tr("أرى بيانات")} {company?.nameAr || tr("الشركة")} {tr("الحيّة: الفواتير، المدفوعات، المستحقات، العملاء والكتالوج — ويمكنني تحليلها وكتابة الرسائل والتقارير.")}
               </div>
               <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: softAdapt("#fef3c7", dark), color: txAdapt("#b45309", dark), borderRadius: 20, padding: "4px 12px", fontSize: 11.5, fontWeight: 700, marginBottom: 18 }}>
-                ⚡ جرّب أيضاً: اطلب مني إنشاء فاتورة أو إضافة عميل أو تسجيل دفعة — سأجهّزها لك وتؤكدها بضغطة زر
+                {tr("⚡ جرّب أيضاً: اطلب مني إنشاء فاتورة أو إضافة عميل أو تسجيل دفعة — سأجهّزها لك وتؤكدها بضغطة زر")}
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 8, maxWidth: 640, marginInline: "auto" }}>
                 {SUGGESTIONS.map((s, i) => (
-                  <button key={i} className="btn btn-outline" onClick={() => send(s.text)}
-                    style={{ justifyContent: "flex-start", textAlign: "right", fontWeight: 600, fontSize: 12.5, padding: "10px 12px", height: "auto" }}>
-                    <span style={{ fontSize: 16 }}>{s.icon}</span> {s.text}
+                  <button key={i} className="btn btn-outline" onClick={() => send(tr(s.text))}
+                    style={{ justifyContent: "flex-start", textAlign: "start", fontWeight: 600, fontSize: 12.5, padding: "10px 12px", height: "auto" }}>
+                    <span style={{ fontSize: 16 }}>{s.icon}</span> {tr(s.text)}
                   </button>
                 ))}
               </div>
               <div style={{ maxWidth: 640, marginInline: "auto", marginTop: 14 }}>
-                <div style={{ fontSize: 10.5, fontWeight: 800, color: "var(--ia-muted)", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 6 }}>⚡ أمثلة إجرائية — سأنفّذها فعلياً</div>
+                <div style={{ fontSize: 10.5, fontWeight: 800, color: "var(--ia-muted)", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 6 }}>{tr("⚡ أمثلة إجرائية — سأنفّذها فعلياً")}</div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 8 }}>
                   {ACTION_SUGGESTIONS.map((s, i) => (
-                    <button key={i} className="btn btn-outline" onClick={() => send(s.text)}
-                      style={{ justifyContent: "flex-start", textAlign: "right", fontWeight: 600, fontSize: 12, padding: "10px 12px", height: "auto", borderColor: softAdapt("#fde68a", dark), background: softAdapt("#fffbeb", dark) }}>
-                      <span style={{ fontSize: 16 }}>{s.icon}</span> {s.text}
+                    <button key={i} className="btn btn-outline" onClick={() => send(tr(s.text))}
+                      style={{ justifyContent: "flex-start", textAlign: "start", fontWeight: 600, fontSize: 12, padding: "10px 12px", height: "auto", borderColor: softAdapt("#fde68a", dark), background: softAdapt("#fffbeb", dark) }}>
+                      <span style={{ fontSize: 16 }}>{s.icon}</span> {tr(s.text)}
                     </button>
                   ))}
                 </div>
@@ -516,19 +517,19 @@ export default function SmartChat({ company, onDataChanged }) {
                 <div style={{ maxWidth: "88%", width: "fit-content" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
                     <span style={{ fontSize: 13 }}>🤖</span>
-                    <span style={{ fontSize: 10.5, fontWeight: 800, color: "var(--ia-sub)" }}>مساعد جرفِكس</span>
+                    <span style={{ fontSize: 10.5, fontWeight: 800, color: "var(--ia-sub)" }}>{tr("مساعد جرفِكس")}</span>
                     {m.latencyMs ? <span style={{ fontSize: 10, color: "var(--ia-sub)", direction: "ltr" }}>{(m.latencyMs / 1000).toFixed(1)}s</span> : null}
                     {m.content ? (
-                      <button onClick={() => copyMessage(i, m.content)} title="نسخ الرد"
+                      <button onClick={() => copyMessage(i, m.content)} title={tr("نسخ الرد")}
                         className="chat-copy"
                         style={{ border: "none", background: "transparent", cursor: "pointer", fontSize: 12, padding: "1px 4px", color: copiedIdx === i ? "#16a34a" : "var(--ia-muted)" }}>
-                        {copiedIdx === i ? "✓ تم النسخ" : "📋"}
+                        {copiedIdx === i ? tr("✓ تم النسخ") : "📋"}
                       </button>
                     ) : null}
                   </div>
                   {m.reasoning ? (
                     <details style={{ marginBottom: 6 }}>
-                      <summary style={{ fontSize: 11, color: "var(--ia-sub)", cursor: "pointer", fontWeight: 700 }}>🧠 سلسلة التفكير ({m.reasoning.length} حرف)</summary>
+                      <summary style={{ fontSize: 11, color: "var(--ia-sub)", cursor: "pointer", fontWeight: 700 }}>{tr("🧠 سلسلة التفكير (")}{m.reasoning.length} {tr("حرف)")}</summary>
                       <div style={{ fontSize: 11.5, color: "var(--ia-sub)", whiteSpace: "pre-wrap", maxHeight: 160, overflowY: "auto", padding: "6px 8px", background: softAdapt("#f1f5f9", dark), borderRadius: 8 }}>{m.reasoning}</div>
                     </details>
                   ) : null}
@@ -555,11 +556,11 @@ export default function SmartChat({ company, onDataChanged }) {
                     ) : streaming && i === messages.length - 1 ? (
                       <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
                         <Dot delay="0s" /><Dot delay=".15s" /><Dot delay=".3s" />
-                        <span style={{ fontSize: 11, color: "var(--ia-sub)", marginRight: 6 }}>يفكّر…</span>
+                        <span style={{ fontSize: 11, color: "var(--ia-sub)", marginInlineStart: 6 }}>{tr("يفكّر…")}</span>
                       </span>
                     ) : null}
                     {streaming && m.content && i === messages.length - 1 ? (
-                      <span style={{ display: "inline-block", width: 8, height: 16, background: txAdapt(col, dark), marginRight: 2, animation: "blink 1s step-end infinite", verticalAlign: "middle", borderRadius: 2 }} />
+                      <span style={{ display: "inline-block", width: 8, height: 16, background: txAdapt(col, dark), marginInlineStart: 2, animation: "blink 1s step-end infinite", verticalAlign: "middle", borderRadius: 2 }} />
                     ) : null}
                   </div>
 
@@ -585,15 +586,15 @@ export default function SmartChat({ company, onDataChanged }) {
         {/* شريط الإدخال */}
         <div style={{ borderTop: `1px solid ${border}`, padding: 12, display: "flex", gap: 8, alignItems: "flex-end", background: dark ? "var(--ia-ghost-bg)" : "transparent" }}>
           <textarea ref={taRef} className="inp" value={input} onChange={taInput} onKeyDown={onKeyDown}
-            placeholder="اكتب سؤالك أو اطلب إجراءً (مثال: أنشئ فاتورة…) — Enter للإرسال • Shift+Enter لسطر جديد"
+            placeholder={tr("اكتب سؤالك أو اطلب إجراءً (مثال: أنشئ فاتورة…) — Enter للإرسال • Shift+Enter لسطر جديد")}
             rows={1}
             disabled={streaming}
             style={{ resize: "none", maxHeight: 140, lineHeight: 1.6, flex: 1, direction: "rtl" }} />
           {streaming ? (
-            <button className="btn btn-red" onClick={stop} style={{ height: 42 }}>⏹ إيقاف</button>
+            <button className="btn btn-red" onClick={stop} style={{ height: 42 }}>{tr("⏹ إيقاف")}</button>
           ) : (
             <button className="btn" onClick={() => send()} disabled={!input.trim()}
-              style={{ background: col, color: "#fff", height: 42, opacity: input.trim() ? 1 : .5 }}>📨 إرسال</button>
+              style={{ background: col, color: "#fff", height: 42, opacity: input.trim() ? 1 : .5 }}>{tr("📨 إرسال")}</button>
           )}
         </div>
       </div>
@@ -630,31 +631,31 @@ function ActionCard({ act, col, dark, onRun, onDismiss }) {
     const f = [];
     const push = (k, v) => { if (v !== undefined && v !== null && String(v).trim() !== "") f.push([k, String(v)]); };
     if (act.action === "create_client") {
-      push("الاسم", a.name); push("الهاتف", a.phone); push("البريد", a.email); push("العنوان", a.address);
+      push(tr("الاسم"), a.name); push(tr("الهاتف"), a.phone); push(tr("البريد"), a.email); push(tr("العنوان"), a.address);
     } else if (act.action === "create_invoice") {
-      push("العميل", a.clientName); push("الهاتف", a.clientPhone);
+      push(tr("العميل"), a.clientName); push(tr("الهاتف"), a.clientPhone);
       if (Array.isArray(a.items)) {
-        const itemsTxt = a.items.map(it => `${it.name || "بند"} × ${it.qty ?? 1} @ ${Number(it.price ?? 0).toLocaleString("ar")}`).join(" • ");
-        push("البنود", itemsTxt);
+        const itemsTxt = a.items.map(it => `${it.name || tr("بند")} × ${it.qty ?? 1} @ ${Number(it.price ?? 0).toLocaleString("ar")}`).join(" • ");
+        push(tr("البنود"), itemsTxt);
         const tot = a.items.reduce((s, it) => s + (Number(it.qty) || 1) * (Number(it.price) || 0), 0);
-        push("الإجمالي", fmtMoney(tot));
+        push(tr("الإجمالي"), fmtMoney(tot));
       }
-      push("الاستحقاق", a.dueDate); push("ملاحظات", a.notes);
+      push(tr("الاستحقاق"), a.dueDate); push(tr("ملاحظات"), a.notes);
     } else if (act.action === "register_payment") {
-      push("رقم الفاتورة", a.invoiceNumber);
-      push("المبلغ", a.amount != null ? fmtMoney(Number(a.amount)) : "");
-      push("الطريقة", PAY_METHOD_LABELS[String(a.method || "knet").toLowerCase()] || a.method);
-      push("التاريخ", a.date); push("ملاحظة", a.note);
+      push(tr("رقم الفاتورة"), a.invoiceNumber);
+      push(tr("المبلغ"), a.amount != null ? fmtMoney(Number(a.amount)) : "");
+      push(tr("الطريقة"), PAY_METHOD_LABELS[String(a.method || "knet").toLowerCase()] || a.method);
+      push(tr("التاريخ"), a.date); push(tr("ملاحظة"), a.note);
     } else if (act.action === "add_catalog_item") {
-      push("الصنف", a.name);
-      push("سعر البيع", a.sellingPrice != null ? fmtMoney(Number(a.sellingPrice)) : "");
-      push("سعر الشراء", a.purchasePrice != null ? fmtMoney(Number(a.purchasePrice)) : "");
-      if (Array.isArray(a.aliases) && a.aliases.length) push("أسماء بديلة", a.aliases.join("، "));
+      push(tr("الصنف"), a.name);
+      push(tr("سعر البيع"), a.sellingPrice != null ? fmtMoney(Number(a.sellingPrice)) : "");
+      push(tr("سعر الشراء"), a.purchasePrice != null ? fmtMoney(Number(a.purchasePrice)) : "");
+      if (Array.isArray(a.aliases) && a.aliases.length) push(tr("أسماء بديلة"), a.aliases.join("، "));
     } else if (act.action === "log_reminder") {
-      push("العميل", a.clientName); push("الهاتف", a.clientPhone);
-      push("القناة", CHANNEL_LABELS[String(a.channel || "whatsapp").toLowerCase()] || a.channel);
-      push("رقم الفاتورة", a.invoiceNumber);
-      if (a.message) push("الرسالة", String(a.message).length > 80 ? String(a.message).slice(0, 80) + "…" : a.message);
+      push(tr("العميل"), a.clientName); push(tr("الهاتف"), a.clientPhone);
+      push(tr("القناة"), CHANNEL_LABELS[String(a.channel || "whatsapp").toLowerCase()] || a.channel);
+      push(tr("رقم الفاتورة"), a.invoiceNumber);
+      if (a.message) push(tr("الرسالة"), String(a.message).length > 80 ? String(a.message).slice(0, 80) + "…" : a.message);
     }
     return f;
   }, [act]);
@@ -672,15 +673,15 @@ function ActionCard({ act, col, dark, onRun, onDismiss }) {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 13, fontWeight: 900, color: txAdapt(tone, dark) }}>{meta.title}</div>
           <div style={{ fontSize: 10.5, color: "var(--ia-sub)" }}>
-            {status === "pending" ? "اقتراح من المساعد — راجع التفاصيل ثم نفّذ" :
-             status === "executing" ? "جارٍ التنفيذ…" :
-             status === "done" ? "✅ نُفِّذ بنجاح" :
-             status === "failed" ? "فشل التنفيذ" :
-             status === "dismissed" ? "تم التجاهل" : "إجراء من محادثة سابقة"}
+            {status === "pending" ? tr("اقتراح من المساعد — راجع التفاصيل ثم نفّذ") :
+             status === "executing" ? tr("جارٍ التنفيذ…") :
+             status === "done" ? tr("✅ نُفِّذ بنجاح") :
+             status === "failed" ? tr("فشل التنفيذ") :
+             status === "dismissed" ? tr("تم التجاهل") : tr("إجراء من محادثة سابقة")}
           </div>
         </div>
         {status === "pending" && (
-          <button onClick={onDismiss} title="تجاهل الإجراء"
+          <button onClick={onDismiss} title={tr("تجاهل الإجراء")}
             style={{ border: "none", background: "transparent", cursor: "pointer", fontSize: 15, color: "var(--ia-muted)", padding: 4 }}>✖️</button>
         )}
       </div>
@@ -714,18 +715,18 @@ function ActionCard({ act, col, dark, onRun, onDismiss }) {
           <button onClick={onRun} style={{
             flex: 1, border: "none", borderRadius: 8, padding: "9px 14px", cursor: "pointer",
             background: tone, color: "#fff", fontFamily: "inherit", fontSize: 13, fontWeight: 800,
-          }}>✅ تنفيذ الإجراء الآن</button>
+          }}>{tr("✅ تنفيذ الإجراء الآن")}</button>
           <button onClick={onDismiss} style={{
             border: "1.5px solid var(--ia-border2)", borderRadius: 8, padding: "9px 14px", cursor: "pointer",
             background: "transparent", color: "var(--ia-sub)", fontFamily: "inherit", fontSize: 13, fontWeight: 700,
-          }}>تجاهل</button>
+          }}>{tr("تجاهل")}</button>
         </div>
       )}
 
       {status === "executing" && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "10px 12px", background: soft, fontSize: 12.5, fontWeight: 700, color: "var(--ia-sub)" }}>
           <span style={{ display: "inline-block", width: 14, height: 14, border: `2px solid ${tone}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spinS .8s linear infinite" }} />
-          جارٍ تنفيذ {meta.title}…
+          {tr("جارٍ تنفيذ")} {meta.title}…
         </div>
       )}
     </div>

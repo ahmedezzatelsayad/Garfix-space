@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useTheme, txAdapt, softAdapt } from "../theme";
+import { tr, dateLocale } from "@/lib/i18n-app";
 
 /* r10: النسخ الاحتياطي والاستعادة (Recovery) + حالة البنية التحتية
  * - ⬇️ نسخة احتياطية كاملة من PostgreSQL (تنزيل JSON)
@@ -64,7 +65,7 @@ export default function BackupRecovery({ company }) {
       setLastBackupInfo(info);
       localStorage.setItem("garfix_last_backup_info", JSON.stringify(info));
     } catch (e) {
-      alert("فشل إنشاء النسخة الاحتياطية: " + e.message);
+      alert(tr("فشل إنشاء النسخة الاحتياطية: ") + e.message);
     } finally {
       setBackingUp(false);
     }
@@ -80,16 +81,32 @@ export default function BackupRecovery({ company }) {
     if (!f) return;
     setFile(f);
     try {
-      if (f.size > 100 * 1024 * 1024) throw new Error("الملف كبير جداً (الحد 100MB)");
+      if (f.size > 100 * 1024 * 1024) throw new Error(tr("الملف كبير جداً (الحد 100MB)"));
       const text = await f.text();
       const data = JSON.parse(text);
-      if (data.app !== "garfix-accounts" || !data.data) throw new Error("هذا الملف ليس نسخة احتياطية من نظام جرفِكس");
-      setPreview({
-        ok: true,
-        generatedAt: data.generatedAt,
-        engine: data.engine,
-        counts: data.counts || {},
-      });
+      // r21: النسخ القديمة (النظام الأصلي) مقبولة — تُرحَّل تلقائياً عند الاستعادة
+      const legacy = data && typeof data === "object" && data.meta && Array.isArray(data.invoices) && data.app !== "garfix-accounts";
+      if (!legacy && (data.app !== "garfix-accounts" || !data.data)) throw new Error(tr("هذا الملف ليس نسخة احتياطية من نظام جرفِكس"));
+      if (legacy) {
+        const counts = {};
+        for (const k of ["invoices", "companies", "clients", "catalog", "purchases", "users", "auditLogs"]) {
+          if (Array.isArray(data[k])) counts[k] = data[k].length;
+        }
+        setPreview({
+          ok: true,
+          legacy: true,
+          generatedAt: data.meta?.createdAt,
+          engine: "legacy",
+          counts,
+        });
+      } else {
+        setPreview({
+          ok: true,
+          generatedAt: data.generatedAt,
+          engine: data.engine,
+          counts: data.counts || {},
+        });
+      }
     } catch (err) {
       setPreview({ ok: false, error: err.message });
     }
@@ -98,7 +115,7 @@ export default function BackupRecovery({ company }) {
   /* ————— الاستعادة ————— */
   const doRecovery = async () => {
     if (!file || !preview?.ok) return;
-    if (confirmText.trim() !== "استعادة") return;
+    if (confirmText.trim() !== tr("استعادة")) return;
     setRestoring(true);
     setResult(null);
     try {
@@ -126,9 +143,9 @@ export default function BackupRecovery({ company }) {
     : 0;
 
   const AR_TABLES = {
-    companies: "الشركات", clients: "العملاء", invoices: "الفواتير", payments: "المدفوعات",
-    productCatalog: "الكتالوج", purchaseInvoices: "المشتريات", reminderLogs: "التذكيرات",
-    settings: "الإعدادات", aiConversations: "محادثات AI", aiMessages: "رسائل AI",
+    companies: tr("الشركات"), clients: tr("العملاء"), invoices: tr("الفواتير"), payments: tr("المدفوعات"),
+    productCatalog: tr("الكتالوج"), purchaseInvoices: tr("المشتريات"), reminderLogs: tr("التذكيرات"),
+    settings: tr("الإعدادات"), aiConversations: tr("محادثات AI"), aiMessages: tr("رسائل AI"),
   };
 
   return (
@@ -141,14 +158,14 @@ export default function BackupRecovery({ company }) {
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
             <div style={{ width: 44, height: 44, borderRadius: 12, background: `linear-gradient(135deg, ${col}, ${txAdapt(col, true)})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, boxShadow: `0 4px 12px ${col}33` }}>⬇️</div>
             <div>
-              <div style={{ fontWeight: 900, fontSize: 14.5 }}>النسخة الاحتياطية</div>
-              <div style={{ fontSize: 11.5, color: "var(--ia-sub)" }}>تنزيل نسخة كاملة من قاعدة PostgreSQL</div>
+              <div style={{ fontWeight: 900, fontSize: 14.5 }}>{tr("النسخة الاحتياطية")}</div>
+              <div style={{ fontSize: 11.5, color: "var(--ia-sub)" }}>{tr("تنزيل نسخة كاملة من قاعدة PostgreSQL")}</div>
             </div>
           </div>
 
           <div style={{ fontSize: 12, color: "var(--ia-sub)", lineHeight: 1.9, marginBottom: 12, flex: 1 }}>
-            تشمل النسخة: الشركات، العملاء، الفواتير، المدفوعات، الكتالوج، المشتريات، التذكيرات، الإعدادات ومحادثات المساعد الذكي.
-            <br />🔐 مفتاح DeepSeek <b>لا يُضم</b> إلى النسخة الاحتياطية (يبقى محفوظاً على الخادم).
+            {tr("تشمل النسخة: الشركات، العملاء، الفواتير، المدفوعات، الكتالوج، المشتريات، التذكيرات، الإعدادات ومحادثات المساعد الذكي.")}
+            <br />{tr("🔐 مفتاح DeepSeek")} <b>{tr("لا يُضم")}</b> {tr("إلى النسخة الاحتياطية (يبقى محفوظاً على الخادم).")}
           </div>
 
           {lastBackupInfo?.counts && (
@@ -163,11 +180,11 @@ export default function BackupRecovery({ company }) {
 
           <button className="btn" onClick={doBackup} disabled={backingUp}
             style={{ background: col, color: "#fff", justifyContent: "center", padding: "12px 16px", fontSize: 13.5 }}>
-            {backingUp ? "⏳ جارٍ تجهيز النسخة…" : "⬇️ تنزيل نسخة احتياطية (JSON)"}
+            {backingUp ? tr("⏳ جارٍ تجهيز النسخة…") : tr("⬇️ تنزيل نسخة احتياطية (JSON)")}
           </button>
           {lastBackup && (
             <div style={{ fontSize: 11, color: "var(--ia-sub)", textAlign: "center", marginTop: 8 }}>
-              آخر نسخة: {new Date(lastBackup).toLocaleString("ar", { dateStyle: "medium", timeStyle: "short" })}
+              {tr("آخر نسخة:")} {new Date(lastBackup).toLocaleString("ar", { dateStyle: "medium", timeStyle: "short" })}
             </div>
           )}
         </div>
@@ -177,8 +194,8 @@ export default function BackupRecovery({ company }) {
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
             <div style={{ width: 44, height: 44, borderRadius: 12, background: `linear-gradient(135deg, #d97706, #b45309)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, boxShadow: "0 4px 12px rgba(217,119,6,.3)" }}>♻️</div>
             <div>
-              <div style={{ fontWeight: 900, fontSize: 14.5 }}>Recovery — الاستعادة</div>
-              <div style={{ fontSize: 11.5, color: "var(--ia-sub)" }}>استبدال كامل من ملف نسخة احتياطية</div>
+              <div style={{ fontWeight: 900, fontSize: 14.5 }}>{tr("Recovery — الاستعادة")}</div>
+              <div style={{ fontSize: 11.5, color: "var(--ia-sub)" }}>{tr("استبدال كامل من ملف نسخة احتياطية")}</div>
             </div>
           </div>
 
@@ -187,23 +204,24 @@ export default function BackupRecovery({ company }) {
             background: softAdapt("#fef3c7", dark), border: `1px solid ${txAdapt("#fbbf24", dark)}55`,
             color: txAdapt("#92400e", dark), borderRadius: 10, padding: "10px 12px", fontWeight: 600,
           }}>
-            ⚠️ عملية <b>استبدالية</b>: كل البيانات الحالية تُمحى وتُستبدال بمحتوى الملف — داخل معاملة ذرّية واحدة (نجاح كامل أو تراجع كامل). إعدادات DeepSeek لا تتأثر.
+            {tr("⚠️ عملية")} <b>{tr("استبدالية")}</b>{tr(": كل البيانات الحالية تُمحى وتُستبدال بمحتوى الملف — داخل معاملة ذرّية واحدة (نجاح كامل أو تراجع كامل). إعدادات DeepSeek لا تتأثر.")}
           </div>
 
           <input ref={fileRef} type="file" accept=".json,application/json" onChange={pickFile}
             style={{ display: "none" }} id="recovery-file" />
           <button className="btn btn-outline" onClick={() => fileRef.current?.click()} disabled={restoring}
             style={{ justifyContent: "center", padding: "11px 16px", marginBottom: 10 }}>
-            📂 اختيار ملف النسخة الاحتياطية…
+            {tr("📂 اختيار ملف النسخة الاحتياطية…")}
           </button>
 
           {preview?.ok && (
             <div style={{ background: softAdapt("#f0fdf4", dark), border: `1px solid ${txAdapt("#86efac", dark)}66`, borderRadius: 10, padding: "10px 12px", marginBottom: 10 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
-                <b style={{ fontSize: 12.5 }}>✅ ملف صالح</b>
+                <b style={{ fontSize: 12.5 }}>{tr("✅ ملف صالح")}</b>
                 <span style={{ fontSize: 11, color: "var(--ia-sub)" }}>
-                  {totalRows} صف إجمالاً • أُنشئ {new Date(preview.generatedAt).toLocaleString("ar", { dateStyle: "short", timeStyle: "short" })}
+                  {totalRows} {tr("صف إجمالاً • أُنشئ")} {new Date(preview.generatedAt).toLocaleString(dateLocale(), { dateStyle: "short", timeStyle: "short" })}
                   {preview.engine ? ` • ${preview.engine}` : ""}
+                  {preview.legacy ? ` • ${tr("نسخة قديمة — ستُرحَّل بياناتها تلقائياً (المستخدمون وسجل التدقيق يُتخطيان)")}` : ""}
                 </span>
               </div>
               <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
@@ -215,14 +233,14 @@ export default function BackupRecovery({ company }) {
               </div>
               <div style={{ marginTop: 10 }}>
                 <div style={{ fontSize: 11.5, color: "var(--ia-sub)", marginBottom: 4 }}>
-                  للتأكيد اكتب كلمة <b style={{ color: txAdapt("#b45309", dark) }}>«استعادة»</b>:
+                  {tr("للتأكيد اكتب كلمة")} <b style={{ color: txAdapt("#b45309", dark) }}>{tr("«استعادة»")}</b>:
                 </div>
                 <input className="inp" value={confirmText} onChange={e => setConfirmText(e.target.value)}
-                  placeholder="استعادة" style={{ maxWidth: 180, textAlign: "center", fontWeight: 800 }} />
+                  placeholder={tr("استعادة")} style={{ maxWidth: 180, textAlign: "center", fontWeight: 800 }} />
               </div>
-              <button className="btn btn-red" onClick={doRecovery} disabled={restoring || confirmText.trim() !== "استعادة"}
+              <button className="btn btn-red" onClick={doRecovery} disabled={restoring || confirmText.trim() !== tr("استعادة")}
                 style={{ marginTop: 10, width: "100%", justifyContent: "center", padding: "11px 16px" }}>
-                {restoring ? "⏳ جارٍ الاستعادة…" : "♻️ تنفيذ الاستعادة الآن"}
+                {restoring ? tr("⏳ جارٍ الاستعادة…") : tr("♻️ تنفيذ الاستعادة الآن")}
               </button>
             </div>
           )}
@@ -235,7 +253,7 @@ export default function BackupRecovery({ company }) {
           {restoring && (
             <div style={{ marginTop: 10, textAlign: "center", fontSize: 12, color: "var(--ia-sub)" }}>
               <span className="sk sk-sm" style={{ display: "inline-block", width: "60%", marginBottom: 6 }} />
-              <div>جارٍ محو البيانات الحالية وإدراج {totalRows} صفاً…</div>
+              <div>{tr("جارٍ محو البيانات الحالية وإدراج")} {totalRows} {tr("صفاً…")}</div>
             </div>
           )}
 
@@ -249,7 +267,7 @@ export default function BackupRecovery({ company }) {
                   </span>
                 ))}
               </div>
-              <div style={{ fontSize: 11, color: "var(--ia-sub)", marginTop: 8 }}>ℹ️ أعد تحميل الصفحة (F5) لرؤية البيانات المستعادة في كل التبويبات.</div>
+              <div style={{ fontSize: 11, color: "var(--ia-sub)", marginTop: 8 }}>{tr("ℹ️ أعد تحميل الصفحة (F5) لرؤية البيانات المستعادة في كل التبويبات.")}</div>
             </div>
           )}
           {result && !result.ok && (
@@ -264,8 +282,8 @@ export default function BackupRecovery({ company }) {
       <div className="card" style={{ padding: "18px 20px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
           <span style={{ fontSize: 17 }}>🖥️</span>
-          <b style={{ fontSize: 14 }}>حالة النظام الحيّة</b>
-          <span style={{ fontSize: 11, color: "var(--ia-sub)" }}>(تتحدث كل 15 ثانية)</span>
+          <b style={{ fontSize: 14 }}>{tr("حالة النظام الحيّة")}</b>
+          <span style={{ fontSize: 11, color: "var(--ia-sub)" }}>{tr("(تتحدث كل 15 ثانية)")}</span>
           <div style={{ flex: 1 }} />
           {health && (
             <span style={{
@@ -273,7 +291,7 @@ export default function BackupRecovery({ company }) {
               background: health.status === "ok" ? softAdapt("#dcfce7", dark) : softAdapt("#fef3c7", dark),
               color: health.status === "ok" ? txAdapt("#15803d", dark) : txAdapt("#b45309", dark),
             }}>
-              {health.status === "ok" ? "🟢 النظام سليم" : "🟡 تحذير — يعمل بوضع بديل"}
+              {health.status === "ok" ? tr("🟢 النظام سليم") : tr("🟡 تحذير — يعمل بوضع بديل")}
             </span>
           )}
         </div>
@@ -285,21 +303,21 @@ export default function BackupRecovery({ company }) {
             <StatusTile
               icon="🐘" title="PostgreSQL 17" dark={dark}
               ok={health.database?.ok}
-              main={health.database?.ok ? "متصل ويعمل" : "غير متصل!"}
+              main={health.database?.ok ? tr("متصل ويعمل") : tr("غير متصل!")}
               rows={[
-                ["زمن الاستجابة", health.database?.latencyMs != null ? `${health.database.latencyMs}ms` : "—"],
-                ["المحرك", health.database?.engine || "postgresql"],
+                [tr("زمن الاستجابة"), health.database?.latencyMs != null ? `${health.database.latencyMs}ms` : "—"],
+                [tr("المحرك"), health.database?.engine || "postgresql"],
               ]}
               error={health.database?.error}
             />
             {/* Valkey */}
             <StatusTile
-              icon="⚡" title="Valkey 8.1 (كاش)" dark={dark}
+              icon="⚡" title={tr("Valkey 8.1 (كاش)")} dark={dark}
               ok={health.cache?.connected}
-              main={health.cache?.connected ? `متصل — ${health.cache.engine}` : `غير متصل — ${health.cache.engine}`}
+              main={health.cache?.connected ? tr("متصل — {0}",[health.cache.engine]) : tr("غير متصل — {0}",[health.cache.engine])}
               rows={[
-                ["نسبة الإصابة", `${health.cache?.hitRate ?? 0}%`],
-                ["إصابات / كتابات", `${health.cache?.hits ?? 0} / ${health.cache?.writes ?? 0}`],
+                [tr("نسبة الإصابة"), `${health.cache?.hitRate ?? 0}%`],
+                [tr("إصابات / كتابات"), `${health.cache?.hits ?? 0} / ${health.cache?.writes ?? 0}`],
               ]}
               error={health.cache?.lastError}
             />

@@ -1,10 +1,11 @@
 "use client";
 
 import { memberAvatar } from "./site-shared";
+import { tr } from "@/lib/i18n-app";
 
 /** r13: صفحة رسالة المؤسس — رسالة بتصميم خطاب + التوقيع */
 export default function FounderPage({ content }) {
-  const paragraphs = String(content.founder_message || "")
+  const paragraphs = String(tr(content.founder_message) || "")
     .split(/\n{2,}/)
     .map((p) => p.trim())
     .filter(Boolean);
@@ -22,8 +23,8 @@ export default function FounderPage({ content }) {
     <div>
       <section className="s-section" style={{ maxWidth: 860 }}>
         <div style={{ textAlign: "center", marginBottom: 36 }} className="s-fade">
-          <div className="s-chip">✦ كلمة من القلب</div>
-          <h1 className="s-section-title" style={{ marginTop: 14 }}>رسالة المؤسس</h1>
+          <div className="s-chip">{tr("✦ كلمة من القلب")}</div>
+          <h1 className="s-section-title" style={{ marginTop: 14 }}>{tr("رسالة المؤسس")}</h1>
         </div>
 
         <article
@@ -41,8 +42,8 @@ export default function FounderPage({ content }) {
           <header style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap", marginBottom: 26, marginTop: 10 }}>
             {memberAvatar({ name: content.founder_name, emoji: content.founder_emoji, photoUrl: content.founder_photo }, 84)}
             <div>
-              <b style={{ fontSize: 19, display: "block" }}>{content.founder_name}</b>
-              <div style={{ color: "#c9a227", fontSize: 12.5, fontWeight: 700, marginTop: 3 }}>{content.founder_title}</div>
+              <b style={{ fontSize: 19, display: "block" }}>{tr(content.founder_name)}</b>
+              <div style={{ color: "#c9a227", fontSize: 12.5, fontWeight: 700, marginTop: 3 }}>{tr(content.founder_title)}</div>
             </div>
           </header>
 
@@ -60,10 +61,10 @@ export default function FounderPage({ content }) {
             <span style={{ fontSize: 30 }} aria-hidden="true">✍️</span>
             <div>
               <div style={{ fontFamily: "Georgia,'Times New Roman',serif", fontStyle: "italic", fontSize: 21, color: "#e5c558", letterSpacing: 1 }}>
-                {content.founder_signature || content.founder_name}
+                {tr(content.founder_signature || content.founder_name)}
               </div>
               <div style={{ color: "rgba(255,255,255,.4)", fontSize: 11, marginTop: 4 }}>
-                {content.founder_title} — {content.site_name}
+                {tr(content.founder_title)} — {content.site_name}
               </div>
             </div>
           </footer>
@@ -71,7 +72,7 @@ export default function FounderPage({ content }) {
 
         {/* القيم */}
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center", marginTop: 26 }} className="s-fade s-fade-2">
-          {["🎯 الدقة قبل كل شيء", "🤝 البساطة التي يستحقها التاجر", "🚀 التطوير المستمر"].map((v) => (
+          {[tr("🎯 الدقة قبل كل شيء"), tr("🤝 البساطة التي يستحقها التاجر"), tr("🚀 التطوير المستمر")].map((v) => (
             <span key={v} className="s-chip" style={{ padding: "8px 18px", fontSize: 12.5 }}>
               {v}
             </span>
@@ -80,8 +81,8 @@ export default function FounderPage({ content }) {
 
         {/* أزرار التنقل */}
         <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", marginTop: 34 }} className="s-fade s-fade-3">
-          <a className="s-btn s-btn-gold" href="#/team" onClick={goTeam}>تعرّف على الفريق ←</a>
-          <a className="s-btn s-btn-outline" href="#/" onClick={goHome}>العودة للرئيسية</a>
+          <a className="s-btn s-btn-gold" href="#/team" onClick={goTeam}>{tr("تعرّف على الفريق ←")}</a>
+          <a className="s-btn s-btn-outline" href="#/" onClick={goHome}>{tr("العودة للرئيسية")}</a>
         </div>
       </section>
     </div>

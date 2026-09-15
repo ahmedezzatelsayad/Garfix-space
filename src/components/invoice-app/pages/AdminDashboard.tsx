@@ -7,6 +7,7 @@ import CreateUserModal, { PERM_LIST, EMPLOYEE_DEFAULTS } from "../components/Cre
 import ResendPanel from "../components/ResendPanel";
 import SubscriptionsPanel from "../components/SubscriptionsPanel";
 import { MASTER_EMAIL } from "../firebase/auth";
+import { tr } from "@/lib/i18n-app";
 
 interface UserRecord {
   uid: string;
@@ -108,22 +109,22 @@ const labelOf = (id: string): string => DYN_LABELS[id] || COMPANY_LABELS[id] || 
       console.error("[loadUsers] FAILED", { code, message: msg, raw: e });
 
       if (code === "__timeout__") {
-        setLoadErr("انتهت مهلة الاتصال (12 ث) — تحقق من الإنترنت أو قواعد Firestore ثم أعد المحاولة.");
+        setLoadErr(tr("انتهت مهلة الاتصال (12 ث) — تحقق من الإنترنت أو قواعد Firestore ثم أعد المحاولة."));
       } else if (code === "permission-denied") {
         setLoadErr(
-          'مرفوض (permission-denied) — افتح Firebase Console ← Firestore ← Rules وتأكد أن القاعدة تسمح لـ request.auth != null بالقراءة.'
+          tr('مرفوض (permission-denied) — افتح Firebase Console ← Firestore ← Rules وتأكد أن القاعدة تسمح لـ request.auth != null بالقراءة.')
         );
       } else if (code === "not-found") {
-        setLoadErr("مجموعة users غير موجودة في Firestore — أضف أول مستخدم وستُنشأ تلقائياً.");
+        setLoadErr(tr("مجموعة users غير موجودة في Firestore — أضف أول مستخدم وستُنشأ تلقائياً."));
       } else if (
         code.includes("unavailable") ||
         code.includes("network") ||
         msg.includes("network") ||
         msg.includes("Failed to fetch")
       ) {
-        setLoadErr("تعذّر الاتصال بـ Firestore — تحقق من الإنترنت وأعد المحاولة.");
+        setLoadErr(tr("تعذّر الاتصال بـ Firestore — تحقق من الإنترنت وأعد المحاولة."));
       } else {
-        setLoadErr(`خطأ Firestore${code ? ` [${code}]` : ""}: ${msg || "غير معروف"}`);
+        setLoadErr(tr("خطأ Firestore{0}: {1}",[code ? ` [${code}]` : "",msg || tr("غير معروف")]));
       }
     } finally {
       // Always unblock loading — no matter what happens above
@@ -148,14 +149,14 @@ const labelOf = (id: string): string => DYN_LABELS[id] || COMPANY_LABELS[id] || 
       const results = await seedUserProfiles();
       const failed = results.filter((r: any) => !r.ok);
       if (failed.length === 0) {
-        toast_("✅ تم إنشاء بيانات المستخدمين الـ 5 بنجاح");
+        toast_(tr("✅ تم إنشاء بيانات المستخدمين الـ 5 بنجاح"));
         setSeedDone(true);
         await loadUsers();
       } else {
-        toast_(`❌ فشل ${failed.length} من 5 — ${failed.map((r: any)=>r.email).join(", ")}`, "err");
+        toast_(tr("❌ فشل {0} من 5 — {1}",[failed.length,failed.map((r: any)=>r.email).join(", ")]), "err");
       }
     } catch (e: any) {
-      toast_("❌ خطأ: " + e.message, "err");
+      toast_(tr("❌ خطأ: ") + e.message, "err");
     }
     setSeeding(false);
   };
@@ -170,11 +171,11 @@ const labelOf = (id: string): string => DYN_LABELS[id] || COMPANY_LABELS[id] || 
         role:        editingUser.role,
         permissions: editingUser.role === "employee" ? (editingUser.permissions || {}) : {},
       });
-      toast_("✅ تم تحديث بيانات المستخدم");
+      toast_(tr("✅ تم تحديث بيانات المستخدم"));
       setEditingUser(null);
       await loadUsers();
     } catch (_) {
-      toast_("❌ حدث خطأ أثناء الحفظ", "err");
+      toast_(tr("❌ حدث خطأ أثناء الحفظ"), "err");
     }
     setSaving(false);
   };
@@ -182,11 +183,11 @@ const labelOf = (id: string): string => DYN_LABELS[id] || COMPANY_LABELS[id] || 
   const handleDelete = async (uid: string) => {
     try {
       await deleteUserRecord(uid);
-      toast_("🗑️ تم حذف المستخدم", "warn");
+      toast_(tr("🗑️ تم حذف المستخدم"), "warn");
       setDelConfirm(null);
       await loadUsers();
     } catch (_) {
-      toast_("❌ حدث خطأ أثناء الحذف", "err");
+      toast_(tr("❌ حدث خطأ أثناء الحذف"), "err");
     }
   };
 
@@ -214,13 +215,13 @@ const labelOf = (id: string): string => DYN_LABELS[id] || COMPANY_LABELS[id] || 
 
   const handleLogoFile = (companyId: string, file: File | null) => {
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { toast_("❌ حجم الصورة كبير جداً (الحد 2MB)", "err"); return; }
+    if (file.size > 2 * 1024 * 1024) { toast_(tr("❌ حجم الصورة كبير جداً (الحد 2MB)"), "err"); return; }
     const reader = new FileReader();
     reader.onload = (e) => {
       const b64 = e.target?.result as string;
       localStorage.setItem(`tw_logo_${companyId}`, b64);
       setLogos(prev => ({ ...prev, [companyId]: b64 }));
-      toast_("✅ تم رفع الشعار بنجاح");
+      toast_(tr("✅ تم رفع الشعار بنجاح"));
     };
     reader.readAsDataURL(file);
   };
@@ -228,14 +229,14 @@ const labelOf = (id: string): string => DYN_LABELS[id] || COMPANY_LABELS[id] || 
   const removeLogo = (companyId: string) => {
     localStorage.removeItem(`tw_logo_${companyId}`);
     setLogos(prev => { const n = { ...prev }; delete n[companyId]; return n; });
-    toast_("🗑️ تم حذف الشعار", "warn");
+    toast_(tr("🗑️ تم حذف الشعار"), "warn");
   };
 
   const TABS = [
-    { id:"users", label:"👥 المستخدمون" },
-    { id:"subscriptions", label:"💳 الاشتراكات" },
-    { id:"logos", label:"🏢 شعارات الشركات" },
-    { id:"resend", label:"📧 بريد Resend" },
+    { id:"users", label:tr("👥 المستخدمون") },
+    { id:"subscriptions", label:tr("💳 الاشتراكات") },
+    { id:"logos", label:tr("🏢 شعارات الشركات") },
+    { id:"resend", label:tr("📧 بريد Resend") },
   ];
 
   return (
@@ -253,12 +254,12 @@ const labelOf = (id: string): string => DYN_LABELS[id] || COMPANY_LABELS[id] || 
         <div style={{background:"#1e3a5f",padding:"16px 22px",flexShrink:0}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"14px"}}>
             <div>
-              <div style={{color:"#fff",fontWeight:900,fontSize:"17px"}}>⚙️ لوحة إدارة النظام</div>
-              <div style={{color:"rgba(255,255,255,.5)",fontSize:"12px",marginTop:"2px"}}>الشركة القابضة المتحدة ذ.م.م</div>
+              <div style={{color:"#fff",fontWeight:900,fontSize:"17px"}}>{tr("⚙️ لوحة إدارة النظام")}</div>
+              <div style={{color:"rgba(255,255,255,.5)",fontSize:"12px",marginTop:"2px"}}>{tr("الشركة القابضة المتحدة ذ.م.م")}</div>
             </div>
             <div style={{display:"flex",gap:"8px",alignItems:"center"}}>
               {activeTab==="users"&&(
-                <button onClick={()=>setShowCreate(true)} style={{background:"#2563eb",border:"none",borderRadius:"8px",padding:"8px 16px",color:"#fff",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>➕ موظف جديد</button>
+                <button onClick={()=>setShowCreate(true)} style={{background:"#2563eb",border:"none",borderRadius:"8px",padding:"8px 16px",color:"#fff",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>{tr("➕ موظف جديد")}</button>
               )}
               {user?.email===MASTER_EMAIL&&activeTab==="users"&&!seedDone&&(
                 <button onClick={handleSeed} disabled={seeding} style={{
@@ -266,10 +267,10 @@ const labelOf = (id: string): string => DYN_LABELS[id] || COMPANY_LABELS[id] || 
                   padding:"8px 14px",color:"#fff",fontFamily:"inherit",fontSize:"12px",
                   fontWeight:700,cursor:seeding?"not-allowed":"pointer",opacity:seeding?.7:1,
                 }}>
-                  {seeding?"⏳ جارٍ الإنشاء...":"🚀 تفعيل الحسابات الـ5"}
+                  {seeding?tr("⏳ جارٍ الإنشاء..."):tr("🚀 تفعيل الحسابات الـ5")}
                 </button>
               )}
-              <button onClick={onClose} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"8px",padding:"8px 14px",color:"#fff",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>✕ إغلاق</button>
+              <button onClick={onClose} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"8px",padding:"8px 14px",color:"#fff",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>{tr("✕ إغلاق")}</button>
             </div>
           </div>
           <div style={{display:"flex",gap:"4px"}}>
@@ -296,19 +297,19 @@ const labelOf = (id: string): string => DYN_LABELS[id] || COMPANY_LABELS[id] || 
           {activeTab==="users"&&(
             loading?(
               <div style={{textAlign:"center",padding:"48px",color:"var(--ia-sub)"}}>
-                <div style={{fontSize:"36px",marginBottom:"10px"}}>⏳</div>جارٍ تحميل المستخدمين...
+                <div style={{fontSize:"36px",marginBottom:"10px"}}>⏳</div>{tr("جارٍ تحميل المستخدمين...")}
               </div>
             ):loadErr?(
               <div style={{background:"var(--ia-red-bg)",border:"1px solid var(--ia-red-bd)",borderRadius:"12px",padding:"20px 24px",color:"var(--ia-red-tx)",fontSize:"13px",lineHeight:1.7}}>
-                <div style={{fontWeight:800,fontSize:"15px",marginBottom:"8px"}}>❌ فشل تحميل المستخدمين</div>
+                <div style={{fontWeight:800,fontSize:"15px",marginBottom:"8px"}}>{tr("❌ فشل تحميل المستخدمين")}</div>
                 <div style={{marginBottom:"16px"}}>{loadErr}</div>
-                <button onClick={loadUsers} style={{background:"#b91c1c",color:"#fff",border:"none",borderRadius:"8px",padding:"8px 18px",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>🔄 إعادة المحاولة</button>
+                <button onClick={loadUsers} style={{background:"#b91c1c",color:"#fff",border:"none",borderRadius:"8px",padding:"8px 18px",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>{tr("🔄 إعادة المحاولة")}</button>
               </div>
             ):users.length===0?(
               <div style={{textAlign:"center",padding:"48px",color:"var(--ia-muted)"}}>
                 <div style={{fontSize:"40px",marginBottom:"10px"}}>👥</div>
-                <div style={{fontWeight:600,marginBottom:"14px"}}>لا يوجد موظفون مسجلون بعد</div>
-                <button onClick={()=>setShowCreate(true)} style={{background:"#1e3a5f",color:"#fff",border:"none",borderRadius:"8px",padding:"10px 20px",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>➕ أضف أول موظف</button>
+                <div style={{fontWeight:600,marginBottom:"14px"}}>{tr("لا يوجد موظفون مسجلون بعد")}</div>
+                <button onClick={()=>setShowCreate(true)} style={{background:"#1e3a5f",color:"#fff",border:"none",borderRadius:"8px",padding:"10px 20px",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>{tr("➕ أضف أول موظف")}</button>
               </div>
             ):(
               <div style={{display:"grid",gap:"10px"}}>
@@ -318,22 +319,22 @@ const labelOf = (id: string): string => DYN_LABELS[id] || COMPANY_LABELS[id] || 
                       <div>
                         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px",marginBottom:"12px"}}>
                           <div>
-                            <label style={lbl}>الاسم</label>
+                            <label style={lbl}>{tr("الاسم")}</label>
                             <input style={inp} value={editingUser.displayName||""}
                               onChange={e=>setEditingUser(ev=>ev?({...ev,displayName:e.target.value}):null)}/>
                           </div>
                           <div>
-                            <label style={lbl}>نوع الصلاحية</label>
+                            <label style={lbl}>{tr("نوع الصلاحية")}</label>
                             <select style={inp} value={editingUser.role} onChange={e=>setEditRole(e.target.value)}>
-                              <option value="viewer">عرض فقط 👁️</option>
-                              <option value="employee">موظف طلبات 👤</option>
-                              <option value="editor">وصول كامل ✏️</option>
+                              <option value="viewer">{tr("عرض فقط 👁️")}</option>
+                              <option value="employee">{tr("موظف طلبات 👤")}</option>
+                              <option value="editor">{tr("وصول كامل ✏️")}</option>
                             </select>
                           </div>
                         </div>
 
                         <div style={{marginBottom:"12px"}}>
-                          <label style={lbl}>الشركات</label>
+                          <label style={lbl}>{tr("الشركات")}</label>
                           <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
                             {COMPANY_IDS.map((id: string)=>{
                               const active=editingUser.companies.includes(id);
@@ -351,7 +352,7 @@ const labelOf = (id: string): string => DYN_LABELS[id] || COMPANY_LABELS[id] || 
 
                         {editingUser.role==="employee"&&(
                           <div style={{background:"var(--ia-vio-bg)",borderRadius:"10px",padding:"12px 14px",border:"1.5px solid var(--ia-vio-bd)",marginBottom:"12px"}}>
-                            <div style={{fontSize:"11px",fontWeight:800,color:"var(--ia-vio-tx)",letterSpacing:".5px",marginBottom:"10px"}}>⚙️ الصلاحيات التفصيلية</div>
+                            <div style={{fontSize:"11px",fontWeight:800,color:"var(--ia-vio-tx)",letterSpacing:".5px",marginBottom:"10px"}}>{tr("⚙️ الصلاحيات التفصيلية")}</div>
                             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"6px"}}>
                               {PERM_LIST.map(p=>{
                                 const active=!!(editingUser.permissions?.[p.key]??EMPLOYEE_DEFAULTS[p.key]);
@@ -372,18 +373,18 @@ const labelOf = (id: string): string => DYN_LABELS[id] || COMPANY_LABELS[id] || 
                               })}
                             </div>
                             <div style={{marginTop:"8px",display:"flex",gap:"8px"}}>
-                              <button onClick={()=>setEditingUser(e=>e?({...e,permissions:Object.fromEntries(PERM_LIST.map(p=>[p.key,1]))}):null)} style={{fontSize:"11px",color:"var(--ia-vio-tx)",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:0}}>تفعيل الكل</button>
+                              <button onClick={()=>setEditingUser(e=>e?({...e,permissions:Object.fromEntries(PERM_LIST.map(p=>[p.key,1]))}):null)} style={{fontSize:"11px",color:"var(--ia-vio-tx)",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:0}}>{tr("تفعيل الكل")}</button>
                               <span style={{color:"var(--ia-muted)"}}>|</span>
-                              <button onClick={()=>setEditingUser(e=>e?({...e,permissions:Object.fromEntries(PERM_LIST.map(p=>[p.key,0]))}):null)} style={{fontSize:"11px",color:"var(--ia-red-tx)",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:0}}>إلغاء الكل</button>
+                              <button onClick={()=>setEditingUser(e=>e?({...e,permissions:Object.fromEntries(PERM_LIST.map(p=>[p.key,0]))}):null)} style={{fontSize:"11px",color:"var(--ia-red-tx)",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:0}}>{tr("إلغاء الكل")}</button>
                             </div>
                           </div>
                         )}
 
                         <div style={{display:"flex",gap:"8px"}}>
                           <button onClick={handleSaveEdit} disabled={saving} style={{background:"#1e3a5f",color:"#fff",border:"none",borderRadius:"8px",padding:"8px 16px",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>
-                            {saving?"جارٍ الحفظ...":"💾 حفظ"}
+                            {saving?tr("جارٍ الحفظ..."):tr("💾 حفظ")}
                           </button>
-                          <button onClick={()=>setEditingUser(null)} style={{background:"var(--ia-ghost-bg)",color:"var(--ia-text2)",border:"none",borderRadius:"8px",padding:"8px 14px",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>إلغاء</button>
+                          <button onClick={()=>setEditingUser(null)} style={{background:"var(--ia-ghost-bg)",color:"var(--ia-text2)",border:"none",borderRadius:"8px",padding:"8px 14px",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>{tr("إلغاء")}</button>
                         </div>
                       </div>
                     ):(
@@ -405,7 +406,7 @@ const labelOf = (id: string): string => DYN_LABELS[id] || COMPANY_LABELS[id] || 
                             {u.role==="employee"&&(()=>{
                               const perms=u.permissions||EMPLOYEE_DEFAULTS;
                               const count=PERM_LIST.filter(p=>perms[p.key]).length;
-                              return <span style={{background:"var(--ia-vio-bg)",color:"var(--ia-vio-tx)",border:"1px solid var(--ia-vio-bd)",borderRadius:"20px",padding:"2px 10px",fontSize:"11px",fontWeight:700}}>{count} صلاحية</span>;
+                              return <span style={{background:"var(--ia-vio-bg)",color:"var(--ia-vio-tx)",border:"1px solid var(--ia-vio-bd)",borderRadius:"20px",padding:"2px 10px",fontSize:"11px",fontWeight:700}}>{count} {tr("صلاحية")}</span>;
                             })()}
                           </div>
                         </div>
@@ -415,7 +416,7 @@ const labelOf = (id: string): string => DYN_LABELS[id] || COMPANY_LABELS[id] || 
                             companies: u.companies||[],
                             role: u.role||"viewer",
                             permissions: u.role==="employee" ? (u.permissions||{...EMPLOYEE_DEFAULTS}) : {...(ROLE_PERM_PRESETS[u.role||"viewer"]||{})},
-                          })} style={{background:"var(--ia-blue-bg)",color:"var(--ia-blue-tx)",border:"none",borderRadius:"8px",padding:"7px 12px",fontFamily:"inherit",fontSize:"12px",fontWeight:700,cursor:"pointer"}}>✏️ تعديل</button>
+                          })} style={{background:"var(--ia-blue-bg)",color:"var(--ia-blue-tx)",border:"none",borderRadius:"8px",padding:"7px 12px",fontFamily:"inherit",fontSize:"12px",fontWeight:700,cursor:"pointer"}}>{tr("✏️ تعديل")}</button>
                           <button onClick={()=>setDelConfirm(u)} style={{background:"var(--ia-red-bg)",color:"var(--ia-red-tx)",border:"none",borderRadius:"8px",padding:"7px 12px",fontFamily:"inherit",fontSize:"12px",fontWeight:700,cursor:"pointer"}}>🗑️</button>
                         </div>
                       </div>
@@ -429,7 +430,7 @@ const labelOf = (id: string): string => DYN_LABELS[id] || COMPANY_LABELS[id] || 
           {activeTab==="logos"&&(
             <div>
               <div style={{background:"var(--ia-card)",borderRadius:"12px",padding:"14px 18px",border:"1px solid var(--ia-border)",marginBottom:"14px",fontSize:"12px",color:"var(--ia-sub)",lineHeight:"1.7"}}>
-                💡 ارفع شعار لكل شركة — سيظهر في الفواتير عند الطباعة والمعاينة. الحجم الأقصى 2MB.
+                {tr("💡 ارفع شعار لكل شركة — سيظهر في الفواتير عند الطباعة والمعاينة. الحجم الأقصى 2MB.")}
               </div>
               <div style={{display:"grid",gap:"12px"}}>
                 {COMPANIES_INFO.map(c=>(
@@ -445,12 +446,12 @@ const labelOf = (id: string): string => DYN_LABELS[id] || COMPANY_LABELS[id] || 
                     <div style={{flex:1}}>
                       <div style={{fontWeight:800,fontSize:"15px",color:c.color,marginBottom:"3px"}}>{c.name}</div>
                       <div style={{fontSize:"11px",color:"var(--ia-muted)",marginBottom:"12px"}}>
-                        {logos[c.id]?"✅ شعار مخصص مرفوع":"⚪ لا يوجد شعار — يستخدم الشعار الافتراضي"}
+                        {logos[c.id]?tr("✅ شعار مخصص مرفوع"):tr("⚪ لا يوجد شعار — يستخدم الشعار الافتراضي")}
                       </div>
                       <div style={{display:"flex",gap:"8px"}}>
                         <input type="file" accept="image/*" style={{display:"none"}} ref={el => { fileRefs.current[c.id] = el; }} onChange={e=>handleLogoFile(c.id,e.target.files?.[0]||null)}/>
-                        <button onClick={()=>fileRefs.current[c.id]?.click()} style={{background:c.color,color:"#fff",border:"none",borderRadius:"8px",padding:"8px 16px",fontFamily:"inherit",fontSize:"12px",fontWeight:700,cursor:"pointer"}}>📤 {logos[c.id]?"تغيير الشعار":"رفع شعار"}</button>
-                        {logos[c.id]&&<button onClick={()=>removeLogo(c.id)} style={{background:"var(--ia-red-bg)",color:"var(--ia-red-tx)",border:"none",borderRadius:"8px",padding:"8px 12px",fontFamily:"inherit",fontSize:"12px",fontWeight:700,cursor:"pointer"}}>🗑️ حذف</button>}
+                        <button onClick={()=>fileRefs.current[c.id]?.click()} style={{background:c.color,color:"#fff",border:"none",borderRadius:"8px",padding:"8px 16px",fontFamily:"inherit",fontSize:"12px",fontWeight:700,cursor:"pointer"}}>📤 {logos[c.id]?tr("تغيير الشعار"):tr("رفع شعار")}</button>
+                        {logos[c.id]&&<button onClick={()=>removeLogo(c.id)} style={{background:"var(--ia-red-bg)",color:"var(--ia-red-tx)",border:"none",borderRadius:"8px",padding:"8px 12px",fontFamily:"inherit",fontSize:"12px",fontWeight:700,cursor:"pointer"}}>{tr("🗑️ حذف")}</button>}
                       </div>
                     </div>
                   </div>
@@ -470,7 +471,7 @@ const labelOf = (id: string): string => DYN_LABELS[id] || COMPANY_LABELS[id] || 
       {showCreate&&(
         <CreateUserModal
           onClose={()=>setShowCreate(false)}
-          onCreated={()=>{ toast_("✅ تم إنشاء المستخدم"); loadUsers(); }}
+          onCreated={()=>{ toast_(tr("✅ تم إنشاء المستخدم")); loadUsers(); }}
           companies={companies}
         />
       )}
@@ -479,11 +480,11 @@ const labelOf = (id: string): string => DYN_LABELS[id] || COMPANY_LABELS[id] || 
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:4000,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={()=>setDelConfirm(null)}>
           <div style={{background:"var(--ia-card)",borderRadius:"16px",padding:"28px 32px",textAlign:"center",maxWidth:"320px",boxShadow:"0 20px 60px rgba(0,0,0,.3)"}} onClick={e=>e.stopPropagation()}>
             <div style={{fontSize:"36px",marginBottom:"8px"}}>🗑️</div>
-            <div style={{fontWeight:700,fontSize:"15px",marginBottom:"6px"}}>تأكيد الحذف</div>
-            <div style={{color:"var(--ia-sub)",fontSize:"13px",marginBottom:"18px"}}>سيتم حذف سجل <b>{delConfirm.displayName||delConfirm.email}</b> نهائياً</div>
+            <div style={{fontWeight:700,fontSize:"15px",marginBottom:"6px"}}>{tr("تأكيد الحذف")}</div>
+            <div style={{color:"var(--ia-sub)",fontSize:"13px",marginBottom:"18px"}}>{tr("سيتم حذف سجل")} <b>{delConfirm.displayName||delConfirm.email}</b> {tr("نهائياً")}</div>
             <div style={{display:"flex",gap:"10px",justifyContent:"center"}}>
-              <button onClick={()=>handleDelete(delConfirm.uid)} style={{background:"#dc2626",color:"#fff",border:"none",borderRadius:"8px",padding:"9px 20px",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>نعم، احذف</button>
-              <button onClick={()=>setDelConfirm(null)} style={{background:"var(--ia-ghost-bg)",color:"var(--ia-text2)",border:"none",borderRadius:"8px",padding:"9px 16px",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>إلغاء</button>
+              <button onClick={()=>handleDelete(delConfirm.uid)} style={{background:"#dc2626",color:"#fff",border:"none",borderRadius:"8px",padding:"9px 20px",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>{tr("نعم، احذف")}</button>
+              <button onClick={()=>setDelConfirm(null)} style={{background:"var(--ia-ghost-bg)",color:"var(--ia-text2)",border:"none",borderRadius:"8px",padding:"9px 16px",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>{tr("إلغاء")}</button>
             </div>
           </div>
         </div>

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { api } from "../api";
 import { useTheme, txAdapt } from "../theme";
+import { tr, dateLocale } from "@/lib/i18n-app";
 
 const today = () => new Date().toISOString().split("T")[0];
 const fDate = s => { if (!s) return ""; const [y, m, d] = s.split("-"); return `${d}/${m}/${y}`; };
@@ -38,56 +39,7 @@ function buildPurchaseHTML(pi, company) {
       <td style="padding:10px 14px;text-align:right;font-weight:700;">${(r.qty * pN(r.purchasePrice)).toFixed(3)} KD</td>` : `<td colspan="2"></td>`}
     </tr>`).join("");
   const totalCost = (pi.items || []).reduce((s, r) => s + r.qty * pN(r.purchasePrice || 0), 0);
-  return `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8">
-<title>فاتورة مشتريات ${pi.num}</title>
-<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Tajawal','Cairo',Arial,sans-serif;background:#fff;color:#111;padding:28px;font-size:13px;direction:rtl}
-.hdr{text-align:center;margin-bottom:24px;border-bottom:3px solid ${col};padding-bottom:16px}
-.hdr h1{font-size:22px;font-weight:900;color:${col};margin-bottom:4px}
-.meta{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}
-.meta span{background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;padding:5px 12px;font-size:12px}
-table{width:100%;border-collapse:collapse;margin-bottom:16px}
-thead tr{background:${col};color:#fff}
-th{padding:11px 14px;text-align:right;font-weight:700;font-size:13px}
-tbody tr{border-bottom:1px solid #f0f0f0}
-tbody tr:nth-child(even){background:#f9fafb}
-tfoot tr{background:${col}22;font-weight:900}
-tfoot td{padding:12px 14px;font-size:14px}
-.footer{text-align:center;font-size:11px;color:#9ca3af;margin-top:20px;border-top:1px solid #e5e7eb;padding-top:12px}
-@media print{@page{margin:14mm}body{padding:0}}
-</style></head><body>
-<div class="hdr">
-  <h1>📦 فاتورة مشتريات</h1>
-  <div style="color:#555;font-size:13px">${company?.nameAr || ""}</div>
-</div>
-<div class="meta">
-  <span>🔢 رقم: <b>${pi.num}</b></span>
-  <span>📅 التاريخ: <b>${fDate(pi.date)}</b></span>
-  ${pi.supplier ? `<span>🏭 المورد: <b>${pi.supplier}</b></span>` : ""}
-  <span>📦 ${(pi.items || []).length} منتج</span>
-  <span>🔢 ${totalQty} قطعة إجمالية</span>
-</div>
-<table>
-  <thead><tr>
-    <th style="width:44px">#</th>
-    <th>اسم المنتج</th>
-    <th style="text-align:center">الكمية الإجمالية</th>
-    <th>سعر الشراء (KD)</th>
-    <th>إجمالي الشراء (KD)</th>
-  </tr></thead>
-  <tbody>${rows}</tbody>
-  <tfoot><tr>
-    <td colspan="2" style="font-weight:900">المجموع الكلي</td>
-    <td style="text-align:center;font-size:16px;color:${col};font-weight:900">${totalQty}</td>
-    <td></td>
-    ${totalCost > 0 ? `<td style="color:#dc2626">${totalCost.toFixed(3)} KD</td>` : "<td></td>"}
-  </tr></tfoot>
-</table>
-${pi.notes ? `<div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#555"><b>ملاحظات:</b> ${pi.notes}</div>` : ""}
-<div class="footer">تم الإنشاء: ${new Date().toLocaleDateString("ar-KW", { year: "numeric", month: "long", day: "numeric" })} | نظام المشتريات المتكامل</div>
-</body></html>`;
+  return tr("<!DOCTYPE html><html lang=\"ar\" dir=\"rtl\"><head><meta charset=\"utf-8\">\n<title>فاتورة مشتريات {0}</title>\n<link href=\"https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap\" rel=\"stylesheet\">\n<style>\n*{box-sizing:border-box;margin:0;padding:0}\nbody{font-family:'Tajawal','Cairo',Arial,sans-serif;background:#fff;color:#111;padding:28px;font-size:13px;direction:rtl}\n.hdr{text-align:center;margin-bottom:24px;border-bottom:3px solid {1};padding-bottom:16px}\n.hdr h1{font-size:22px;font-weight:900;color:{2};margin-bottom:4px}\n.meta{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}\n.meta span{background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;padding:5px 12px;font-size:12px}\ntable{width:100%;border-collapse:collapse;margin-bottom:16px}\nthead tr{background:{3};color:#fff}\nth{padding:11px 14px;text-align:right;font-weight:700;font-size:13px}\ntbody tr{border-bottom:1px solid #f0f0f0}\ntbody tr:nth-child(even){background:#f9fafb}\ntfoot tr{background:{4}22;font-weight:900}\ntfoot td{padding:12px 14px;font-size:14px}\n.footer{text-align:center;font-size:11px;color:#9ca3af;margin-top:20px;border-top:1px solid #e5e7eb;padding-top:12px}\n@media print{@page{margin:14mm}body{padding:0}}\n</style></head><body>\n<div class=\"hdr\">\n  <h1>📦 فاتورة مشتريات</h1>\n  <div style=\"color:#555;font-size:13px\">{5}</div>\n</div>\n<div class=\"meta\">\n  <span>🔢 رقم: <b>{6}</b></span>\n  <span>📅 التاريخ: <b>{7}</b></span>\n  {8}\n  <span>📦 {9} منتج</span>\n  <span>🔢 {10} قطعة إجمالية</span>\n</div>\n<table>\n  <thead><tr>\n    <th style=\"width:44px\">#</th>\n    <th>اسم المنتج</th>\n    <th style=\"text-align:center\">الكمية الإجمالية</th>\n    <th>سعر الشراء (KD)</th>\n    <th>إجمالي الشراء (KD)</th>\n  </tr></thead>\n  <tbody>{11}</tbody>\n  <tfoot><tr>\n    <td colspan=\"2\" style=\"font-weight:900\">المجموع الكلي</td>\n    <td style=\"text-align:center;font-size:16px;color:{12};font-weight:900\">{13}</td>\n    <td></td>\n    {14}\n  </tr></tfoot>\n</table>\n{15}\n<div class=\"footer\">تم الإنشاء: {16} | نظام المشتريات المتكامل</div>\n</body></html>",[pi.num,col,col,col,col,company?.nameAr || "",pi.num,fDate(pi.date),pi.supplier ? tr("<span>🏭 المورد: <b>{0}</b></span>",[pi.supplier]) : "",(pi.items || []).length,totalQty,rows,col,totalQty,totalCost > 0 ? `<td style="color:#dc2626">${totalCost.toFixed(3)} KD</td>` : "<td></td>",pi.notes ? tr("<div style=\"background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#555\"><b>ملاحظات:</b> {0}</div>",[pi.notes]) : "",new Date().toLocaleDateString(dateLocale(), { year: "numeric", month: "long", day: "numeric" })]);
   return html;
 }
 
@@ -95,7 +47,7 @@ ${pi.notes ? `<div style="background:#f8fafc;border:1px solid #e5e7eb;border-rad
 function printPurchaseInvoice(pi, company) {
   const html = buildPurchaseHTML(pi, company);
   const w = window.open("", "_blank", "width=900,height=700");
-  if (!w) { alert("يرجى السماح بالـ Popups في المتصفح"); return; }
+  if (!w) { alert(tr("يرجى السماح بالـ Popups في المتصفح")); return; }
   w.document.write(html);
   w.document.close();
   w.onload = () => { w.focus(); w.print(); };
@@ -126,16 +78,16 @@ export default function PurchasesTab({ company, invoices = [], preSelectIds = []
     try {
       setPdfBusy(true);
       const html = buildPurchaseHTML(pi, company);
-      const base = "فاتورة_مشتريات_" + (pi.num || pi.id);
+      const base = tr("فاتورة_مشتريات_") + (pi.num || pi.id);
       const blob = await api.exportPdf(html, base);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url; a.download = base + ".pdf";
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 5000);
-      toast_("✅ تم تصدير فاتورة المشتريات " + (pi.num || "") + " إلى PDF");
+      toast_(tr("✅ تم تصدير فاتورة المشتريات ") + (pi.num || "") + tr(" إلى PDF"));
     } catch (e) {
-      toast_((e && e.message) || "فشل تصدير PDF", "err");
+      toast_((e && e.message) || tr("فشل تصدير PDF"), "err");
     } finally {
       setPdfBusy(false);
     }
@@ -180,8 +132,8 @@ export default function PurchasesTab({ company, invoices = [], preSelectIds = []
   };
 
   const savePurchase = async () => {
-    if (!selIds.length) { toast_("⚠️ اختر فاتورة واحدة على الأقل"); return; }
-    if (!merged.length) { toast_("⚠️ لا توجد منتجات في الفواتير المحددة"); return; }
+    if (!selIds.length) { toast_(tr("⚠️ اختر فاتورة واحدة على الأقل")); return; }
+    if (!merged.length) { toast_(tr("⚠️ لا توجد منتجات في الفواتير المحددة")); return; }
     const num = `PUR${String(purchases.length + 1).padStart(4, "0")}`;
     const totalQty = merged.reduce((s, r) => s + r.qty, 0);
     try {
@@ -199,9 +151,9 @@ export default function PurchasesTab({ company, invoices = [], preSelectIds = []
       setShowModal(false);
       setSelIds([]);
       setMerged([]);
-      toast_(`✅ تم إنشاء فاتورة المشتريات ${num}`);
+      toast_(tr("✅ تم إنشاء فاتورة المشتريات {0}",[num]));
     } catch (e) {
-      toast_("❌ حدث خطأ أثناء الحفظ");
+      toast_(tr("❌ حدث خطأ أثناء الحفظ"));
     }
   };
 
@@ -210,8 +162,8 @@ export default function PurchasesTab({ company, invoices = [], preSelectIds = []
       await api.deletePurchaseInvoice(id);
       setPurchases(p => p.filter(x => x.id !== id));
       setConfirmDel(null);
-      toast_("🗑️ تم الحذف");
-    } catch { toast_("❌ حدث خطأ أثناء الحذف"); }
+      toast_(tr("🗑️ تم الحذف"));
+    } catch { toast_(tr("❌ حدث خطأ أثناء الحذف")); }
   };
 
   const btn = (bg, c = "#fff") => ({
@@ -242,22 +194,22 @@ export default function PurchasesTab({ company, invoices = [], preSelectIds = []
 
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px", flexWrap: "wrap" }}>
-        <h1 style={{ margin: 0, fontSize: "17px", fontWeight: 900, color: colTx }}>🛒 فواتير المشتريات</h1>
+        <h1 style={{ margin: 0, fontSize: "17px", fontWeight: 900, color: colTx }}>{tr("🛒 فواتير المشتريات")}</h1>
         <div style={{ flex: 1 }} />
         <button style={btn(col)} onClick={() => { setSelIds([]); setMerged([]); setMForm({ supplier: "", date: today(), notes: "" }); setShowModal(true); }}>
-          ➕ إنشاء فاتورة مشتريات
+          {tr("➕ إنشاء فاتورة مشتريات")}
         </button>
       </div>
 
       {/* History */}
       {loading ? (
-        <div style={{ ...card, padding: "40px", textAlign: "center", color: "var(--ia-muted)" }}>⏳ جارٍ التحميل...</div>
+        <div style={{ ...card, padding: "40px", textAlign: "center", color: "var(--ia-muted)" }}>{tr("⏳ جارٍ التحميل...")}</div>
       ) : purchases.length === 0 ? (
         <div style={{ ...card, padding: "56px", textAlign: "center", color: "var(--ia-muted)" }}>
           <div style={{ fontSize: "44px", marginBottom: "10px" }}>🛒</div>
-          <div style={{ fontWeight: 600, marginBottom: "14px" }}>لا توجد فواتير مشتريات بعد</div>
+          <div style={{ fontWeight: 600, marginBottom: "14px" }}>{tr("لا توجد فواتير مشتريات بعد")}</div>
           <button style={btn(col)} onClick={() => { setSelIds([]); setMerged([]); setMForm({ supplier: "", date: today(), notes: "" }); setShowModal(true); }}>
-            ➕ أنشئ أول فاتورة مشتريات
+            {tr("➕ أنشئ أول فاتورة مشتريات")}
           </button>
         </div>
       ) : (
@@ -272,13 +224,13 @@ export default function PurchasesTab({ company, invoices = [], preSelectIds = []
                   <span style={{ background: `${col}15`, color: colTx, borderRadius: "20px", padding: "2px 10px", fontSize: "12px", fontWeight: 700 }}>{pi.num}</span>
                   <span style={{ fontWeight: 700 }}>{fDate(pi.date)}</span>
                   {pi.supplier && <span style={{ color: "var(--ia-sub)", fontSize: "13px" }}>🏭 {pi.supplier}</span>}
-                  <span style={{ color: "var(--ia-sub)", fontSize: "12px" }}>{(pi.items || []).length} منتج · {totalQty} قطعة</span>
+                  <span style={{ color: "var(--ia-sub)", fontSize: "12px" }}>{(pi.items || []).length} {tr("منتج ·")} {totalQty} {tr("قطعة")}</span>
                   {pi.notes && <span style={{ color: "var(--ia-muted)", fontSize: "12px" }}>• {pi.notes}</span>}
                   <div style={{ flex: 1 }} />
                   <button style={{ ...btn(col), padding: "5px 10px", fontSize: "12px" }}
-                    onClick={e => { e.stopPropagation(); printPurchaseInvoice(pi, company); }}>🖨️ طباعة</button>
+                    onClick={e => { e.stopPropagation(); printPurchaseInvoice(pi, company); }}>{tr("🖨️ طباعة")}</button>
                   <button style={{ ...btn("#dc2626"), padding: "5px 10px", fontSize: "12px" }} disabled={pdfBusy}
-                    title="تصدير فاتورة المشتريات إلى ملف PDF"
+                    title={tr("تصدير فاتورة المشتريات إلى ملف PDF")}
                     onClick={e => { e.stopPropagation(); exportPurchasePdf(pi); }}>{pdfBusy ? "⏳…" : "📄 PDF"}</button>
                   <button style={{ ...btn("#dc2626"), padding: "5px 10px", fontSize: "12px" }}
                     onClick={e => { e.stopPropagation(); setConfirmDel(pi); }}>🗑️</button>
@@ -289,10 +241,10 @@ export default function PurchasesTab({ company, invoices = [], preSelectIds = []
                     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
                       <thead>
                         <tr style={{ background: "var(--ia-soft)" }}>
-                          <th style={{ padding: "8px 14px", textAlign: "right", color: "var(--ia-sub)", fontWeight: 700 }}>#</th>
-                          <th style={{ padding: "8px 14px", textAlign: "right", color: "var(--ia-sub)", fontWeight: 700 }}>اسم المنتج</th>
-                          <th style={{ padding: "8px 14px", textAlign: "center", color: "var(--ia-sub)", fontWeight: 700 }}>الكمية</th>
-                          <th style={{ padding: "8px 14px", textAlign: "right", color: "var(--ia-sub)", fontWeight: 700 }}>سعر الشراء</th>
+                          <th style={{ padding: "8px 14px", textAlign: "start", color: "var(--ia-sub)", fontWeight: 700 }}>#</th>
+                          <th style={{ padding: "8px 14px", textAlign: "start", color: "var(--ia-sub)", fontWeight: 700 }}>{tr("اسم المنتج")}</th>
+                          <th style={{ padding: "8px 14px", textAlign: "center", color: "var(--ia-sub)", fontWeight: 700 }}>{tr("الكمية")}</th>
+                          <th style={{ padding: "8px 14px", textAlign: "start", color: "var(--ia-sub)", fontWeight: 700 }}>{tr("سعر الشراء")}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -322,11 +274,11 @@ export default function PurchasesTab({ company, invoices = [], preSelectIds = []
           onClick={() => setConfirmDel(null)}>
           <div style={{ ...card, width: "100%", maxWidth: "320px", padding: "28px", textAlign: "center" }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: "38px", marginBottom: "8px" }}>🗑️</div>
-            <div style={{ fontWeight: 700, fontSize: "15px", marginBottom: "6px" }}>تأكيد الحذف</div>
-            <div style={{ color: "var(--ia-sub)", fontSize: "13px", marginBottom: "18px" }}>سيتم حذف فاتورة المشتريات <b>{confirmDel.num}</b></div>
+            <div style={{ fontWeight: 700, fontSize: "15px", marginBottom: "6px" }}>{tr("تأكيد الحذف")}</div>
+            <div style={{ color: "var(--ia-sub)", fontSize: "13px", marginBottom: "18px" }}>{tr("سيتم حذف فاتورة المشتريات")} <b>{confirmDel.num}</b></div>
             <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
-              <button style={btn("#dc2626")} onClick={() => deletePurchase(confirmDel.id)}>نعم، احذف</button>
-              <button style={btn("var(--ia-ghost-bg)", "var(--ia-ghost-tx)")} onClick={() => setConfirmDel(null)}>إلغاء</button>
+              <button style={btn("#dc2626")} onClick={() => deletePurchase(confirmDel.id)}>{tr("نعم، احذف")}</button>
+              <button style={btn("var(--ia-ghost-bg)", "var(--ia-ghost-tx)")} onClick={() => setConfirmDel(null)}>{tr("إلغاء")}</button>
             </div>
           </div>
         </div>
@@ -341,7 +293,7 @@ export default function PurchasesTab({ company, invoices = [], preSelectIds = []
 
             {/* Modal Header */}
             <div style={{ padding: "18px 20px 14px", borderBottom: "1px solid var(--ia-border)", display: "flex", alignItems: "center", gap: "10px" }}>
-              <div style={{ fontSize: "16px", fontWeight: 900, color: colTx }}>🛒 إنشاء فاتورة مشتريات</div>
+              <div style={{ fontSize: "16px", fontWeight: 900, color: colTx }}>{tr("🛒 إنشاء فاتورة مشتريات")}</div>
               <div style={{ flex: 1 }} />
               <button onClick={() => setShowModal(false)} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "var(--ia-muted)" }}>✕</button>
             </div>
@@ -351,12 +303,12 @@ export default function PurchasesTab({ company, invoices = [], preSelectIds = []
               {/* Step 1 – Invoice selection */}
               <div style={{ marginBottom: "16px" }}>
                 <div style={{ fontSize: "12px", fontWeight: 900, color: "var(--ia-sub)", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: "10px" }}>
-                  اختر الفواتير ({selIds.length} محدد)
+                  {tr("اختر الفواتير (")}{selIds.length} {tr("محدد)")}
                 </div>
-                <input style={{ ...inp, marginBottom: "8px" }} placeholder="🔍 ابحث بالاسم أو رقم الفاتورة..." value={search} onChange={e => setSearch(e.target.value)} />
+                <input style={{ ...inp, marginBottom: "8px" }} placeholder={tr("🔍 ابحث بالاسم أو رقم الفاتورة...")} value={search} onChange={e => setSearch(e.target.value)} />
                 <div style={{ maxHeight: "220px", overflowY: "auto", border: "1px solid var(--ia-border)", borderRadius: "8px" }}>
                   {filtered.length === 0 ? (
-                    <div style={{ padding: "20px", textAlign: "center", color: "var(--ia-muted)", fontSize: "13px" }}>لا توجد فواتير</div>
+                    <div style={{ padding: "20px", textAlign: "center", color: "var(--ia-muted)", fontSize: "13px" }}>{tr("لا توجد فواتير")}</div>
                   ) : (
                     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
                       <thead>
@@ -364,10 +316,10 @@ export default function PurchasesTab({ company, invoices = [], preSelectIds = []
                           <th style={{ width: "34px", padding: "7px 10px" }}>
                             <input type="checkbox" checked={allSel} onChange={toggleAll} style={{ cursor: "pointer", accentColor: col }} />
                           </th>
-                          <th style={{ padding: "7px 10px", textAlign: "right", fontWeight: 700, color: "var(--ia-sub)", fontSize: "11px" }}>الرقم</th>
-                          <th style={{ padding: "7px 10px", textAlign: "right", fontWeight: 700, color: "var(--ia-sub)", fontSize: "11px" }}>العميل</th>
-                          <th style={{ padding: "7px 10px", textAlign: "right", fontWeight: 700, color: "var(--ia-sub)", fontSize: "11px" }}>التاريخ</th>
-                          <th style={{ padding: "7px 10px", textAlign: "right", fontWeight: 700, color: "var(--ia-sub)", fontSize: "11px" }}>المنتجات</th>
+                          <th style={{ padding: "7px 10px", textAlign: "start", fontWeight: 700, color: "var(--ia-sub)", fontSize: "11px" }}>{tr("الرقم")}</th>
+                          <th style={{ padding: "7px 10px", textAlign: "start", fontWeight: 700, color: "var(--ia-sub)", fontSize: "11px" }}>{tr("العميل")}</th>
+                          <th style={{ padding: "7px 10px", textAlign: "start", fontWeight: 700, color: "var(--ia-sub)", fontSize: "11px" }}>{tr("التاريخ")}</th>
+                          <th style={{ padding: "7px 10px", textAlign: "start", fontWeight: 700, color: "var(--ia-sub)", fontSize: "11px" }}>{tr("المنتجات")}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -401,15 +353,15 @@ export default function PurchasesTab({ company, invoices = [], preSelectIds = []
               {merged.length > 0 && (
                 <div style={{ marginBottom: "16px" }}>
                   <div style={{ fontSize: "12px", fontWeight: 900, color: "var(--ia-sub)", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: "10px" }}>
-                    المنتجات المدمجة ({merged.length} منتج · {merged.reduce((s, r) => s + r.qty, 0)} قطعة)
+                    {tr("المنتجات المدمجة (")}{merged.length} {tr("منتج ·")} {merged.reduce((s, r) => s + r.qty, 0)} {tr("قطعة)")}
                   </div>
                   <div style={{ border: "1px solid var(--ia-border)", borderRadius: "8px", overflow: "hidden" }}>
                     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
                       <thead>
                         <tr style={{ background: col, color: "#fff" }}>
-                          <th style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700 }}>اسم المنتج</th>
-                          <th style={{ padding: "8px 12px", textAlign: "center", fontWeight: 700 }}>الكمية الإجمالية</th>
-                          <th style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700 }}>سعر الشراء (KD) — اختياري</th>
+                          <th style={{ padding: "8px 12px", textAlign: "start", fontWeight: 700 }}>{tr("اسم المنتج")}</th>
+                          <th style={{ padding: "8px 12px", textAlign: "center", fontWeight: 700 }}>{tr("الكمية الإجمالية")}</th>
+                          <th style={{ padding: "8px 12px", textAlign: "start", fontWeight: 700 }}>{tr("سعر الشراء (KD) — اختياري")}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -436,17 +388,17 @@ export default function PurchasesTab({ company, invoices = [], preSelectIds = []
               {/* Supplier / Date / Notes */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
                 <div>
-                  <label style={lbl}>اسم المورد</label>
-                  <input style={inp} placeholder="اسم المورد (اختياري)" value={mForm.supplier} onChange={e => setMForm(f => ({ ...f, supplier: e.target.value }))} />
+                  <label style={lbl}>{tr("اسم المورد")}</label>
+                  <input style={inp} placeholder={tr("اسم المورد (اختياري)")} value={mForm.supplier} onChange={e => setMForm(f => ({ ...f, supplier: e.target.value }))} />
                 </div>
                 <div>
-                  <label style={lbl}>تاريخ فاتورة المشتريات</label>
+                  <label style={lbl}>{tr("تاريخ فاتورة المشتريات")}</label>
                   <input style={inp} type="date" value={mForm.date} onChange={e => setMForm(f => ({ ...f, date: e.target.value }))} />
                 </div>
               </div>
               <div style={{ marginBottom: "4px" }}>
-                <label style={lbl}>ملاحظات</label>
-                <input style={inp} placeholder="ملاحظات (اختياري)" value={mForm.notes} onChange={e => setMForm(f => ({ ...f, notes: e.target.value }))} />
+                <label style={lbl}>{tr("ملاحظات")}</label>
+                <input style={inp} placeholder={tr("ملاحظات (اختياري)")} value={mForm.notes} onChange={e => setMForm(f => ({ ...f, notes: e.target.value }))} />
               </div>
             </div>
 
@@ -454,9 +406,9 @@ export default function PurchasesTab({ company, invoices = [], preSelectIds = []
             <div style={{ padding: "14px 20px", borderTop: "1px solid var(--ia-border)", display: "flex", gap: "10px" }}>
               <button style={{ ...btn(col), flex: 1, justifyContent: "center", padding: "11px", fontSize: "14px" }} onClick={savePurchase}
                 disabled={!selIds.length || !merged.length}>
-                💾 حفظ فاتورة المشتريات
+                {tr("💾 حفظ فاتورة المشتريات")}
               </button>
-              <button style={{ ...btn("var(--ia-ghost-bg)", "var(--ia-ghost-tx)"), padding: "11px 16px" }} onClick={() => setShowModal(false)}>إلغاء</button>
+              <button style={{ ...btn("var(--ia-ghost-bg)", "var(--ia-ghost-tx)"), padding: "11px 16px" }} onClick={() => setShowModal(false)}>{tr("إلغاء")}</button>
             </div>
           </div>
         </div>

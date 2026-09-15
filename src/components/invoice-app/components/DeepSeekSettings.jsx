@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useTheme, txAdapt, softAdapt } from "../theme";
+import { tr } from "@/lib/i18n-app";
 
 /* r10: صفحة DeepSeek — إضافة مفتاح API، اختبار الاتصال الفعلي،
  * واختيار الموديل من الموديلات المدفوعة (deepseek-chat / deepseek-reasoner).
@@ -45,7 +46,7 @@ export default function DeepSeekSettings({ company }) {
       setEnabled(!!data.enabled);
       setApiKey("");
     } catch {
-      toast_("تعذّر تحميل الإعدادات", "warn");
+      toast_(tr("تعذّر تحميل الإعدادات"), "warn");
     } finally {
       setLoading(false);
     }
@@ -66,11 +67,11 @@ export default function DeepSeekSettings({ company }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-      if (!silent) toast_("✅ تم حفظ إعدادات DeepSeek");
+      if (!silent) toast_(tr("✅ تم حفظ إعدادات DeepSeek"));
       setApiKey("");
       await load();
     } catch (e) {
-      toast_(e.message || "فشل الحفظ", "warn");
+      toast_(e.message || tr("فشل الحفظ"), "warn");
     } finally {
       setSaving(false);
     }
@@ -91,15 +92,15 @@ export default function DeepSeekSettings({ company }) {
       const data = await res.json();
       setTestResult(data);
       if (data.ok) {
-        toast_(`✅ الاتصال ناجح — ${data.latencyMs} ملّي ثانية`);
+        toast_(tr("✅ الاتصال ناجح — {0} ملّي ثانية",[data.latencyMs]));
         setApiKey("");
         await load();
       } else {
-        toast_("❌ فشل الاتصال — انظر التفاصيل", "warn");
+        toast_(tr("❌ فشل الاتصال — انظر التفاصيل"), "warn");
       }
     } catch (e) {
       setTestResult({ ok: false, error: e.message });
-      toast_("❌ تعذّر إجراء الاختبار", "warn");
+      toast_(tr("❌ تعذّر إجراء الاختبار"), "warn");
     } finally {
       setTesting(false);
     }
@@ -113,7 +114,7 @@ export default function DeepSeekSettings({ company }) {
     }
     const next = !enabled;
     if (next && !cfg?.hasKey && !apiKey.trim()) {
-      toast_("أدخل مفتاح API واختبره أولاً قبل التفعيل", "warn");
+      toast_(tr("أدخل مفتاح API واختبره أولاً قبل التفعيل"), "warn");
       return;
     }
     setEnabled(next);
@@ -125,12 +126,12 @@ export default function DeepSeekSettings({ company }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      toast_(next ? "🔵 تم تفعيل DeepSeek لكل مميزات الذكاء الاصطناعي" : "⏸️ تم التحويل للمزوّد المدمج");
+      toast_(next ? tr("🔵 تم تفعيل DeepSeek لكل مميزات الذكاء الاصطناعي") : tr("⏸️ تم التحويل للمزوّد المدمج"));
       setApiKey("");
       await load();
     } catch (e) {
       setEnabled(!next);
-      toast_(e.message || "فشل التبديل", "warn");
+      toast_(e.message || tr("فشل التبديل"), "warn");
     }
   };
 
@@ -173,9 +174,9 @@ export default function DeepSeekSettings({ company }) {
             boxShadow: `0 6px 18px ${DS_BLUE}44`, flexShrink: 0, letterSpacing: "-.5px",
           }}>DS</div>
           <div style={{ flex: 1, minWidth: 200 }}>
-            <div style={{ fontWeight: 900, fontSize: 16 }}>DeepSeek API — مزوّد الذكاء الاصطناعي</div>
+            <div style={{ fontWeight: 900, fontSize: 16 }}>{tr("DeepSeek API — مزوّد الذكاء الاصطناعي")}</div>
             <div style={{ fontSize: 12.5, color: "var(--ia-sub)", marginTop: 2 }}>
-              معالجة كل مميزات الذكاء الاصطناعي في المشروع: المساعد الذكي 🤖 + معالجة العناصر 📦
+              {tr("معالجة كل مميزات الذكاء الاصطناعي في المشروع: المساعد الذكي 🤖 + معالجة العناصر 📦")}
             </div>
           </div>
           <span style={{
@@ -185,7 +186,7 @@ export default function DeepSeekSettings({ company }) {
             borderRadius: 20, padding: "5px 14px", fontSize: 12, fontWeight: 800,
           }}>
             <span style={{ width: 8, height: 8, borderRadius: "50%", background: enabled ? "#16a34a" : "var(--ia-muted)", boxShadow: enabled ? "0 0 0 3px rgba(34,197,94,.25)" : "none" }} />
-            {enabled ? "مفعّل — الموديل المدفوع يعمل" : cfg?.hasKey ? "معطّل — المزوّد المدمج يعمل" : "غير مضبوط — المزوّد المدمج يعمل"}
+            {enabled ? tr("مفعّل — الموديل المدفوع يعمل") : cfg?.hasKey ? tr("معطّل — المزوّد المدمج يعمل") : tr("غير مضبوط — المزوّد المدمج يعمل")}
           </span>
         </div>
 
@@ -197,7 +198,7 @@ export default function DeepSeekSettings({ company }) {
             border: `1px solid ${cfg.lastTestOk ? txAdapt("#86efac", dark) + "66" : txAdapt("#fca5a5", dark) + "66"}`,
           }}>
             <span>{cfg.lastTestOk ? "✅" : "❌"}</span>
-            <b>آخر اختبار:</b>
+            <b>{tr("آخر اختبار:")}</b>
             <span>{new Date(cfg.lastTestedAt).toLocaleString("ar", { dateStyle: "short", timeStyle: "short" })}</span>
             {cfg.lastTestModel && <span dir="ltr" style={{ fontFamily: "monospace" }}>({cfg.lastTestModel})</span>}
             {cfg.lastTestLatency != null && <span style={{ direction: "ltr" }}>— {cfg.lastTestLatency}ms</span>}
@@ -210,32 +211,32 @@ export default function DeepSeekSettings({ company }) {
       <div className="card" style={{ padding: "18px 20px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
           <span style={{ fontSize: 17 }}>🔑</span>
-          <b style={{ fontSize: 14 }}>مفتاح API</b>
+          <b style={{ fontSize: 14 }}>{tr("مفتاح API")}</b>
           {cfg?.hasKey && (
             <span style={{ fontSize: 11.5, color: "var(--ia-sub)", background: softAdapt("#f1f5f9", dark), padding: "3px 10px", borderRadius: 20, direction: "ltr", fontFamily: "monospace" }}>
-              محفوظ: {cfg.keyMasked}
+              {tr("محفوظ:")} {cfg.keyMasked}
             </span>
           )}
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <div style={{ flex: 1, minWidth: 240, position: "relative" }}>
             <input className="inp" type={showKey ? "text" : "password"} value={apiKey} onChange={e => setApiKey(e.target.value)}
-              placeholder={cfg?.hasKey ? "أدخل مفتاحاً جديداً للاستبدال — أو اتركه فارغاً للإبقاء" : "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}
-              dir="ltr" style={{ paddingLeft: 40, fontFamily: "monospace", fontSize: 13 }} autoComplete="off" />
-            <button type="button" onClick={() => setShowKey(s => !s)} title={showKey ? "إخفاء" : "إظهار"}
+              placeholder={cfg?.hasKey ? tr("أدخل مفتاحاً جديداً للاستبدال — أو اتركه فارغاً للإبقاء") : "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}
+              dir="ltr" style={{ paddingInlineEnd: 40, fontFamily: "monospace", fontSize: 13 }} autoComplete="off" />
+            <button type="button" onClick={() => setShowKey(s => !s)} title={showKey ? tr("إخفاء") : tr("إظهار")}
               style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", border: "none", background: "transparent", cursor: "pointer", fontSize: 15, padding: 4 }}>
               {showKey ? "🙈" : "👁️"}
             </button>
           </div>
         </div>
         <div style={{ fontSize: 11.5, color: "var(--ia-sub)", marginTop: 8, lineHeight: 1.8 }}>
-          💡 احصل على المفتاح من <b dir="ltr">platform.deepseek.com</b> — يُخزَّن في قاعدة البيانات على خادمك فقط ولا يظهر أبداً في الواجهة أو النسخ الاحتياطية.
-          {!cfg?.hasKey && <> اتركه فارغاً الآن والصق مفتاحك ثم اضغط «اختبار الاتصال» (الاختبار يحفظه تلقائياً).</>}
+          {tr("💡 احصل على المفتاح من")} <b dir="ltr">platform.deepseek.com</b> {tr("— يُخزَّن في قاعدة البيانات على خادمك فقط ولا يظهر أبداً في الواجهة أو النسخ الاحتياطية.")}
+          {!cfg?.hasKey && <> {tr("اتركه فارغاً الآن والصق مفتاحك ثم اضغط «اختبار الاتصال» (الاختبار يحفظه تلقائياً).")}</>}
         </div>
 
         {/* رابط الخدمة (متقدم) */}
         <details style={{ marginTop: 10 }}>
-          <summary style={{ fontSize: 12, color: "var(--ia-sub)", cursor: "pointer", fontWeight: 700 }}>⚙️ إعدادات متقدمة — رابط الخدمة (Base URL)</summary>
+          <summary style={{ fontSize: 12, color: "var(--ia-sub)", cursor: "pointer", fontWeight: 700 }}>{tr("⚙️ إعدادات متقدمة — رابط الخدمة (Base URL)")}</summary>
           <input className="inp" value={baseUrl} onChange={e => setBaseUrl(e.target.value)} dir="ltr"
             style={{ marginTop: 8, fontFamily: "monospace", fontSize: 12.5 }} placeholder="https://api.deepseek.com" />
         </details>
@@ -245,8 +246,8 @@ export default function DeepSeekSettings({ company }) {
       <div className="card" style={{ padding: "18px 20px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
           <span style={{ fontSize: 17 }}>💎</span>
-          <b style={{ fontSize: 14 }}>اختيار الموديل (مدفوع)</b>
-          <span style={{ fontSize: 11, color: "var(--ia-sub)" }}>(تُحتسب بالاستخدام من رصيد DeepSeek)</span>
+          <b style={{ fontSize: 14 }}>{tr("اختيار الموديل (مدفوع)")}</b>
+          <span style={{ fontSize: 11, color: "var(--ia-sub)" }}>{tr("(تُحتسب بالاستخدام من رصيد DeepSeek)")}</span>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 12 }}>
           {MODELS.map(m => {
@@ -254,7 +255,7 @@ export default function DeepSeekSettings({ company }) {
             return (
               <button key={m.id} onClick={() => setModel(m.id)}
                 style={{
-                  textAlign: "right", cursor: "pointer", fontFamily: "inherit",
+                  textAlign: "start", cursor: "pointer", fontFamily: "inherit",
                   border: `2px solid ${sel ? txAdapt(DS_BLUE, dark) : "var(--ia-border2)"}`,
                   borderRadius: 12, padding: "14px 16px",
                   background: sel ? softAdapt("#eff6ff", dark) : "var(--ia-card)",
@@ -271,11 +272,11 @@ export default function DeepSeekSettings({ company }) {
                 <div style={{ fontSize: 11.5, color: "var(--ia-sub)", lineHeight: 1.7, marginBottom: 10 }}>{m.desc}</div>
                 <div style={{ display: "flex", gap: 10, fontSize: 10.5, color: "var(--ia-sub)" }}>
                   <span style={{ flex: 1 }}>
-                    السرعة
+                    {tr("السرعة")}
                     <Bars n={m.speed} color="#16a34a" dark={dark} />
                   </span>
                   <span style={{ flex: 1 }}>
-                    العمق
+                    {tr("العمق")}
                     <Bars n={m.depth} color="#7c3aed" dark={dark} />
                   </span>
                 </div>
@@ -285,7 +286,7 @@ export default function DeepSeekSettings({ company }) {
         </div>
         {activeModel && model === "deepseek-reasoner" && (
           <div style={{ marginTop: 12, fontSize: 11.5, color: "var(--ia-sub)", background: softAdapt("#fef3c7", dark), padding: "8px 12px", borderRadius: 8, lineHeight: 1.8 }}>
-            🧠 موديل التفكير يعرض «سلسلة التفكير» في المساعد الذكي قبل الجواب النهائي — مثالي للتحليل المالي المعقّد لكنه أبطأ.
+            {tr("🧠 موديل التفكير يعرض «سلسلة التفكير» في المساعد الذكي قبل الجواب النهائي — مثالي للتحليل المالي المعقّد لكنه أبطأ.")}
           </div>
         )}
       </div>
@@ -294,22 +295,22 @@ export default function DeepSeekSettings({ company }) {
       <div className="card" style={{ padding: "16px 20px", display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
         <button className="btn" onClick={() => save()} disabled={saving || testing}
           style={{ background: DS_BLUE, color: "#fff", minWidth: 130, justifyContent: "center" }}>
-          {saving ? "⏳ جارٍ الحفظ…" : "💾 حفظ الإعدادات"}
+          {saving ? tr("⏳ جارٍ الحفظ…") : tr("💾 حفظ الإعدادات")}
         </button>
         <button className="btn" onClick={test} disabled={testing || saving || (!cfg?.hasKey && !apiKey.trim())}
           style={{ background: "#16a34a", color: "#fff", minWidth: 150, justifyContent: "center" }}>
-          {testing ? "🔄 جارٍ اختبار الاتصال…" : "🔌 اختبار الاتصال"}
+          {testing ? tr("🔄 جارٍ اختبار الاتصال…") : tr("🔌 اختبار الاتصال")}
         </button>
         <button
           className={`btn ${enabled ? "btn-red" : ""}`}
           onClick={toggleEnabled}
           disabled={(!cfg?.hasKey && !apiKey.trim() && !enabled) || saving || testing}
           style={enabled ? {} : { background: col, color: "#fff" }}>
-          {enabled ? (confirmOff ? "⚠️ متأكد؟ اضغط مجدداً للتعطيل" : "🚫 تعطيل DeepSeek") : "🔵 تفعيل DeepSeek"}
+          {enabled ? (confirmOff ? tr("⚠️ متأكد؟ اضغط مجدداً للتعطيل") : tr("🚫 تعطيل DeepSeek")) : tr("🔵 تفعيل DeepSeek")}
         </button>
         <div style={{ flex: 1 }} />
         <span style={{ fontSize: 11, color: "var(--ia-sub)" }}>
-          المفعّل حالياً: <b dir="ltr">{enabled ? cfg?.model : "المزوّد المدمج"}</b>
+          {tr("المفعّل حالياً:")} <b dir="ltr">{enabled ? cfg?.model : tr("المزوّد المدمج")}</b>
         </span>
       </div>
 
@@ -317,8 +318,8 @@ export default function DeepSeekSettings({ company }) {
       {testing && (
         <div className="card" style={{ padding: "16px 20px", textAlign: "center" }}>
           <div style={{ fontSize: 26, marginBottom: 6 }}>🔄</div>
-          <b style={{ fontSize: 13 }}>جارٍ اختبار الاتصال الفعلي…</b>
-          <div style={{ fontSize: 11.5, color: "var(--ia-sub)", marginTop: 4 }}>جلب قائمة الموديلات + إكمال مصغّر وقياس زمن الاستجابة</div>
+          <b style={{ fontSize: 13 }}>{tr("جارٍ اختبار الاتصال الفعلي…")}</b>
+          <div style={{ fontSize: 11.5, color: "var(--ia-sub)", marginTop: 4 }}>{tr("جلب قائمة الموديلات + إكمال مصغّر وقياس زمن الاستجابة")}</div>
         </div>
       )}
       {testResult && !testing && (
@@ -329,7 +330,7 @@ export default function DeepSeekSettings({ company }) {
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
             <span style={{ fontSize: 22 }}>{testResult.ok ? "✅" : "❌"}</span>
-            <b style={{ fontSize: 14 }}>{testResult.ok ? "الاتصال ناجح — المفتاح يعمل" : "فشل الاتصال"}</b>
+            <b style={{ fontSize: 14 }}>{testResult.ok ? tr("الاتصال ناجح — المفتاح يعمل") : tr("فشل الاتصال")}</b>
             {testResult.ok && (
               <span style={{ fontSize: 11.5, fontWeight: 800, background: softAdapt("#dcfce7", dark), color: txAdapt("#15803d", dark), padding: "3px 12px", borderRadius: 20, direction: "ltr" }}>
                 ⏱ {testResult.latencyMs}ms
@@ -350,10 +351,10 @@ export default function DeepSeekSettings({ company }) {
             </div>
           ) : null}
           {testResult.reply && (
-            <div style={{ fontSize: 12, color: "var(--ia-sub)" }}>ردّ نموذج الاختبار: «{testResult.reply}»</div>
+            <div style={{ fontSize: 12, color: "var(--ia-sub)" }}>{tr("ردّ نموذج الاختبار: «")}{testResult.reply}»</div>
           )}
           {testResult.error && (
-            <div style={{ fontSize: 12, color: txAdapt("#b91c1c", dark), fontFamily: "monospace", direction: "ltr", textAlign: "left", background: softAdapt("#fee2e2", dark), padding: "8px 10px", borderRadius: 8, wordBreak: "break-all" }}>
+            <div style={{ fontSize: 12, color: txAdapt("#b91c1c", dark), fontFamily: "monospace", direction: "ltr", textAlign: "end", background: softAdapt("#fee2e2", dark), padding: "8px 10px", borderRadius: 8, wordBreak: "break-all" }}>
               {testResult.error}
             </div>
           )}
@@ -363,13 +364,13 @@ export default function DeepSeekSettings({ company }) {
       {/* ————— كيف يعمل ————— */}
       <div className="card" style={{ padding: "16px 20px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-          <span style={{ fontSize: 17 }}>🧭</span><b style={{ fontSize: 14 }}>كيف يعمل التوجيه؟</b>
+          <span style={{ fontSize: 17 }}>🧭</span><b style={{ fontSize: 14 }}>{tr("كيف يعمل التوجيه؟")}</b>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 10 }}>
           {[
-            { icon: "🔵", t: "DeepSeek مفعّل", d: "كل استدعاءات الذكاء (المساعد الذكي، معالجة العناصر بالـ AI) تذهب إلى DeepSeek بالموديل المختار — بثّ حيّ حقيقي." },
-            { icon: "🟢", t: "سقوط آمن تلقائي", d: "إن تعطّل DeepSeek أو انتهت صلاحيته، يكمل النظام فوراً بالمزوّد المدمج دون توقف الخدمة." },
-            { icon: "🗄️", t: "محفوظات على الخادم", d: "المحادثات ورسائلها تُخزَّن في PostgreSQL مع الكاش في Valkey — تعمل من أي جهاز." },
+            { icon: "🔵", t: tr("DeepSeek مفعّل"), d: tr("كل استدعاءات الذكاء (المساعد الذكي، معالجة العناصر بالـ AI) تذهب إلى DeepSeek بالموديل المختار — بثّ حيّ حقيقي.") },
+            { icon: "🟢", t: tr("سقوط آمن تلقائي"), d: tr("إن تعطّل DeepSeek أو انتهت صلاحيته، يكمل النظام فوراً بالمزوّد المدمج دون توقف الخدمة.") },
+            { icon: "🗄️", t: tr("محفوظات على الخادم"), d: tr("المحادثات ورسائلها تُخزَّن في PostgreSQL مع الكاش في Valkey — تعمل من أي جهاز.") },
           ].map((x, i) => (
             <div key={i} style={{ padding: 12, borderRadius: 10, background: softAdapt("#f8fafc", dark), border: "1px solid var(--ia-border)" }}>
               <div style={{ fontSize: 18, marginBottom: 4 }}>{x.icon}</div>
@@ -385,7 +386,7 @@ export default function DeepSeekSettings({ company }) {
 
 function Bars({ n, color, dark }) {
   return (
-    <span style={{ display: "inline-flex", gap: 2, marginRight: 6, verticalAlign: "middle" }}>
+    <span style={{ display: "inline-flex", gap: 2, marginInlineStart: 6, verticalAlign: "middle" }}>
       {[1, 2, 3, 4, 5].map(i => (
         <span key={i} style={{
           width: 5, height: 6, borderRadius: 2,
