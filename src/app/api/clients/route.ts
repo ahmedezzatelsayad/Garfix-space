@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /api/clients — body: { name, email?, phone?, company?, address?, companyId? }
+// POST /api/clients — body: { name, email?, phone?, company?, address?, country?, governorate?, companyId? }
 // r17: المشترك المسجّل محدود بعدد عملاء خطته (المدير/الموظف/الوضع المحلي بلا حدود)
 export async function POST(req: NextRequest) {
   try {
@@ -59,6 +59,8 @@ export async function POST(req: NextRequest) {
         phone: body.phone == null ? null : String(body.phone),
         company: body.company == null ? null : String(body.company),
         address: body.address == null ? null : String(body.address),
+        country: body.country == null ? null : String(body.country).trim().toUpperCase().slice(0, 2) || null,
+        governorate: body.governorate == null ? null : String(body.governorate).trim() || null,
         companyId: body.companyId == null ? null : Number(body.companyId),
       },
     });

@@ -68,6 +68,12 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     if (body.address !== undefined) {
       updates.address = body.address == null ? null : String(body.address);
     }
+    if (body.country !== undefined) {
+      updates.country = body.country == null ? null : String(body.country).trim().toUpperCase().slice(0, 2) || null;
+    }
+    if (body.governorate !== undefined) {
+      updates.governorate = body.governorate == null ? null : String(body.governorate).trim() || null;
+    }
 
     const updated = await db.client.update({ where: { id }, data: updates });
     await invalidateClients();

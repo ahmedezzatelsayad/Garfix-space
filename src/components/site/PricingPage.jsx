@@ -6,7 +6,7 @@ import { SITE_CSS } from "./site-shared";
 import { tr } from "@/lib/i18n-app";
 
 /**
- * r18: صفحة الأسعار العامة — خطط الاشتراك بعملة بلد الزائر (١٩٦ دولة)
+ * r18: صفحة الأسعار العامة — خطط الاشتراك بعملة بلد الزائر (١٩٥ دولة)
  * - GET /api/pricing → { plans, geo, countries, freeSeats }
  * - منتقي بلد بحثي (لوحة مفاتيح: ↑ ↓ Enter Esc) يعيد جلب الأسعار بعملة البلد
  * - مغلّفة بـ LangProvider — ذاتية الاكتفاء (تعيد تصيير SITE_CSS)

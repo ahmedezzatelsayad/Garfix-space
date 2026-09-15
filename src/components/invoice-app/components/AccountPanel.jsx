@@ -10,7 +10,7 @@ import { tr } from "@/lib/i18n-app";
  * - GET /api/subscription → { accountType, profile, plan, usage, pendingRequest, freeSeats }
  *   · builtin  → بطاقة وصول غير محدود + منتقي اللغة
  *   · subscriber → بروفايل قابل للتحرير (PUT) + عدّادات + خطط بعملة بلده + طلبات الترقية (POST)
- * - الخطط المحلية بعملة بلد المشترك: GET /api/pricing?country=XX (١٩٦ دولة)
+ * - الخطط المحلية بعملة بلد المشترك: GET /api/pricing?country=XX (١٩٥ دولة)
  * - مغلّف بـ LangProvider — ٢٨ لغة مع سقوط عربي.
  */
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { DEFAULT_FEATURES } from "./site-shared";
+import HelloSlider from "./HelloSlider";
 import { tr } from "@/lib/i18n-app";
 
 /** r13: الصفحة الرئيسية للموقع العام — بطل + إحصاءات + مزايا + الشركات + تيعير المؤسس
@@ -73,12 +74,18 @@ export default function HomePage({ stats, companies, content, authed, onEnterApp
           </div>
         </div>
 
-        <div style={{ maxWidth: 760, margin: "0 auto", position: "relative" }}>
+        <div style={{ maxWidth: 860, margin: "0 auto", position: "relative" }}>
           <div className="s-chip s-fade">✦ {tr(content.hero_badge)}</div>
-          <h1 className="s-hero-title s-fade s-fade-1">{tr(content.hero_title)}</h1>
-          <p className="s-hero-sub s-fade s-fade-2">{tr(content.hero_sub)}</p>
 
-          <div className="s-hero-cta s-fade s-fade-3" style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+          {/* r23: سلايدر «مرحباً بالعالم» — تحية الموقع بأسلوب آبل بكل لغات العالم */}
+          <HelloSlider />
+
+          <h1 className="s-hero-title s-fade s-fade-2" style={{ fontSize: "clamp(21px, 3.6vw, 31px)", margin: "6px 0 12px" }}>
+            {tr(content.hero_title)}
+          </h1>
+          <p className="s-hero-sub s-fade s-fade-3" style={{ marginBottom: 26 }}>{tr(content.hero_sub)}</p>
+
+          <div className="s-hero-cta s-fade s-fade-4" style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
             {authed ? (
               <button className="s-btn s-btn-gold" onClick={onEnterApp}>{tr("دخول النظام ←")}</button>
             ) : (

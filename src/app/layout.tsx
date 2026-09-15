@@ -184,19 +184,8 @@ export default function RootLayout({
               'try{var gl=localStorage.getItem("garfix_lang")||"ar";var rtl=["ar","fa","he","ur","pa"].indexOf(gl)>=0;document.documentElement.lang=gl;document.documentElement.dir=rtl?"rtl":"ltr";}catch(e){}',
           }}
         />
-        {/* r22: شاشة إقلاع Hello World — طبقة سوداء فورية قبل تحميل React (بلا وميض)
-            + مؤقت أمان ٢٥ ثانية يكشف الصفحة إن فشل الإنعاش لأي سبب */}
-        <style>{`#garfix-hello-boot{position:fixed;inset:0;background:#000;z-index:999998;display:none}html[data-garfix-boot="1"] #garfix-hello-boot{display:block}`}</style>
-        <script
-          dangerouslySetInnerHTML={{
-            __html:
-              'try{if(sessionStorage.getItem("garfix_hello_boot")!=="1"){document.documentElement.setAttribute("data-garfix-boot","1");setTimeout(function(){document.documentElement.removeAttribute("data-garfix-boot")},25000)}}catch(e){}',
-          }}
-        />
       </head>
       <body className="antialiased bg-background text-foreground">
-        {/* طبقة الإقلاع الفورية (سوداء) — يديرها HelloBoot بعد الإنعاش */}
-        <div id="garfix-hello-boot" aria-hidden="true" />
         {/* Apply stored light/dark theme before first paint (no flash) */}
         <script
           dangerouslySetInnerHTML={{

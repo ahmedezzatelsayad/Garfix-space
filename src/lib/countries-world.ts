@@ -2,7 +2,7 @@
  * 3-i18n-data: «عملات العالم + الضرائب لكل دولة» — جدول دول العالم لـ Garfix.
  *
  * بيانات صرفة بلا أي استيرادات — آمنة للاستيراد من الواجهة والخادم معاً.
- * 196 مدخلاً: 193 دولة عضواً في الأمم المتحدة + فلسطين (PS) + تايوان (TW) + هونغ كونغ (HK).
+ * 195 مدخلاً: 192 دولة عضواً في الأمم المتحدة + فلسطين (PS) + تايوان (TW) + هونغ كونغ (HK).
  * - العملة: أرقى عملة رسمية شائعة الاستخدام (ISO-4217) — مثل HR/BG→EUR (2023/2025)،
  *   CU→CUP، PA/TL/EC/SV/ZW→USD (دولار دولارات رسمية)، SL→SLE، VE→VES.
  * - الضريبة: النسبة القياسية الحالية (2024-2026) لضريبة القيمة المضافة/GST/ضريبة المبيعات،
@@ -11,6 +11,7 @@
  *   EE=24 (من 7/2025)، GW=19 (ضريبة قيمة مضافة من 1/2025)، FI=24 (وفق المواصفة).
  * - الترتيب: الدول العربية أولاً (الكويت والخليج ثم الباقي أبجدياً)، ثم
  *   mena→europe→asia→americas→africa→oceania، وأبجدياً بالكود داخل كل مجموعة.
+ * - r23: فلسطين (PS) هي الدولة المعروضة لهذه الأرض — بلا أي إدخال آخر.
  */
 
 export type Region = "arab" | "mena" | "europe" | "asia" | "americas" | "africa" | "oceania";
@@ -51,7 +52,6 @@ export const WORLD_COUNTRIES: WorldCountry[] = [
   { code: "YE", nameAr: "اليمن", nameEn: "Yemen", currency: "YER", region: "arab", vat: 5, arabic: true },
 
   // ═══ الشرق الأوسط غير العربي (mena) ═══
-  { code: "IL", nameAr: "إسرائيل", nameEn: "Israel", currency: "ILS", region: "mena", vat: 17, arabic: false },
   { code: "IR", nameAr: "إيران", nameEn: "Iran", currency: "IRR", region: "mena", vat: 10, arabic: false },
   { code: "TR", nameAr: "تركيا", nameEn: "Turkey", currency: "TRY", region: "mena", vat: 20, arabic: false },
 

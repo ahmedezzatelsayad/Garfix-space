@@ -25,6 +25,69 @@ import { buildStatementHTML } from "./statement";
 import { useTheme, txAdapt, softAdapt, chartColors, lighten } from "./theme";
 import { tr, useAppI18n, appDir, appLang, companyName, dateLocale } from "@/lib/i18n-app";
 import { LanguageSwitcher } from "@/lib/i18n-context";
+// r23: دول العالم (195) وتقسيماتها الإدارية (محافظات/مقاطعات) لبطاقة العميل
+import { WORLD_COUNTRIES, WORLD_BY_CODE } from "@/lib/countries-world";
+
+// علم الدولة من رمزها (رموز المؤشرات الإقليمية) — نسخة عميل من flagOf الخادم
+const flagOf = code => {
+  const c = String(code || "").toUpperCase();
+  if (!/^[A-Z]{2}$/.test(c)) return "🌍";
+  return String.fromCodePoint(...[...c].map(ch => 0x1f1e6 + ch.charCodeAt(0) - 65));
+};
+
+// مطابقة الدولة من اسم عربي/إنجليزي أو كود ISO → كود ISO-2 (أو null)
+const COUNTRY_LOOKUP = (() => {
+  const m = new Map();
+  for (const c of WORLD_COUNTRIES) {
+    m.set(c.code.toUpperCase(), c.code);
+    m.set(c.nameEn.toLowerCase(), c.code);
+    m.set(c.nameAr, c.code);
+    m.set(c.nameAr.replace(/^ال/, ""), c.code);
+  }
+  return m;
+})();
+const countryCodeOf = v => {
+  const s = String(v ?? "").trim();
+  if (!s) return null;
+  return COUNTRY_LOOKUP.get(s.toUpperCase()) || COUNTRY_LOOKUP.get(s.toLowerCase()) || COUNTRY_LOOKUP.get(s) || null;
+};
+const countryLabel = (code, lang) => {
+  const c = WORLD_BY_CODE[String(code || "").toUpperCase()];
+  if (!c) return String(code || "");
+  return lang === "ar" ? c.nameAr : c.nameEn;
+};
+
+// تقسيمات العالم (محافظات ومقاطعات كل الدول) — chunk منفصل يُحمّل ديناميكياً مرة واحدة
+let _wsPromise = null;
+const worldStates = () => (_wsPromise ||= import("@/lib/world-states"));
+function useWorldStates() {
+  const [ws, setWs] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    worldStates().then(m => { if (alive) setWs(m); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  return ws;
+}
+// تسمية المحافظة بلغة الواجهة (تُطابق الأساس الإنجليزي المخزّن أو الاسم العربي)
+const govLabelOf = (ws, country, gov, lang) => {
+  if (!gov) return "";
+  if (ws) {
+    const d = ws.findDivision(country, gov);
+    if (d) return ws.divisionLabel(d, lang);
+  }
+  return gov;
+};
+// مجموعات الدول لقائمة اختيار الدولة
+const REGION_GROUPS = [
+  ["arab", "🌍 الدول العربية"],
+  ["mena", "🏛️ الشرق الأوسط"],
+  ["europe", "🏰 أوروبا"],
+  ["asia", "🏯 آسيا"],
+  ["americas", "🗽 الأمريكتان"],
+  ["africa", "🌍 أفريقيا"],
+  ["oceania", "🏝️ أوقيانوسيا"],
+];
 
 // ─── Companies Config ─────────────────────────────────────────────
 const COMPANIES = {
@@ -811,12 +874,16 @@ function parseCSVLine(line) {
   return out.map(s => s.trim());
 }
 // Build client rows from a header array + data-row arrays (shared by CSV + Excel import)
+// r23: البحث يشمل العربية الخام + الإنجليزية معاً — الاستيراد يعمل بأي لغة واجهة
 function buildClientsRows(headers, dataRows) {
   const find = (...names) => headers.findIndex(h => names.some(n => h === n || h.includes(n)));
-  const iName = find(tr("الاسم"), "name");
-  const iPhone = find(tr("التلفون"), tr("الهاتف"), tr("الجوال"), "phone", "mobile");
-  const iEmail = find(tr("الايميل"), tr("البريد"), "email");
-  const iAddr = find(tr("العنوان"), "address", tr("المنطقة"));
+  const iName = find("الاسم", tr("الاسم"), "name");
+  const iPhone = find("التلفون", "الهاتف", "الجوال", tr("التلفون"), "phone", "mobile");
+  const iEmail = find("الايميل", "البريد", tr("البريد"), "email");
+  const iAddr = find("العنوان", "المنطقة", tr("العنوان"), "address");
+  // r23: الدولة + المحافظة (تقبل العربية/الإنجليزية/كود ISO)
+  const iCountry = find("الدولة", "البلد", "بلد", tr("الدولة"), "country");
+  const iGov = find("المحافظة", "المقاطعة", "الولاية", tr("المحافظة / المقاطعة"), "governorate", "state", "province", "region");
   if (iName < 0 || iPhone < 0) return { rows: [], errors: [tr("الأعمدة المطلوبة: الاسم + التلفون")] };
   const rows = [], errors = [];
   dataRows.forEach((cells, i) => {
@@ -829,6 +896,8 @@ function buildClientsRows(headers, dataRows) {
       phone,
       email: iEmail >= 0 ? String(cells[iEmail] ?? "").trim() || null : null,
       address: iAddr >= 0 ? String(cells[iAddr] ?? "").trim() || null : null,
+      country: iCountry >= 0 ? countryCodeOf(cells[iCountry]) : null,
+      governorate: iGov >= 0 ? String(cells[iGov] ?? "").trim() || null : null,
     });
   });
   return { rows, errors };
@@ -1212,9 +1281,14 @@ const [name,setName]=useState(initial?.name||"");
 const [phone,setPhone]=useState(initial?.phone||"");
 const [email,setEmail]=useState(initial?.email||"");
 const [address,setAddress]=useState(initial?.address||"");
+const [country,setCountry]=useState(initial?.country||"");
+const [gov,setGov]=useState(initial?.governorate||"");
+const ws=useWorldStates(); // r23: تقسيمات العالم (chunk ديناميكي)
+const lang=appLang();
 const [err,setErr]=useState("");
 const [busy,setBusy]=useState(false);
 const isEdit=!!initial?.id;
+const divisions=ws?ws.divisionsOf(country):null; // null = جارٍ التحميل
 
 return(
 <div style={{position:"fixed",inset:0,background:"var(--ia-overlay)",zIndex:2100,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",direction:appDir()}} onClick={busy?undefined:onClose}>
@@ -1242,6 +1316,32 @@ return(
         <label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("البريد الإلكتروني (اختياري)")}</label>
         <input className="inp" style={{direction:"ltr",textAlign:"start"}} placeholder="name@example.com" value={email} onChange={e=>setEmail(e.target.value)}/>
       </div>
+
+      {/* r23: الدولة والمحافظة — كل دول العالم (195) وتقسيماتها */}
+      <div className="form-2col" style={{marginBottom:"10px"}}>
+        <div>
+          <label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("🌍 الدولة")}</label>
+          <select className="inp" value={country} onChange={e=>{setCountry(e.target.value);setGov("");}}>
+            <option value="">{tr("🌍 اختر الدولة")}</option>
+            {REGION_GROUPS.map(([region,label])=>{
+              const list=WORLD_COUNTRIES.filter(c=>c.region===region);
+              if(!list.length)return null;
+              return <optgroup key={region} label={tr(label)}>{list.map(c=>(
+                <option key={c.code} value={c.code}>{flagOf(c.code)} {lang==="ar"?c.nameAr:c.nameEn}</option>
+              ))}</optgroup>;
+            })}
+          </select>
+        </div>
+        <div>
+          <label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("🏙️ المحافظة / المقاطعة")}</label>
+          <select className="inp" value={gov} onChange={e=>setGov(e.target.value)} disabled={!country}>
+            <option value="">{!country?"—":divisions==null?tr("⏳ جارٍ التحميل…"):divisions.length?tr("— بدون محافظة —"):tr("— بلا تقسيمات —")}</option>
+            {divisions&&divisions.map(d=>(
+              <option key={d.n} value={d.n}>{ws.divisionLabel(d,lang)}</option>
+            ))}
+          </select>
+        </div>
+      </div>
       <div style={{marginBottom:"14px"}}>
         <label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("العنوان (اختياري)")}</label>
         <input className="inp" placeholder={tr("المنطقة / العنوان")} value={address} onChange={e=>setAddress(e.target.value)}/>
@@ -1256,7 +1356,7 @@ return(
             if(!norm(phone)){setErr(tr("رقم التلفون مطلوب"));return;}
             setBusy(true);
             try{
-              await onSave({name:name.trim(),phone:norm(phone),email:email.trim()||null,address:address.trim()||null});
+              await onSave({name:name.trim(),phone:norm(phone),email:email.trim()||null,address:address.trim()||null,country:country||null,governorate:gov||null});
             }catch(e){
               setBusy(false);
               setErr(tr("تعذّر الحفظ — تحقق من الاتصال ثم أعد المحاولة"));
@@ -1277,6 +1377,8 @@ const { dark } = useTheme();
 const col = company.color;
 const colTx = txAdapt(col, dark);
 const cardBg = softAdapt(company.cardBg, dark);
+const ws = useWorldStates(); // r23: تقسيمات العالم — للتسمية المحلية
+const lang = appLang();
 const [modal,setModal]=useState(null); // {mode:'add'} | {mode:'edit', client}
 const [del,setDel]=useState(null);
 const [imp,setImp]=useState(null);   // clients-CSV import preview: {rows, errors, file}
@@ -1285,13 +1387,20 @@ const [dirSearch,setDirSearch]=useState(""); // quick filter for the directory t
 const impFileRef=useRef();
 
 // ── CSV export of the saved-client directory ──
+// r23: أعمدة الدولة والمحافظة + رؤوس مترجمة تتبع لغة الواجهة (كانت ثابتة بالعربية)
+const clientExportColumns = () => [
+  [tr("الاسم"), c => c.name || ""],
+  [tr("التلفون"), c => c.phone || ""],
+  [tr("البريد"), c => c.email || ""],
+  [tr("العنوان"), c => c.address || ""],
+  [tr("الدولة"), c => c.country ? `${flagOf(c.country)} ${countryLabel(c.country, lang)}` : ""],
+  [tr("المحافظة"), c => govLabelOf(ws, c.country, c.governorate, lang)],
+];
 const exportClientsCSV = () => {
   if (!clients.length) { toast_(tr("لا يوجد عملاء محفوظون للتصدير"),"warn"); return; }
-  const headers = [tr("الاسم"),tr("التلفون"),tr("البريد"),tr("العنوان")];
-  const rows = clients.map(c => ({
-    "الاسم": c.name || "", "التلفون": c.phone || "",
-    "البريد": c.email || "", "العنوان": c.address || "",
-  }));
+  const cols = clientExportColumns();
+  const headers = cols.map(([h]) => h);
+  const rows = clients.map(c => Object.fromEntries(cols.map(([h, fn]) => [h, fn(c)])));
   downloadCSV(toCSV(headers, rows), `Clients_${company.id}_${today()}.csv`);
   toast_(tr("⬇️ تم تنزيل دليل العملاء (") + clients.length + tr(" عميل)"));
 };
@@ -1299,31 +1408,37 @@ const exportClientsCSV = () => {
 // r20: Excel export of the saved-client directory (.xlsx, RTL)
 const exportClientsExcel = () => {
   if (!clients.length) { toast_(tr("لا يوجد عملاء محفوظون للتصدير"),"warn"); return; }
-  const rows = clients.map(c => ({
-    "الاسم": c.name || "", "التلفون": c.phone || "",
-    "البريد": c.email || "", "العنوان": c.address || "",
-  }));
-  const ws = XLSX.utils.json_to_sheet(rows);
-  ws["!cols"] = [{wch:24},{wch:16},{wch:26},{wch:30}];
+  const cols = clientExportColumns();
+  const headers = cols.map(([h]) => h);
+  const rows = clients.map(c => Object.fromEntries(cols.map(([h, fn]) => [h, fn(c)])));
+  const wsx = XLSX.utils.json_to_sheet(rows, { header: headers });
+  wsx["!cols"] = [{wch:24},{wch:16},{wch:26},{wch:30},{wch:20},{wch:26}];
   const wb = XLSX.utils.book_new();
   wb.Workbook = { Views: [{ RTL: true }] };
-  XLSX.utils.book_append_sheet(wb, ws, tr("العملاء"));
+  XLSX.utils.book_append_sheet(wb, wsx, tr("العملاء"));
   XLSX.writeFile(wb, `Clients_${company.id}_${today()}.xlsx`);
   toast_(tr("📊 تم تنزيل دليل العملاء Excel (") + clients.length + tr(" عميل)"));
 };
 
 // ── CSV import (dedupes by phone against the current directory) ──
+// r23: يقبل عمودَي الدولة (عربي/إنجليزي/كود) والمحافظة (عربي/إنجليزي — يُطبّع للأساس)
 const doImportClients = async () => {
   if (!imp?.rows?.length) return;
   setImpBusy(true);
   const existing = new Set(clients.map(c => norm(c.phone || "")));
   const seen = new Set();
   let added = 0, skipped = 0;
+  const wsStates = await worldStates().catch(() => null);
   for (const r of imp.rows) {
     const ph = norm(r.phone);
     if (existing.has(ph) || seen.has(ph)) { skipped++; continue; }
     seen.add(ph);
-    try { await api.createClient({ name: r.name, phone: ph, email: r.email || null, address: r.address || null, company: company.id }); added++; }
+    let gov = r.governorate || null;
+    if (gov && wsStates) {
+      const d = wsStates.findDivision(r.country, gov);
+      if (d) gov = d.n; // طبّع للاسم الأساسي
+    }
+    try { await api.createClient({ name: r.name, phone: ph, email: r.email || null, address: r.address || null, country: r.country || null, governorate: gov, company: company.id }); added++; }
     catch { skipped++; }
   }
   setImpBusy(false);
@@ -1361,9 +1476,9 @@ onRefresh();
 toast_(tr("🗑️ تم حذف ")+(del.name||tr("العميل"))+tr(" من الدليل"),"warn");
 };
 
-// quick search filter (name / phone / email / address)
+// quick search filter (name / phone / email / address / country / governorate)
 const shownClients=dirSearch
- ?clients.filter(c=>{const s=toW(dirSearch).toLowerCase();return (c.name||"").toLowerCase().includes(s)||norm(c.phone||"").includes(s)||(c.email||"").toLowerCase().includes(s)||(c.address||"").includes(s);})
+ ?clients.filter(c=>{const s=toW(dirSearch).toLowerCase();return (c.name||"").toLowerCase().includes(s)||norm(c.phone||"").includes(s)||(c.email||"").toLowerCase().includes(s)||(c.address||"").includes(s)||(c.country?countryLabel(c.country,lang):"").toLowerCase().includes(s)||(govLabelOf(ws,c.country,c.governorate,lang)||"").includes(s);})
  :clients;
 
 return(
@@ -1447,6 +1562,11 @@ return(
                 <td style={{padding:"10px 12px",direction:"ltr",textAlign:"start",color:"var(--ia-link)",fontSize:"12.5px",fontWeight:600,whiteSpace:"nowrap"}}>{c.phone||"—"}</td>
                 <td style={{padding:"10px 12px",color:"var(--ia-sub)",fontSize:"12px",maxWidth:"150px"}}>
                   <div style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.address||"—"}</div>
+                  {(c.country||c.governorate)&&(
+                    <div title={govLabelOf(ws,c.country,c.governorate,lang)} style={{fontSize:"10.5px",color:"var(--ia-muted)",marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                      {c.country?flagOf(c.country):"📍"} {[govLabelOf(ws,c.country,c.governorate,lang),c.country?countryLabel(c.country,lang):""].filter(Boolean).join(lang==="ar"?"، ":", ")}
+                    </div>
+                  )}
                 </td>
                 <td style={{padding:"10px 12px",fontWeight:800,color:st?colTx:"var(--ia-muted)",whiteSpace:"nowrap"}}>{st?fKWD(st.spent):"—"}</td>
                 <td style={{padding:"10px 12px",textAlign:"center"}}>
@@ -2894,7 +3014,7 @@ const cardBg = softAdapt(company.cardBg, dark); // soft tinted surface (KPI/summ
 
 return(
 <div dir={dir} style={{minHeight:"100vh",background:"var(--ia-bg)",fontFamily:"'Cairo','Tajawal',sans-serif",color:"var(--ia-text)",display:"flex",flexDirection:"column"}}>
-<style>{`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap'); *{box-sizing:border-box} .inp{width:100%;border:1.5px solid var(--ia-border2);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:13px;background:var(--ia-inp-bg);color:var(--ia-text);outline:none;transition:border .15s,box-shadow .15s} .inp:focus{border-color:${col};box-shadow:0 0 0 3px ${col}1a} .inp:hover{border-color:var(--ia-muted)} .inp::placeholder{color:var(--ia-muted)} .btn{border:none;border-radius:8px;padding:9px 16px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap} .btn:hover{filter:brightness(1.06);box-shadow:0 2px 10px rgba(0,0,0,.12)} .btn:active{opacity:.85;transform:scale(.97)} .btn-ghost{background:var(--ia-ghost-bg);color:var(--ia-ghost-tx)} .btn-outline{background:transparent;border:1.5px solid var(--ia-border2);color:var(--ia-text2)} .btn-outline:hover{border-color:${col};color:${colTx}} .btn-red{background:#dc2626;color:#fff} .card{background:var(--ia-card);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);border:1px solid var(--ia-border)} [data-theme="dark"] .card{box-shadow:0 1px 3px rgba(0,0,0,.35)} .trow{transition:background .12s} .trow:hover,.trow:active{background:var(--ia-hover);cursor:pointer} .inv-table tbody tr:last-child td{border-bottom:none} .b-paid{background:var(--ia-ok-bg);color:var(--ia-ok-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-paid::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-ok-tx);margin-inline-end:5px;vertical-align:middle} .b-part{background:var(--ia-warn-bg);color:var(--ia-warn-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-part::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-warn-tx);margin-inline-end:5px;vertical-align:middle} .b-unp{background:var(--ia-red-bg);color:var(--ia-red-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-unp::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-red-tx);margin-inline-end:5px;vertical-align:middle} .b-cancel{background:var(--ia-chip);color:var(--ia-sub);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;text-decoration:line-through} .b-inv{background:var(--ia-blue-bg);color:var(--ia-blue-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;letter-spacing:.3px} @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}} @keyframes garfixAIPulse{0%,100%{transform:scale(1);box-shadow:0 10px 28px rgba(0,0,0,.4)}50%{transform:scale(1.06);box-shadow:0 12px 34px rgba(0,0,0,.5)}} @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}} .navbar{background:${col};position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,.25)} .navbar-top{display:flex;align-items:center;padding:0 12px;height:48px;gap:6px} @media(max-width:420px){.navbar-top{gap:3px;padding:0 6px}.nav-top-label{display:none}.co-name{max-width:58px}} .navbar-tabs{display:flex;overflow-x:auto;padding:4px 12px 6px;gap:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none} .navbar-tabs::-webkit-scrollbar{display:none} .io-btn{background:#0f766e;} .nav-tab{background:transparent;color:rgba(255,255,255,.7);border:1px solid transparent;border-radius:6px;padding:5px 11px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s} .nav-tab:hover{color:#fff;background:rgba(255,255,255,.08)} .nav-tab.active{background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.25)} .nav-tab:active{background:rgba(255,255,255,.2)} .inv-table{width:100%;border-collapse:collapse} .inv-table th{padding:10px 10px;font-size:11px;font-weight:700;color:var(--ia-sub);text-align:start;text-transform:uppercase;letter-spacing:.3px} .inv-table td{padding:10px 10px;border-bottom:1px solid var(--ia-border3);font-size:13px} .col-addr,.col-date,.col-phone,.col-credit{display:none} @media(min-width:500px){.col-phone{display:table-cell}} @media(min-width:680px){.col-date{display:table-cell}.col-credit{display:table-cell}} .form-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px} .form-3col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px} .item-row{display:grid;grid-template-columns:2fr 65px 110px auto;gap:7px;margin-bottom:7px;align-items:center} @media(max-width:500px){.form-2col{grid-template-columns:1fr}.form-3col{grid-template-columns:1fr 1fr}.item-row{grid-template-columns:1fr 55px 90px auto}} .kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px} .kpi-grid>div{transition:transform .18s,box-shadow .18s} .kpi-grid>div:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.08)} @media(min-width:600px){.kpi-grid{grid-template-columns:repeat(4,1fr)}} .chart-grid{display:grid;grid-template-columns:1fr;gap:12px} @media(min-width:680px){.chart-grid{grid-template-columns:1.7fr 1fr}} .print-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end} @media(max-width:480px){.print-grid{grid-template-columns:1fr 1fr;} .print-grid .print-btn{grid-column:1/-1}} .cust-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px} @media(max-width:480px){.cust-stats{grid-template-columns:1fr}} .io-btn{background:linear-gradient(135deg,#0f766e,#0d9488)!important;border:none;box-shadow:0 2px 8px rgba(15,118,110,.3);transition:all .2s!important} .io-btn:hover{box-shadow:0 4px 14px rgba(15,118,110,.45)!important;transform:translateY(-1px)} ::-webkit-scrollbar{width:9px;height:9px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:var(--ia-border2);border-radius:8px;border:2px solid var(--ia-bg)} ::-webkit-scrollbar-thumb:hover{background:var(--ia-muted)} .sk{position:relative;overflow:hidden;background:var(--ia-skel);border-radius:6px} .sk::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.65),transparent);animation:shimmer 1.4s infinite} [data-theme="dark"] .sk::after{background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent)} @keyframes shimmer{100%{transform:translateX(100%)}} .sk-sm{height:11px} .sk-lg{height:22px} .btn:focus-visible,.inp:focus-visible{outline:2.5px solid ${col};outline-offset:2px} .nav-tab:focus-visible{outline:2.5px solid #fff;outline-offset:1px} .wa-btn{background:#16a34a!important;transition:all .18s!important} .wa-btn:hover{background:#15803d!important;box-shadow:0 4px 14px rgba(22,163,74,.4)!important;transform:translateY(-1px)} select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:left 10px center;padding-left:26px} .print-chip:hover{transform:translateY(-2px);border-color:var(--ia-muted)!important;box-shadow:0 5px 16px rgba(0,0,0,.09)} [data-theme="dark"] .print-chip:hover{box-shadow:0 5px 16px rgba(0,0,0,.45)} .chart-grid>div{transition:box-shadow .18s} .chart-grid>div:hover{box-shadow:0 4px 16px rgba(0,0,0,.06)} [data-theme="dark"] .chart-grid>div:hover{box-shadow:0 4px 16px rgba(0,0,0,.4)} [data-theme="dark"] .kpi-grid>div:hover{box-shadow:0 6px 18px rgba(0,0,0,.45)} [data-theme="dark"] .btn:hover{filter:brightness(1.15)}`}</style>
+<style>{`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap'); *{box-sizing:border-box} .inp{width:100%;border:1.5px solid var(--ia-border2);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:13px;background:var(--ia-inp-bg);color:var(--ia-text);outline:none;transition:border .15s,box-shadow .15s} .inp:focus{border-color:${col};box-shadow:0 0 0 3px ${col}1a} .inp:hover{border-color:var(--ia-muted)} .inp::placeholder{color:var(--ia-muted)} .btn{border:none;border-radius:8px;padding:9px 16px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap} .btn:hover{filter:brightness(1.06);box-shadow:0 2px 10px rgba(0,0,0,.12)} .btn:active{opacity:.85;transform:scale(.97)} .btn-ghost{background:var(--ia-ghost-bg);color:var(--ia-ghost-tx)} .btn-outline{background:transparent;border:1.5px solid var(--ia-border2);color:var(--ia-text2)} .btn-outline:hover{border-color:${col};color:${colTx}} .btn-red{background:#dc2626;color:#fff} .card{background:var(--ia-card);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);border:1px solid var(--ia-border)} [data-theme="dark"] .card{box-shadow:0 1px 3px rgba(0,0,0,.35)} .trow{transition:background .12s} .trow:hover,.trow:active{background:var(--ia-hover);cursor:pointer} .inv-table tbody tr:last-child td{border-bottom:none} .b-paid{background:var(--ia-ok-bg);color:var(--ia-ok-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-paid::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-ok-tx);margin-inline-end:5px;vertical-align:middle} .b-part{background:var(--ia-warn-bg);color:var(--ia-warn-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-part::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-warn-tx);margin-inline-end:5px;vertical-align:middle} .b-unp{background:var(--ia-red-bg);color:var(--ia-red-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-unp::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-red-tx);margin-inline-end:5px;vertical-align:middle} .b-cancel{background:var(--ia-chip);color:var(--ia-sub);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;text-decoration:line-through} .b-inv{background:var(--ia-blue-bg);color:var(--ia-blue-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;letter-spacing:.3px} @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}} @keyframes garfixAIPulse{0%,100%{transform:scale(1);box-shadow:0 10px 28px rgba(0,0,0,.4)}50%{transform:scale(1.06);box-shadow:0 12px 34px rgba(0,0,0,.5)}} @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}} .navbar{background:${col};position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,.25)} .navbar-top{display:flex;align-items:center;padding:0 12px;height:48px;gap:6px} @media(max-width:420px){.navbar-top{gap:3px;padding:0 6px}.nav-top-label{display:none}.co-name{max-width:58px}} .navbar-tabs{display:flex;overflow-x:auto;padding:4px 12px 6px;gap:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none} .navbar-tabs::-webkit-scrollbar{display:none} .io-btn{background:#0f766e;} .nav-tab{background:transparent;color:rgba(255,255,255,.7);border:1px solid transparent;border-radius:6px;padding:5px 11px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s} .nav-tab:hover{color:#fff;background:rgba(255,255,255,.08)} .nav-tab.active{background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.25)} .nav-tab:active{background:rgba(255,255,255,.2)} .inv-table{width:100%;border-collapse:collapse} .inv-table th{padding:10px 10px;font-size:11px;font-weight:700;color:var(--ia-sub);text-align:start;text-transform:uppercase;letter-spacing:.3px} .inv-table td{padding:10px 10px;border-bottom:1px solid var(--ia-border3);font-size:13px} .col-addr,.col-date,.col-phone,.col-credit{display:none} @media(min-width:500px){.col-phone{display:table-cell}} @media(min-width:680px){.col-date{display:table-cell}.col-credit{display:table-cell}} .form-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px} .form-3col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px} .item-row{display:grid;grid-template-columns:2fr 65px 110px auto;gap:7px;margin-bottom:7px;align-items:center} @media(max-width:500px){.form-2col{grid-template-columns:1fr}.form-3col{grid-template-columns:1fr 1fr}.item-row{grid-template-columns:1fr 55px 90px auto}} .kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px} .kpi-grid>div{transition:transform .18s,box-shadow .18s} .kpi-grid>div:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.08)} @media(min-width:600px){.kpi-grid{grid-template-columns:repeat(4,1fr)}} .chart-grid{display:grid;grid-template-columns:1fr;gap:12px} @media(min-width:680px){.chart-grid{grid-template-columns:1.7fr 1fr}} .print-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end} @media(max-width:480px){.print-grid{grid-template-columns:1fr 1fr;} .print-grid .print-btn{grid-column:1/-1}} .cust-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px} @media(max-width:480px){.cust-stats{grid-template-columns:1fr}} .io-btn{background:linear-gradient(135deg,#0f766e,#0d9488)!important;border:none;box-shadow:0 2px 8px rgba(15,118,110,.3);transition:all .2s!important} .io-btn:hover{box-shadow:0 4px 14px rgba(15,118,110,.45)!important;transform:translateY(-1px)} ::-webkit-scrollbar{width:9px;height:9px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:var(--ia-border2);border-radius:8px;border:2px solid var(--ia-bg)} ::-webkit-scrollbar-thumb:hover{background:var(--ia-muted)} .sk{position:relative;overflow:hidden;background:var(--ia-skel);border-radius:6px} .sk::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.65),transparent);animation:shimmer 1.4s infinite} [data-theme="dark"] .sk::after{background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent)} @keyframes shimmer{100%{transform:translateX(100%)}} .sk-sm{height:11px} .sk-lg{height:22px} .btn:focus-visible,.inp:focus-visible{outline:2.5px solid ${col};outline-offset:2px} .nav-tab:focus-visible{outline:2.5px solid #fff;outline-offset:1px} .wa-btn{background:#16a34a!important;transition:all .18s!important} .wa-btn:hover{background:#15803d!important;box-shadow:0 4px 14px rgba(22,163,74,.4)!important;transform:translateY(-1px)} .garfix-ai-bubble{transition:transform .18s cubic-bezier(.2,.8,.3,1)} .garfix-ai-bubble:hover{animation-play-state:paused;transform:scale(1.1)} .garfix-ai-bubble:active{transform:scale(.93)} .garfix-ai-bubble:hover .garfix-ai-tip,.garfix-ai-bubble:focus-visible .garfix-ai-tip{opacity:1;transform:translateY(0)} .garfix-ai-bubble:focus-visible{outline:2.5px solid ${col};outline-offset:3px} select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:left 10px center;padding-left:26px} .print-chip:hover{transform:translateY(-2px);border-color:var(--ia-muted)!important;box-shadow:0 5px 16px rgba(0,0,0,.09)} [data-theme="dark"] .print-chip:hover{box-shadow:0 5px 16px rgba(0,0,0,.45)} .chart-grid>div{transition:box-shadow .18s} .chart-grid>div:hover{box-shadow:0 4px 16px rgba(0,0,0,.06)} [data-theme="dark"] .chart-grid>div:hover{box-shadow:0 4px 16px rgba(0,0,0,.4)} [data-theme="dark"] .kpi-grid>div:hover{box-shadow:0 6px 18px rgba(0,0,0,.45)} [data-theme="dark"] .btn:hover{filter:brightness(1.15)}`}</style>
 
   {/* Admin Dashboard Modal */}
   {showAdmin&&<AdminDashboard onClose={()=>setShowAdmin(false)} companies={availableCompanies}/>}
@@ -3267,7 +3387,21 @@ return(
             <label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("📇 اختر من دليل العملاء (")}{clients.length} {tr("محفوظ)")}</label>
             <select className="inp" value="" onChange={e=>{
               const c=clients.find(x=>String(x.id)===e.target.value);
-              if(c){setField("clientName",c.name||"");setField("clientPhone",c.phone||"");setField("clientAddress",c.address||"");}
+              if(c){
+                setField("clientName",c.name||"");
+                setField("clientPhone",c.phone||"");
+                // r23: عند غياب العنوان — املأه بالمحافظة والدولة (بلغة الواجهة)
+                if(c.address){setField("clientAddress",c.address);}
+                else{
+                  setField("clientAddress","");
+                  worldStates().then(ws=>{
+                    const gl=govLabelOf(ws,c.country,c.governorate,appLang());
+                    const cl=c.country?countryLabel(c.country,appLang()):"";
+                    const geo=[gl,cl].filter(Boolean).join(appLang()==="ar"?"، ":", ");
+                    if(geo)setField("clientAddress",geo);
+                  }).catch(()=>{});
+                }
+              }
             }}>
               <option value="">{tr("— إدخال يدوي (عميل جديد) —")}</option>
               {clients.map(c=><option key={c.id} value={c.id}>{c.name}{c.phone?` (${c.phone})`:""}</option>)}
@@ -3359,7 +3493,20 @@ return(
             <label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("📇 اختر من دليل العملاء (استبدال البيانات)")}</label>
             <select className="inp" value="" onChange={e=>{
               const c=clients.find(x=>String(x.id)===e.target.value);
-              if(c){setEditField("clientName",c.name||"");setEditField("clientPhone",c.phone||"");setEditField("clientAddress",c.address||"");}
+              if(c){
+                setEditField("clientName",c.name||"");
+                setEditField("clientPhone",c.phone||"");
+                setEditField("clientAddress",c.address||"");
+                // r23: عند غياب العنوان — املأه بالمحافظة والدولة (بلغة الواجهة)
+                if(!c.address){
+                  worldStates().then(ws=>{
+                    const gl=govLabelOf(ws,c.country,c.governorate,appLang());
+                    const cl=c.country?countryLabel(c.country,appLang()):"";
+                    const geo=[gl,cl].filter(Boolean).join(appLang()==="ar"?"، ":", ");
+                    if(geo)setEditField("clientAddress",geo);
+                  }).catch(()=>{});
+                }
+              }
             }}>
               <option value="">{tr("— تعديل يدوي —")}</option>
               {clients.map(c=><option key={c.id} value={c.id}>{c.name}{c.phone?` (${c.phone})`:""}</option>)}
@@ -3633,26 +3780,38 @@ return(
     )}
 
     {view!=="chat"&&(
-      /* r22: فقاعة Garfix AI العائمة — وصول سريع للمساعد من أي شاشة */
+      /* r22+r23: فقاعة Garfix AI العائمة — وصول سريع للمساعد من أي شاشة
+         + تلميح عند التحويم + تغذية بصرية عند اللمس/النقر */
       <button
         onClick={()=>{setView("chat");setSelInv(null);setBulkStep(0);}}
+        className="garfix-ai-bubble"
         title={tr("Garfix AI — المساعد الذكي")}
         aria-label={tr("Garfix AI — المساعد الذكي")}
-        style={{position:"fixed",bottom:"calc(18px + env(safe-area-inset-bottom))",insetInlineEnd:18,zIndex:900,width:54,height:54,borderRadius:"50%",border:"2px solid rgba(255,255,255,.35)",cursor:"pointer",background:`linear-gradient(135deg,${col},${company.accent||col})`,color:"#fff",fontSize:23,boxShadow:"0 10px 28px rgba(0,0,0,.4)",display:"flex",alignItems:"center",justifyContent:"center",animation:"garfixAIPulse 2.6s ease-in-out infinite",WebkitTapHighlightColor:"transparent"}}
+        style={{position:"fixed",bottom:"calc(18px + env(safe-area-inset-bottom))",insetInlineEnd:18,zIndex:900,width:54,height:54,borderRadius:"50%",border:"2px solid rgba(255,255,255,.35)",cursor:"pointer",background:`linear-gradient(135deg,${col},${company.accent||col})`,color:"#fff",fontSize:23,boxShadow:"0 10px 28px rgba(0,0,0,.4)",display:"flex",alignItems:"center",justifyContent:"center",animation:"garfixAIPulse 2.6s ease-in-out infinite",WebkitTapHighlightColor:"transparent",overflow:"visible"}}
       >
         <span style={{filter:"drop-shadow(0 1px 3px rgba(0,0,0,.35))"}}>🤖</span>
         <span style={{position:"absolute",bottom:"-4px",insetInlineEnd:"-4px",background:"#e5c558",color:"#1a1200",borderRadius:"9px",fontSize:8,fontWeight:900,padding:"1px 4px",border:"1.5px solid #fff",letterSpacing:".3px"}}>AI</span>
+        <span className="garfix-ai-tip" style={{position:"absolute",bottom:"calc(100% + 10px)",insetInlineEnd:0,background:"var(--ia-card)",border:"1px solid var(--ia-border2)",color:"var(--ia-text)",borderRadius:"9px",padding:"5px 11px",fontSize:11,fontWeight:800,whiteSpace:"nowrap",opacity:0,pointerEvents:"none",transform:"translateY(5px)",transition:"opacity .2s,transform .2s",boxShadow:"0 6px 18px rgba(0,0,0,.18)"}}>
+          {tr("اسأل Garfix AI ✨")}
+        </span>
       </button>
     )}
 
-    {/* Footer */}
-    <div style={{textAlign:"center",padding:"18px 14px 22px",marginTop:"auto",borderTop:"1px solid var(--ia-border)",fontSize:"12px",color:"var(--ia-muted)",paddingBottom:"calc(22px + env(safe-area-inset-bottom))"}}>
-      {tr("تم البرمجة والتطوير بواسطة")}{" "}
-      <a href="https://wa.me/201033514479" target="_blank" rel="noopener noreferrer"
-        style={{color:col,textDecoration:"none",fontWeight:700}}>
-        {tr("أحمد عزت الصياد")}
-      </a>
-      <span style={{marginInlineStart:8,opacity:.55,fontSize:10.5}}>· Garfix</span>
+    {/* Footer — r23: هيكل أوضح (الشركة + المؤسس + العلامة) */}
+    <div style={{textAlign:"center",padding:"18px 14px 22px",marginTop:"auto",borderTop:"1px solid var(--ia-border)",fontSize:"12px",color:"var(--ia-muted)",paddingBottom:"calc(22px + env(safe-area-inset-bottom))",display:"flex",flexDirection:"column",gap:4,alignItems:"center"}}>
+      <div style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap",justifyContent:"center"}}>
+        <span style={{fontSize:13}}>{company.emoji||"🏛️"}</span>
+        <b style={{color:"var(--ia-sub)",fontSize:11.5}}>{companyName(company)}</b>
+        <span style={{opacity:.4}}>·</span>
+        <span style={{fontSize:10.5,opacity:.75,letterSpacing:.5}}>Garfix</span>
+      </div>
+      <div>
+        {tr("تم البرمجة والتطوير بواسطة")}{" "}
+        <a href="https://wa.me/201033514479" target="_blank" rel="noopener noreferrer"
+          style={{color:col,textDecoration:"none",fontWeight:700}}>
+          {tr("أحمد عزت الصياد")}
+        </a>
+      </div>
     </div>
 
   </div>
