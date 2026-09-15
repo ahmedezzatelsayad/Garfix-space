@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useTheme, txAdapt, softAdapt } from "../theme";
-import { tr } from "@/lib/i18n-app";
+import { tr, dateLocale } from "@/lib/i18n-app";
 
 /* r10: صفحة DeepSeek — إضافة مفتاح API، اختبار الاتصال الفعلي،
  * واختيار الموديل من الموديلات المدفوعة (deepseek-chat / deepseek-reasoner).
@@ -199,7 +199,7 @@ export default function DeepSeekSettings({ company }) {
           }}>
             <span>{cfg.lastTestOk ? "✅" : "❌"}</span>
             <b>{tr("آخر اختبار:")}</b>
-            <span>{new Date(cfg.lastTestedAt).toLocaleString("ar", { dateStyle: "short", timeStyle: "short" })}</span>
+            <span>{new Date(cfg.lastTestedAt).toLocaleString(dateLocale(), { dateStyle: "short", timeStyle: "short" })}</span>
             {cfg.lastTestModel && <span dir="ltr" style={{ fontFamily: "monospace" }}>({cfg.lastTestModel})</span>}
             {cfg.lastTestLatency != null && <span style={{ direction: "ltr" }}>— {cfg.lastTestLatency}ms</span>}
             {cfg.lastTestError && <span style={{ color: txAdapt("#b91c1c", dark), fontSize: 11 }}>— {cfg.lastTestError.slice(0, 120)}</span>}

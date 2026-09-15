@@ -45,7 +45,7 @@ const toDraft = (p) => ({
 });
 
 const fmtDateTime = (iso) => {
-  try { return new Date(iso).toLocaleString("ar"); } catch { return String(iso || ""); }
+  try { return new Date(iso).toLocaleString(dateLocale()); } catch { return String(iso || ""); }
 };
 const fmtDate = (iso) => {
   try { return new Date(iso).toLocaleDateString(dateLocale()); } catch { return String(iso || "").slice(0, 10); }

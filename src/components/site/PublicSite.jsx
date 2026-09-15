@@ -31,7 +31,7 @@ export default function PublicSite(props) {
 }
 
 function SiteInner({ page = "home", authed = false, onEnterApp = () => {} }) {
-  const { t } = useI18n();
+  const { t, dir } = useI18n(); // r22: dir يتبع اللغة المختارة (كانت صفحة الدخول rtl ثابتة)
   const [stats, setStats] = useState(null);
   const [content, setContent] = useState(DEFAULT_CONTENT);
   const [team, setTeam] = useState(null);
@@ -73,7 +73,7 @@ function SiteInner({ page = "home", authed = false, onEnterApp = () => {} }) {
     // إعادة الضبط المتأخرة تكسب السباق عند فتح رابط hash مباشرة
     const id = setTimeout(apply, 700);
     return () => clearTimeout(id);
-  }, [page, content.site_name]);
+  }, [page, content.site_name, t]);
 
   const nav = (e, hash) => {
     e.preventDefault();
@@ -96,7 +96,7 @@ function SiteInner({ page = "home", authed = false, onEnterApp = () => {} }) {
   // صفحة الدخول: نموذج الدخول الكامل + زر عودة للموقع
   if (page === "login") {
     return (
-      <div dir="rtl" style={{ position: "relative" }}>
+      <div dir={dir} style={{ position: "relative" }}>
         <a
           href="#/"
           onClick={(e) => nav(e, "#/")}

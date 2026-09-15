@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { resetPasswordWithToken } from "../invoice-app/firebase/auth";
-import { tr } from "@/lib/i18n-app";
+import { tr, appDir } from "@/lib/i18n-app";
 
 /**
  * r16: صفحة إعادة تعيين كلمة المرور — تُفتح من رابط رسالة البريد (#/reset?token=…)
@@ -44,7 +44,7 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div dir="rtl" style={{
+    <div dir={appDir()} style={{
       minHeight: "100vh", background: "linear-gradient(150deg,#06111f 0%,#0d1e35 45%,#070e1c 100%)",
       display: "flex", alignItems: "center", justifyContent: "center",
       fontFamily: "'Cairo','Tajawal',sans-serif", padding: 20, position: "relative",

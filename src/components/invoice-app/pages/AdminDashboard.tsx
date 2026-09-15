@@ -7,7 +7,7 @@ import CreateUserModal, { PERM_LIST, EMPLOYEE_DEFAULTS } from "../components/Cre
 import ResendPanel from "../components/ResendPanel";
 import SubscriptionsPanel from "../components/SubscriptionsPanel";
 import { MASTER_EMAIL } from "../firebase/auth";
-import { tr } from "@/lib/i18n-app";
+import { tr, appDir } from "@/lib/i18n-app";
 
 interface UserRecord {
   uid: string;
@@ -243,7 +243,7 @@ const labelOf = (id: string): string => DYN_LABELS[id] || COMPANY_LABELS[id] || 
     <div style={{
       position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:2500,
       display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",
-      fontFamily:"'Cairo','Tajawal',sans-serif",direction:"rtl",
+      fontFamily:"'Cairo','Tajawal',sans-serif",direction:appDir(),
     }} onClick={onClose}>
       <div style={{
         background:"var(--ia-chip)",borderRadius:"18px",width:"100%",maxWidth:"820px",

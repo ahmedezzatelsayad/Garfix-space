@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createUser, ALL_COMPANIES } from "../firebase/users";
-import { tr } from "@/lib/i18n-app";
+import { tr, appDir } from "@/lib/i18n-app";
 
 // r12: قائمة شركات ديناميكية من الخادم (fallback للافتراضيات الثابتة)
 
@@ -109,7 +109,7 @@ export default function CreateUserModal({ onClose, onCreated, companies }: Creat
     <div style={{
       position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:3000,
       display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",
-      fontFamily:"'Cairo','Tajawal',sans-serif",direction:"rtl",
+      fontFamily:"'Cairo','Tajawal',sans-serif",direction:appDir(),
     }} onClick={onClose}>
       <div style={{
         background:"var(--ia-card)",borderRadius:"18px",width:"100%",maxWidth:"560px",

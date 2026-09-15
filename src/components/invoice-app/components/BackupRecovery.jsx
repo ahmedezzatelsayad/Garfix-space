@@ -184,7 +184,7 @@ export default function BackupRecovery({ company }) {
           </button>
           {lastBackup && (
             <div style={{ fontSize: 11, color: "var(--ia-sub)", textAlign: "center", marginTop: 8 }}>
-              {tr("آخر نسخة:")} {new Date(lastBackup).toLocaleString("ar", { dateStyle: "medium", timeStyle: "short" })}
+              {tr("آخر نسخة:")} {new Date(lastBackup).toLocaleString(dateLocale(), { dateStyle: "medium", timeStyle: "short" })}
             </div>
           )}
         </div>

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import { useTheme, txAdapt, softAdapt } from "../theme";
 import { fmtMoney } from "../currency";
-import { tr, appLang, companyName } from "@/lib/i18n-app";
+import { tr, appLang, appDir, dateLocale, companyName } from "@/lib/i18n-app";
 
 /* r10: المساعد الذكي — شات متصل بكامل المشروع
  * r15: إكمال المساعد — إجراءات تنفيذية حقيقية (إنسان في الحلقة):
@@ -70,6 +70,10 @@ export default function SmartChat({ company, onDataChanged }) {
   const col = company?.color || "#1e3a5f";
   const sk = company?.sk || "";
   const { dark } = useTheme();
+  // r22: اتجاه الشات يتبع لغة الواجهة (كان rtl ثابتًا) + فقاعات معكوسة لكل اتجاه
+  const dir = appDir();
+  const userBubbleRadius = dir === "rtl" ? "14px 14px 14px 4px" : "14px 14px 4px 14px";
+  const botBubbleRadius  = dir === "rtl" ? "14px 14px 4px 14px" : "14px 14px 14px 4px";
 
   const [conversations, setConversations] = useState([]);
   const [convLoading, setConvLoading] = useState(true);
@@ -361,7 +365,7 @@ export default function SmartChat({ company, onDataChanged }) {
     const lines = [
       tr("# 🤖 محادثة مساعد جرفِكس الذكي — {0}",[company?.nameAr || tr("الشركة")]),
       ``,
-      tr("> {0} • {1} • {2} رسالة",[title,new Date().toLocaleString("ar"),messages.length]),
+      tr("> {0} • {1} • {2} رسالة",[title,new Date().toLocaleString(dateLocale()),messages.length]),
       ``,
       ...messages.map(m => (m.role === "user"
         ? tr("## 👤 أنت\n\n{0}",[m.content])
@@ -457,7 +461,7 @@ export default function SmartChat({ company, onDataChanged }) {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 12.5, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.title}</div>
                   <div style={{ fontSize: 10.5, color: "var(--ia-sub)" }}>
-                    {c.messageCount} {tr("رسالة •")} {new Date(c.updatedAt).toLocaleString("ar", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    {c.messageCount} {tr("رسالة •")} {new Date(c.updatedAt).toLocaleString(dateLocale(), { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                   </div>
                 </div>
                 <button onClick={e => deleteConversation(e, c.id)} title={tr("حذف")}
@@ -503,11 +507,11 @@ export default function SmartChat({ company, onDataChanged }) {
             </div>
           ) : (
             messages.map((m, i) => m.role === "user" ? (
-              /* — فقاعة المستخدم — */
+              /* — فقاعة المستخدم — تعكس زاويتها الحادة مع اتجاه اللغة — */
               <div key={i} style={{ display: "flex", justifyContent: "flex-end" }}>
                 <div style={{
                   maxWidth: "82%", background: col, color: "#fff",
-                  borderRadius: "14px 14px 14px 4px", padding: "10px 14px", fontSize: 13.5, lineHeight: 1.7,
+                  borderRadius: userBubbleRadius, padding: "10px 14px", fontSize: 13.5, lineHeight: 1.7,
                   boxShadow: `0 2px 10px ${col}33`, whiteSpace: "pre-wrap",
                 }}>{m.content}</div>
               </div>
@@ -535,7 +539,7 @@ export default function SmartChat({ company, onDataChanged }) {
                   ) : null}
                   <div style={{
                     background: dark ? "var(--ia-ghost-bg)" : softAdapt("#f8fafc", dark),
-                    border: `1px solid ${border}`, borderRadius: "14px 14px 4px 14px",
+                    border: `1px solid ${border}`, borderRadius: botBubbleRadius,
                     padding: "10px 14px", fontSize: 13.5, lineHeight: 1.9,
                   }}>
                     {m.content ? (
@@ -589,7 +593,7 @@ export default function SmartChat({ company, onDataChanged }) {
             placeholder={tr("اكتب سؤالك أو اطلب إجراءً (مثال: أنشئ فاتورة…) — Enter للإرسال • Shift+Enter لسطر جديد")}
             rows={1}
             disabled={streaming}
-            style={{ resize: "none", maxHeight: 140, lineHeight: 1.6, flex: 1, direction: "rtl" }} />
+            style={{ resize: "none", maxHeight: 140, lineHeight: 1.6, flex: 1, direction: dir }} />
           {streaming ? (
             <button className="btn btn-red" onClick={stop} style={{ height: 42 }}>{tr("⏹ إيقاف")}</button>
           ) : (
@@ -635,7 +639,7 @@ function ActionCard({ act, col, dark, onRun, onDismiss }) {
     } else if (act.action === "create_invoice") {
       push(tr("العميل"), a.clientName); push(tr("الهاتف"), a.clientPhone);
       if (Array.isArray(a.items)) {
-        const itemsTxt = a.items.map(it => `${it.name || tr("بند")} × ${it.qty ?? 1} @ ${Number(it.price ?? 0).toLocaleString("ar")}`).join(" • ");
+        const itemsTxt = a.items.map(it => `${it.name || tr("بند")} × ${it.qty ?? 1} @ ${Number(it.price ?? 0).toLocaleString(appLang())}`).join(" • ");
         push(tr("البنود"), itemsTxt);
         const tot = a.items.reduce((s, it) => s + (Number(it.qty) || 1) * (Number(it.price) || 0), 0);
         push(tr("الإجمالي"), fmtMoney(tot));

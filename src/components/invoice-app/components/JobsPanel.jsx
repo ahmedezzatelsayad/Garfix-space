@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useTheme, softAdapt, txAdapt } from "../theme";
-import { tr } from "@/lib/i18n-app";
+import { tr, dateLocale } from "@/lib/i18n-app";
 
 /**
  * r14: لوحة طوابير المهام (BullMQ) — مراقبة حيّة وإدارة
@@ -29,7 +29,7 @@ function fmtDur(ms) {
 function fmtTime(ts) {
   if (!ts) return "—";
   try {
-    return new Date(ts).toLocaleString("ar-EG", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: true });
+    return new Date(ts).toLocaleString(dateLocale(), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: true });
   } catch { return String(ts); }
 }
 function fmtAgo(ts) {
