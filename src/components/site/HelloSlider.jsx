@@ -121,7 +121,7 @@ function readLang() {
   } catch { return "ar"; }
 }
 
-export default function HelloSlider() {
+export default function HelloSlider({ compact = false }) {
   const { lang } = useI18n(); // لغة واجهة الموقع (28 لغة) — للتسمية وترتيب البداية
   // ندوّر القائمة بحيث تبدأ السلسلة بلغة واجهة الزائر (ثم بقية المنصة الـ28 فالعالم)
   const order = useMemo(() => {
@@ -156,9 +156,9 @@ export default function HelloSlider() {
       onTouchEnd={() => setTimeout(() => setPaused(false), 2600)}
       style={{
         position: "relative",
-        margin: "10px auto 4px",
-        maxWidth: 820,
-        minHeight: "clamp(96px, 15vw, 148px)",
+        margin: compact ? "6px 0 2px" : "10px auto 4px",
+        maxWidth: compact ? "100%" : 820,
+        minHeight: compact ? "clamp(60px, 9vw, 92px)" : "clamp(96px, 15vw, 148px)",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -175,7 +175,7 @@ export default function HelloSlider() {
         aria-hidden="true"
         style={{
           fontFamily: FONTS[cur.f],
-          fontSize: "clamp(34px, 8vw, 76px)",
+          fontSize: compact ? "clamp(25px, 4.6vw, 48px)" : "clamp(34px, 8vw, 76px)",
           lineHeight: 1.2,
           color: "#fff",
           textAlign: "center",

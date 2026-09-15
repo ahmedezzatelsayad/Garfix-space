@@ -1,14 +1,44 @@
 "use client";
 
+/**
+ * r24: الصفحة الرئيسية العالمية — «GarfiX — AI Business OS».
+ * التحول من «نظام فواتير كويتي» إلى SaaS عالمي فاخر يبيع الاشتراك من أول شاشة:
+ *  1. شريط الجاهزية (196 دولة · 28 لغة · أي عملة) فوق البطل.
+ *  2. بطل مقسوم: سلايدر «مرحباً بالعالم» + العنوان الجديد + CTA (ابدأ مجاناً / شاهد العرض)
+ *     + موكاب لوحة GarfiX (فواتير + AI + مؤشرات) — الاتجاه يتبع لغة الزائر.
+ *  3. شريط التحكم العالمي التفاعلي (لغة/اتجاه/عملة/ضريبة/دولة) — حالة مرفوعة تُغذي
+ *     الموكاب وعرض الـAI والتسعير بالعملة المختارة.
+ *  4. وحدات المنتج الست · عرض GarfiX AI الحي (كتابة → مراجعة → موافقة)
+ *     · قبل/بعد (واتساب → محاسبة نظيفة) · تسعير باقة واحدة · ثقة المؤسس · دعوة أخيرة.
+ * يُحافظ على: عدّاد المقاعد الحي، إحصاءات الخادم، شركات المجموعة، ومحتوى مدير الموقع.
+ */
 import { useEffect, useState } from "react";
-import { DEFAULT_FEATURES } from "./site-shared";
+import { Coins, Globe, Languages, Play, Rocket, Sparkles } from "lucide-react";
 import HelloSlider from "./HelloSlider";
+import HeroDashboardMockup from "./HeroDashboardMockup";
+import GlobalControlStrip from "./GlobalControlStrip";
+import FeatureModuleCard, { MODULES } from "./FeatureModuleCard";
+import AiActionDemo from "./AiActionDemo";
+import BeforeAfter from "./BeforeAfter";
+import PricingCard from "./PricingCard";
+import FounderTrustBlock from "./FounderTrustBlock";
 import { tr } from "@/lib/i18n-app";
+import { useI18n } from "@/lib/i18n-context";
+import { fxFromUsd } from "./site-shared";
 
-/** r13: الصفحة الرئيسية للموقع العام — بطل + إحصاءات + مزايا + الشركات + تيعير المؤسس
- *  r16: بانر «مجاناً لأول 100 مشترك» بعداد مقاعد حيّ + دعوة تسجيل */
+/* عنوان قسم موحّد (خارج جسم المكوّن — بلا إنشاء مكوّنات أثناء الرسم) */
+function SectionTitle({ title, sub }) {
+  return (
+    <>
+      <h2 className="s-section-title">{title}</h2>
+      <p className="s-section-sub">{sub}</p>
+    </>
+  );
+}
+
 export default function HomePage({ stats, companies, content, authed, onEnterApp }) {
-  // r16: عدّاد المقاعد المجانية (GET /api/auth/register)
+  const { lang } = useI18n();
+  // r16: عدّاد المقاعد المجانية (GET /api/auth/register) — يُستخدم في البطل والتسعير
   const [seats, setSeats] = useState(null);
   useEffect(() => {
     let alive = true;
@@ -19,6 +49,24 @@ export default function HomePage({ stats, companies, content, authed, onEnterApp
     return () => { alive = false; };
   }, []);
 
+  /* حالة شريط التحكم العالمي — تُغذّي الموكاب والتسعير وعرض الـAI */
+  const [currency, setCurrency] = useState("KWD");
+  const [taxOn, setTaxOn] = useState(true);
+  const [country, setCountry] = useState("KW");
+
+  const goRegister = (e) => {
+    e.preventDefault();
+    location.hash = "#/login?mode=register";
+  };
+  const goPricing = (e) => {
+    e.preventDefault();
+    location.hash = "#/pricing";
+  };
+  const watchDemo = (e) => {
+    e.preventDefault();
+    document.getElementById("ai-demo")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   const statsRow = [
     { label: tr("شركات مُدارة"), value: stats?.companies ?? companies.length ?? 4 },
     { label: tr("فاتورة مُصدَرة"), value: stats?.invoices ?? "—" },
@@ -26,112 +74,82 @@ export default function HomePage({ stats, companies, content, authed, onEnterApp
     { label: tr("عملات مدعومة"), value: stats?.currencies ?? 1 },
   ];
 
-  const goLogin = (e) => {
-    e.preventDefault();
-    location.hash = "#/login";
-  };
-  const goTeam = (e) => {
-    e.preventDefault();
-    location.hash = "#/team";
-  };
-  const goFounder = (e) => {
-    e.preventDefault();
-    location.hash = "#/founder";
-  };
-
   return (
     <div>
-      {/* ── البطل ── */}
-      <section style={{ padding: "84px 20px 30px", textAlign: "center", position: "relative" }}>
-        {/* بطاقة فاتورة عائمة — لمسة بصرية */}
-        <div
-          aria-hidden="true"
-          style={{
-            position: "absolute", top: 70, insetInlineEnd: "6%", width: 210, padding: "16px 18px",
-            background: "rgba(255,255,255,.045)", border: "1px solid rgba(201,162,39,.22)", borderRadius: 14,
-            animation: "sFloat 5s ease-in-out infinite", display: "none",
-            boxShadow: "0 20px 50px rgba(0,0,0,.4)", textAlign: "start", fontSize: 12,
-          }}
-          className="s-float-card"
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-            <b style={{ color: "#e5c558" }}>INV10014</b>
-            <span style={{ color: "rgba(255,255,255,.5)" }}>{tr("مدفوعة")}</span>
-          </div>
+      {/* ── شريط الجاهزية العالمية (فوق البطل) ── */}
+      <div style={{ paddingTop: 14 }}>
+        <div className="s-fade" style={{ display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap", padding: "0 16px" }}>
           {[
-            [tr("منتج A"), "4 × 2.500"],
-            [tr("منتج B"), "2 × 1.750"],
-            [tr("التوصيل"), "1.000"],
-          ].map(([a, b]) => (
-            <div key={a} style={{ display: "flex", justifyContent: "space-between", color: "rgba(255,255,255,.55)", marginBottom: 6 }}>
-              <span>{a}</span>
-              <span>{b}</span>
-            </div>
+            { icon: Globe, text: tr("يعمل في 196 دولة") },
+            { icon: Languages, text: tr("28 لغة") },
+            { icon: Coins, text: tr("أي عملة") },
+          ].map(({ icon: Ic, text }) => (
+            <span key={text} style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              background: "rgba(255,255,255,.045)", border: "1px solid rgba(255,255,255,.1)",
+              borderRadius: 30, padding: "5px 13px", fontSize: 11.5, fontWeight: 700, color: "rgba(255,255,255,.66)",
+            }}>
+              <Ic size={12.5} color="#e5c558" aria-hidden="true" /> {text}
+            </span>
           ))}
-          <div style={{ borderTop: "1px dashed rgba(201,162,39,.3)", marginTop: 10, paddingTop: 10, display: "flex", justifyContent: "space-between" }}>
-            <b>{tr("الإجمالي")}</b>
-            <b style={{ color: "#e5c558" }}>{tr("15.000 د.ك")}</b>
-          </div>
         </div>
+      </div>
 
-        <div style={{ maxWidth: 860, margin: "0 auto", position: "relative" }}>
-          <div className="s-chip s-fade">✦ {tr(content.hero_badge)}</div>
-
-          {/* r23: سلايدر «مرحباً بالعالم» — تحية الموقع بأسلوب آبل بكل لغات العالم */}
-          <HelloSlider />
-
-          <h1 className="s-hero-title s-fade s-fade-2" style={{ fontSize: "clamp(21px, 3.6vw, 31px)", margin: "6px 0 12px" }}>
-            {tr(content.hero_title)}
-          </h1>
-          <p className="s-hero-sub s-fade s-fade-3" style={{ marginBottom: 26 }}>{tr(content.hero_sub)}</p>
-
-          <div className="s-hero-cta s-fade s-fade-4" style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-            {authed ? (
-              <button className="s-btn s-btn-gold" onClick={onEnterApp}>{tr("دخول النظام ←")}</button>
-            ) : (
-              <a className="s-btn s-btn-gold" href="#/login" onClick={goLogin}>{tr("ابدأ الآن — مجاناً ←")}</a>
-            )}
-            <a className="s-btn s-btn-outline" href="#/team" onClick={goTeam}>{tr("تعرّف على الفريق")}</a>
-          </div>
-        </div>
-
-        {/* r16: بانر مجاناً لأول 100 مشترك — عدّاد حيّ */}
-        {seats && seats.freeOpen && !authed && (
-          <div
-            className="s-fade s-fade-4"
-            style={{
-              maxWidth: 620, margin: "34px auto 0", padding: "16px 22px", borderRadius: 16,
-              background: "linear-gradient(135deg,rgba(201,162,39,.16),rgba(201,162,39,.05))",
-              border: "1px solid rgba(201,162,39,.4)", display: "flex", alignItems: "center",
-              gap: 16, flexWrap: "wrap", justifyContent: "center", textAlign: "center",
-            }}
-          >
-            <div style={{ fontSize: 30 }}>🎁</div>
-            <div style={{ flex: 1, minWidth: 220 }}>
-              <b style={{ fontSize: 15, display: "block", marginBottom: 4, color: "#e5c558" }}>
-                {tr("مجاناً لأول")} {seats.limit} {tr("مشترك")}
-              </b>
-              <span style={{ color: "rgba(255,255,255,.65)", fontSize: 12.5 }}>
-                {tr("متبقي")} <b style={{ color: "#e5c558", fontSize: 14 }}>{seats.remaining}</b> {tr("مقعداً — سجّل الآن واحصل على شركتك الخاصة بفواتير وعملاء وتقارير")}
-              </span>
-              {/* شريط تقدّم المقاعد المحجوزة */}
-              <div style={{ height: 6, borderRadius: 4, background: "rgba(255,255,255,.12)", marginTop: 10, overflow: "hidden", direction: "ltr" }}>
-                <div style={{
-                  height: "100%", borderRadius: 4,
-                  width: `${((seats.limit - seats.remaining) / seats.limit) * 100}%`,
-                  background: "linear-gradient(90deg,#c9a227,#e5c558)",
-                  transition: "width .6s ease",
-                }} />
-              </div>
+      {/* ── البطل: نص + موكاب (الاتجاه يتبع اللغة) ── */}
+      <section style={{ padding: "18px 20px 34px", position: "relative" }}>
+        <div style={{
+          maxWidth: 1180, margin: "0 auto", display: "flex", gap: 34, alignItems: "center",
+          flexWrap: "wrap",
+        }}>
+          {/* عمود النص */}
+          <div style={{ flex: "1.08", minWidth: 290, textAlign: "center" }}>
+            <div className="s-chip s-fade" style={{ marginBottom: 2 }}>
+              <Sparkles size={13} aria-hidden="true" />
+              {tr("AI Business OS — نظام تشغيل الأعمال الذكي")}
             </div>
-            <a className="s-btn s-btn-gold" href="#/login" onClick={goLogin} style={{ flexShrink: 0, padding: "10px 22px", fontSize: 13 }}>
-              {tr("أنشئ حسابك ←")}
-            </a>
-          </div>
-        )}
 
-        {/* شريط الإحصاءات */}
-        <div className="s-fade s-fade-4" style={{ display: "flex", gap: 14, flexWrap: "wrap", maxWidth: 860, margin: "54px auto 0", justifyContent: "center" }}>
+            {/* سلايدر «مرحباً بالعالم» — تحية الموقع بأسلوب آبل بكل لغات العالم */}
+            <HelloSlider compact />
+
+            <h1 className="s-hero-title s-fade s-fade-2" style={{ fontSize: "clamp(22px, 3.4vw, 34px)", margin: "4px 0 12px", textShadow: "0 2px 34px rgba(201,162,39,.28)" }}>
+              {tr("جارفيكس — نظام تشغيل ذكي للفواتير والمدفوعات وإدارة الشركات")}
+            </h1>
+            <p className="s-hero-sub s-fade s-fade-3" style={{ margin: "0 auto 24px", fontSize: "clamp(13.5px, 1.8vw, 16px)" }}>
+              {tr("أدِر الفواتير، التحصيل، العملاء، التقارير، والذكاء الاصطناعي من لوحة واحدة — لأي شركة في أي دولة، بأي عملة وبلغتك.")}
+            </p>
+
+            <div className="s-hero-cta s-fade s-fade-4" style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+              {authed ? (
+                <button className="s-btn s-btn-gold" onClick={onEnterApp} style={{ padding: "13px 26px", fontSize: 14.5 }}>
+                  <Rocket size={16} aria-hidden="true" /> {tr("دخول النظام")}
+                </button>
+              ) : (
+                <a className="s-btn s-btn-gold" href="#/login?mode=register" onClick={goRegister} style={{ padding: "13px 26px", fontSize: 14.5 }}>
+                  <Rocket size={16} aria-hidden="true" /> {tr("ابدأ مجاناً")}
+                </a>
+              )}
+              <a className="s-btn s-btn-ghost" href="#/" onClick={watchDemo} style={{ padding: "13px 22px", fontSize: 14 }} aria-label={tr("شاهد عرض الـ90 ثانية")}>
+                <Play size={15} aria-hidden="true" /> {tr("شاهد عرض الـ90 ثانية")}
+              </a>
+            </div>
+
+            {/* ملاحظة تحت الأزرار */}
+            <div className="s-fade s-fade-4" style={{ marginTop: 13, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, flexWrap: "wrap", color: "rgba(255,255,255,.5)", fontSize: 12, fontWeight: 700 }}>
+              <span style={{ width: 7, height: 7, borderRadius: 4, background: "#34d399", boxShadow: "0 0 10px rgba(52,211,153,.7)" }} aria-hidden="true" />
+              {seats && seats.freeOpen
+                ? tr("مجاني لأول {0} شركة — متبقي {1} مقعداً · بلا بطاقة", [seats.limit, seats.remaining])
+                : tr("مجاني لأول 100 شركة · بلا بطاقة ولا التزام")}
+            </div>
+          </div>
+
+          {/* عمود الموكاب */}
+          <div style={{ flex: 1, minWidth: 280 }}>
+            <HeroDashboardMockup currency={currency} />
+          </div>
+        </div>
+
+        {/* شريط الإحصاءات الحية من الخادم */}
+        <div className="s-fade s-fade-4" style={{ display: "flex", gap: 14, flexWrap: "wrap", maxWidth: 980, margin: "44px auto 0", justifyContent: "center" }}>
           {statsRow.map((s) => (
             <div key={s.label} className="s-stat">
               <b>{s.value}</b>
@@ -141,34 +159,85 @@ export default function HomePage({ stats, companies, content, authed, onEnterApp
         </div>
       </section>
 
-      {/* ── المزايا ── */}
+      {/* ── شريط التحكم العالمي التفاعلي ── */}
+      <section style={{ paddingBottom: 10 }}>
+        <GlobalControlStrip
+          currency={currency} setCurrency={setCurrency}
+          taxOn={taxOn} setTaxOn={setTaxOn}
+          country={country} setCountry={setCountry}
+        />
+        <p style={{ textAlign: "center", color: "rgba(255,255,255,.35)", fontSize: 11.5, margin: "12px 0 0", fontWeight: 600 }}>
+          {tr("جرّبها بنفسك — بدّل اللغة والعملة والضريبة وشاهد النظام يتكيّف فوراً")}
+        </p>
+      </section>
+
+      {/* ── وحدات المنتج ── */}
       <section className="s-section">
-        <h2 className="s-section-title">{tr("كل ما تحتاجه إدارة مالية كاملة")}</h2>
-        <p className="s-section-sub">{tr("مصمّم لطريقة عمل التجار الكويتيين فعلاً — لا شاشات معقّدة ولا مصطلحات مترجمة حرفياً")}</p>
+        <SectionTitle
+          title={tr("كل ما تحتاجه لتشغيل شركتك — في نظام واحد")}
+          sub={tr("وحدات قائمة فعلاً داخل GarfiX اليوم — ليست وعوداً على خارطة طريق")}
+        />
         <div className="s-features">
-          {DEFAULT_FEATURES.map((f) => (
-            <div key={f.title} className="s-card s-card-hover">
-              <div style={{ fontSize: 34, marginBottom: 14 }}>{f.icon}</div>
-              <h3 style={{ margin: "0 0 10px", fontSize: 17, fontWeight: 800 }}>{tr(f.title)}</h3>
-              <p style={{ margin: 0, color: "rgba(255,255,255,.58)", fontSize: 13.5, lineHeight: 1.9 }}>{tr(f.desc)}</p>
-            </div>
+          {MODULES.map((m) => (
+            <FeatureModuleCard key={m.key} icon={m.icon} title={m.title} desc={m.desc} blue={m.blue} />
           ))}
         </div>
       </section>
 
-      {/* ── الشركات ── */}
+      {/* ── عرض GarfiX AI الحي ── */}
+      <section className="s-section" id="ai-demo" style={{ scrollMarginTop: 84 }}>
+        <SectionTitle
+          title={tr("ذكاء اصطناعي ينفّذ — ولا يكتفي بالكلام")}
+          sub={tr("اطلب فاتورة أو عميلاً أو دفعة من الشات، راجع المسودة كاملة، ثم وافق — يُنشأ كل شيء داخل نظامك")}
+        />
+        <AiActionDemo currency={currency} taxOn={taxOn} country={country} />
+      </section>
+
+      {/* ── قبل / بعد ── */}
+      <section className="s-section">
+        <SectionTitle
+          title={tr("من فوضى واتساب إلى محاسبة نظيفة في ثوانٍ")}
+          sub={tr("مصمم لطريقة عمل التجار فعلاً — لا شاشات معقدة ولا مصطلحات مترجمة حرفياً")}
+        />
+        <BeforeAfter />
+      </section>
+
+      {/* ── التسعير: باقة واحدة واضحة ── */}
+      <section className="s-section">
+        <SectionTitle
+          title={tr("تسعير واحد واضح — بلا مفاجآت")}
+          sub={tr("ابدأ مجاناً لأول 100 شركة، ثم {0} شهرياً لكل شركة — بإلغاء في أي وقت", [fxFromUsd(10, currency, lang)])}
+        />
+        <PricingCard currency={currency} taxOn={taxOn} seats={seats} onGo={goRegister} />
+        <div style={{ textAlign: "center", marginTop: 18 }}>
+          <a href="#/pricing" onClick={goPricing} style={{ color: "#e5c558", fontSize: 13, fontWeight: 700, textDecoration: "none", borderBottom: "1px dashed rgba(201,162,39,.5)", paddingBottom: 2 }}>
+            {tr("التسعير التفصيلي حسب بلدك ←")}
+          </a>
+        </div>
+      </section>
+
+      {/* ── ثقة المؤسس + الجاهزية العالمية ── */}
+      <section className="s-section">
+        <SectionTitle
+          title={tr("مبني برؤية واضحة — وثقة تُكتسب بفاتورة")}
+          sub={tr("نظام واحد ينمو مع كل شركة تنضم — ويتعلم من كل فاتورة تُصدر")}
+        />
+        <FounderTrustBlock content={content} onGoFounder={(e) => { e.preventDefault(); location.hash = "#/founder"; }} />
+      </section>
+
+      {/* ── شركات المجموعة (بيانات حية) ── */}
       {companies.length > 0 && (
         <section className="s-section" style={{ paddingTop: 0 }}>
-          <h2 className="s-section-title">{tr("شركات المجموعة")}</h2>
-          <p className="s-section-sub">{tr("كل شركة بحسابها المستقل وعملتها الخاصة — وتُدار من لوحة واحدة")}</p>
+          <SectionTitle
+            title={tr("شركات تعمل على GarfiX اليوم")}
+            sub={tr("كل شركة بحسابها المستقل وعملتها الخاصة — وتُدار من لوحة واحدة")}
+          />
           <div className="s-companies">
             {companies.map((c) => (
               <div key={c.slug} className="s-card s-card-hover" style={{ textAlign: "center", padding: "22px 14px" }}>
-                <div style={{ fontSize: 40, marginBottom: 10 }}>{c.emoji || c.logo || "🏢"}</div>
+                <div style={{ fontSize: 34, marginBottom: 10 }}>{c.emoji || c.logo || "🏢"}</div>
                 <b style={{ display: "block", fontSize: 15.5, marginBottom: 6 }}>{tr(c.nameAr || c.name)}</b>
-                <span className="s-chip" style={{ fontSize: 10.5, padding: "3px 10px" }}>
-                  💱 {c.currency || "KWD"}
-                </span>
+                <span className="s-chip s-num" style={{ fontSize: 10.5, padding: "3px 10px" }}>{c.currency || "KWD"}</span>
                 {c.manager && (
                   <div style={{ marginTop: 10, color: "rgba(255,255,255,.45)", fontSize: 11.5 }}>
                     {tr("مدير:")} {c.manager}
@@ -180,62 +249,36 @@ export default function HomePage({ stats, companies, content, authed, onEnterApp
         </section>
       )}
 
-      {/* ── تيعير رسالة المؤسس ── */}
-      <section className="s-section" style={{ paddingTop: 0 }}>
-        <div className="s-card" style={{ display: "flex", alignItems: "center", gap: 26, flexWrap: "wrap", borderColor: "rgba(201,162,39,.3)" }}>
-          <div
-            style={{
-              width: 92, height: 92, borderRadius: "50%", flexShrink: 0,
-              background: "linear-gradient(135deg,#c9a227,#a07c1a)", display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 40, boxShadow: "0 8px 30px rgba(201,162,39,.45)", animation: "sPulse 3.4s ease-in-out infinite",
-            }}
-            aria-hidden="true"
-          >
-            {content.founder_emoji || "👨‍💼"}
-          </div>
-          <div style={{ flex: 1, minWidth: 240 }}>
-            <div className="s-quote-mark" style={{ fontSize: 54, marginBottom: 4 }} aria-hidden="true">❝</div>
-            <p style={{ margin: "0 0 14px", fontSize: 15.5, lineHeight: 2, color: "rgba(255,255,255,.75)", fontWeight: 600 }}>
-              {tr("«إدارة المال ليست جداول وأرقاماً — بل ثقة تُبنى بفاتورة واضحة ورصيد محسوب بدقة.»")}
-            </p>
-            <b style={{ fontSize: 14.5 }}>{tr(content.founder_name)}</b>
-            <div style={{ color: "#c9a227", fontSize: 12, marginTop: 3, fontWeight: 700 }}>{tr(content.founder_title)}</div>
-          </div>
-          <a className="s-btn s-btn-outline" href="#/founder" onClick={goFounder} style={{ flexShrink: 0 }}>
-            {tr("اقرأ رسالة المؤسس ←")}
-          </a>
-        </div>
-      </section>
-
-      {/* ── دعوة أخيرة ── */}
+      {/* ── الدعوة الأخيرة ── */}
       <section className="s-section" style={{ paddingTop: 0, paddingBottom: 80 }}>
         <div
+          className="s-fade"
           style={{
-            textAlign: "center", padding: "44px 24px", borderRadius: 20,
-            background: "linear-gradient(135deg,rgba(201,162,39,.14),rgba(201,162,39,.04))",
-            border: "1px solid rgba(201,162,39,.3)",
+            textAlign: "center", padding: "46px 26px", borderRadius: 24,
+            background: "linear-gradient(135deg,rgba(201,162,39,.16) 0%,rgba(11,30,58,.5) 55%,rgba(37,99,235,.12) 100%)",
+            border: "1px solid rgba(201,162,39,.32)", position: "relative", overflow: "hidden",
           }}
         >
+          <div aria-hidden="true" style={{ position: "absolute", inset: 0, background: "radial-gradient(62% 78% at 50% 0%, rgba(201,162,39,.15), transparent 72%)", pointerEvents: "none" }} />
           <h2 style={{ margin: "0 0 10px", fontSize: "clamp(20px,3vw,27px)", fontWeight: 900 }}>
-            {tr("جاهز تنظّم مالية شركاتك؟")}
+            {tr("جاهز تشغّل شركتك بذكاء؟")}
           </h2>
-          <p style={{ color: "rgba(255,255,255,.6)", margin: "0 0 22px", fontSize: 14 }}>
+          <p style={{ color: "rgba(255,255,255,.62)", margin: "0 0 22px", fontSize: 14, lineHeight: 1.9, maxWidth: 560, marginInline: "auto" }}>
             {seats && seats.freeOpen
-              ? tr("أنشئ حسابك الآن — مجاناً لأول 100 مشترك، بدون بطاقة ولا التزام.")
+              ? tr("أنشئ حسابك الآن — مجاناً لأول 100 شركة، بدون بطاقة ولا التزام. أول فاتورتك خلال دقيقتين.")
               : tr("سجّل الدخول الآن — بياناتك بانتظارك في لوحة واحدة.")}
           </p>
           {authed ? (
-            <button className="s-btn s-btn-gold" onClick={onEnterApp}>{tr("دخول النظام ←")}</button>
+            <button className="s-btn s-btn-gold" onClick={onEnterApp} style={{ padding: "13px 30px", fontSize: 15 }}>
+              <Rocket size={16} aria-hidden="true" /> {tr("دخول النظام")}
+            </button>
           ) : (
-            <a className="s-btn s-btn-gold" href="#/login" onClick={goLogin}>{tr("أنشئ حسابك المجاني ←")}</a>
+            <a className="s-btn s-btn-gold" href="#/login?mode=register" onClick={goRegister} style={{ padding: "13px 30px", fontSize: 15 }}>
+              <Rocket size={16} aria-hidden="true" /> {tr("أنشئ حسابك المجاني")}
+            </a>
           )}
         </div>
       </section>
-
-      <style>{`
-        @media(min-width:960px){.s-float-card{display:block!important}}
-        @media(max-width:960px){.s-float-card{display:none!important}}
-      `}</style>
     </div>
   );
 }

@@ -10,6 +10,7 @@
  */
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { Languages } from "lucide-react";
 import { LANGUAGES, langOf, tFor, DEFAULT_LANG, type LanguageDef } from "./i18n";
 
 const STORAGE_KEY = "garfix_lang";
@@ -142,7 +143,7 @@ export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
           fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6,
         }}
       >
-        🌐 <span style={{ maxWidth: compact ? 0 : 86, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{compact ? "" : language.nativeName}</span> <span style={{ fontSize: 9, opacity: 0.7 }}>▼</span>
+        <Languages size={14} aria-hidden="true" /> <span style={{ maxWidth: compact ? 0 : 86, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{compact ? "" : language.nativeName}</span> <span style={{ fontSize: 9, opacity: 0.7 }}>▼</span>
       </button>
       {open && (
         <div
