@@ -181,7 +181,7 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html:
-              'try{var gl=localStorage.getItem("garfix_lang")||"ar";var rtl=["ar","fa","he","ur","pa"].indexOf(gl)>=0;document.documentElement.lang=gl;document.documentElement.dir=rtl?"rtl":"ltr";}catch(e){}',
+              'try{var gl=localStorage.getItem("garfix_lang")||"ar";var rtl=["ar","fa","ur","pa"].indexOf(gl)>=0;document.documentElement.lang=gl;document.documentElement.dir=rtl?"rtl":"ltr";}catch(e){}',
           }}
         />
       </head>

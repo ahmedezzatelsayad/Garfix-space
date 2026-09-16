@@ -44,7 +44,7 @@ export const WORLD_COUNTRIES: WorldCountry[] = [
   { code: "LY", nameAr: "ليبيا", nameEn: "Libya", currency: "LYD", region: "arab", vat: 0, arabic: true },
   { code: "MA", nameAr: "المغرب", nameEn: "Morocco", currency: "MAD", region: "arab", vat: 20, arabic: true },
   { code: "MR", nameAr: "موريتانيا", nameEn: "Mauritania", currency: "MRU", region: "arab", vat: 16, arabic: true },
-  { code: "PS", nameAr: "فلسطين", nameEn: "Palestine", currency: "ILS", region: "arab", vat: 16, arabic: true },
+  { code: "PS", nameAr: "فلسطين", nameEn: "Palestine", currency: "JOD", region: "arab", vat: 16, arabic: true },
   { code: "SD", nameAr: "السودان", nameEn: "Sudan", currency: "SDG", region: "arab", vat: 17, arabic: true },
   { code: "SO", nameAr: "الصومال", nameEn: "Somalia", currency: "SOS", region: "arab", vat: 0, arabic: true },
   { code: "SY", nameAr: "سوريا", nameEn: "Syria", currency: "SYP", region: "arab", vat: 0, arabic: true },

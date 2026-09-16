@@ -1,5 +1,5 @@
 /**
- * 3-i18n-data: «السيستم بكل لغات العالم» — نظام اللغات في Garfix (28 لغة).
+ * 3-i18n-data: «السيستم بكل لغات العالم» — نظام اللغات في Garfix (27 لغة).
  *
  * بيانات صرفة بلا أي استيرادات (لا React ولا server-only) — آمنة للاستيراد
  * من الواجهة والخادم معاً. العربية هي المصدر (أساس السلسلة)، والإنجليزية
@@ -16,7 +16,7 @@ export interface LanguageDef {
   flag: string; // إيموجي العلم
 }
 
-/** 28 لغة — العربية أولاً ثم الإنجليزية ثم بقية اللغات أبجدياً */
+/** 27 لغة — العربية أولاً ثم الإنجليزية ثم بقية اللغات أبجدياً */
 export const LANGUAGES: LanguageDef[] = [
   { code: "ar", nativeName: "العربية", nameAr: "العربية", dir: "rtl", flag: "🇸🇦" },
   { code: "en", nativeName: "English", nameAr: "الإنجليزية", dir: "ltr", flag: "🇬🇧" },
@@ -26,7 +26,6 @@ export const LANGUAGES: LanguageDef[] = [
   { code: "es", nativeName: "Español", nameAr: "الإسبانية", dir: "ltr", flag: "🇪🇸" },
   { code: "fa", nativeName: "فارسی", nameAr: "الفارسية", dir: "rtl", flag: "🇮🇷" },
   { code: "fr", nativeName: "Français", nameAr: "الفرنسية", dir: "ltr", flag: "🇫🇷" },
-  { code: "he", nativeName: "עברית", nameAr: "العبرية", dir: "rtl", flag: "🇮🇱" },
   { code: "hi", nativeName: "हिन्दी", nameAr: "الهندية", dir: "ltr", flag: "🇮🇳" },
   { code: "id", nativeName: "Indonesia", nameAr: "الإندونيسية", dir: "ltr", flag: "🇮🇩" },
   { code: "it", nativeName: "Italiano", nameAr: "الإيطالية", dir: "ltr", flag: "🇮🇹" },
@@ -1815,81 +1814,6 @@ const UK: Record<string, string> = {
   "tax.noTax": "Без податку",
 };
 
-// ── العبرية ──
-const HE: Record<string, string> = {
-  "nav.home": "בית",
-  "nav.team": "צוות",
-  "nav.founder": "מייסד",
-  "nav.pricing": "מחירים",
-  "nav.login": "התחברות",
-  "nav.enterApp": "כניסה לאפליקציה",
-  "hero.title": "Garfix — חשבוניות וניהול חשבונות בערבית עם בינה מלאכותית",
-  "hero.subtitle": "צרו חשבוניות מקצועיות, עקבו אחר לקוחות ותשלומים, ותנו לבינה המלאכותית להפוך את ההזמנות שלכם לחשבוניות בתוך שניות.",
-  "hero.statCompanies": "חברות בפלטפורמה",
-  "hero.statInvoices": "חשבוניות שהונפקו",
-  "hero.statCustomers": "לקוחות מנוהלים",
-  "hero.statAi": "חשבוניות שעובדו בבינה מלאכותית",
-  "pricing.title": "תוכניות מנוי",
-  "pricing.subtitle": "מחירים שקופים במטבע שלכם — מס אופציונלי",
-  "pricing.perMonth": "לחודש",
-  "pricing.mostPopular": "הפופולרי ביותר",
-  "pricing.currentPlan": "התוכנית הנוכחית",
-  "pricing.choose": "בחרו תוכנית",
-  "pricing.requestUpgrade": "בקשו שדרוג",
-  "pricing.requested": "השדרוג התבקש",
-  "pricing.yourCountry": "המדינה שלכם",
-  "pricing.searchCountry": "חפשו את המדינה שלכם…",
-  "pricing.detected": "המדינה זוהתה אוטומטית",
-  "pricing.taxNote": "מע\"מ במדינה שלכם: {rate}% — אופציונלי בהנפקת חשבונית",
-  "pricing.baseCurrency": "מטבע בסיס",
-  "pricing.seatsLeft": "נותרו {n} מקומות חינם",
-  "pricing.quotaCompanies": "מגבלת חברות",
-  "pricing.quotaCustomers": "מגבלת לקוחות",
-  "pricing.quotaAiInvoices": "מגבלת חשבוניות AI חודשית",
-  "pricing.loginToSubscribe": "התחברו כדי להירשם כמנוי",
-  "pricing.requestSent": "הבקשה נשלחה למייסד",
-  "pricing.requestPending": "הבקשה בבדיקה",
-  "pricing.taxIncluded": "כולל מס",
-  "login.title": "התחברות",
-  "login.email": "אימייל",
-  "login.password": "סיסמה",
-  "login.name": "שם",
-  "login.signIn": "התחברות",
-  "login.signUp": "הרשמה",
-  "login.forgot": "שכחתם סיסמה?",
-  "login.errRequired": "שדה זה חובה",
-  "login.errInvalid": "ערך לא תקין",
-  "account.profile": "פרופיל",
-  "account.name": "שם",
-  "account.phone": "טלפון",
-  "account.email": "אימייל",
-  "account.language": "שפה",
-  "account.country": "מדינה",
-  "account.save": "שמירה",
-  "account.subscription": "מנוי",
-  "account.plan": "תוכנית",
-  "account.usage": "שימוש",
-  "account.companiesUsed": "חברות",
-  "account.customersUsed": "לקוחות",
-  "account.aiUsed": "חשבוניות AI",
-  "account.thisMonth": "החודש",
-  "account.upgradeTitle": "שדרוג תוכנית",
-  "account.sendRequest": "שליחת בקשה",
-  "common.loading": "טוען…",
-  "common.cancel": "ביטול",
-  "common.close": "סגירה",
-  "common.search": "חיפוש",
-  "common.language": "שפה",
-  "common.currency": "מטבע",
-  "common.tax": "מס",
-  "tax.title": "מס",
-  "tax.vat": "מע\"מ",
-  "tax.rate": "שיעור",
-  "tax.optionalNote": "המס אופציונלי — הפעילו אותו וכוונו את השיעור בהגדרות החברה או החשבונית",
-  "tax.standardRate": "השיעור הסטנדרטי במדינה שלכם",
-  "tax.noTax": "ללא מס",
-};
-
 // ── اليونانية ──
 const EL: Record<string, string> = {
   "nav.home": "Αρχική",
@@ -2293,7 +2217,6 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
   nl: NL,
   pl: PL,
   uk: UK,
-  he: HE,
   el: EL,
   th: TH,
   vi: VI,

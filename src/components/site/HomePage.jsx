@@ -3,7 +3,7 @@
 /**
  * r24: الصفحة الرئيسية العالمية — «GarfiX — AI Business OS».
  * التحول من «نظام فواتير كويتي» إلى SaaS عالمي فاخر يبيع الاشتراك من أول شاشة:
- *  1. شريط الجاهزية (196 دولة · 28 لغة · أي عملة) فوق البطل.
+ *  1. شريط الجاهزية (196 دولة · 27 لغة · أي عملة) فوق البطل.
  *  2. بطل مقسوم: سلايدر «مرحباً بالعالم» + العنوان الجديد + CTA (ابدأ مجاناً / شاهد العرض)
  *     + موكاب لوحة GarfiX (فواتير + AI + مؤشرات) — الاتجاه يتبع لغة الزائر.
  *  3. شريط التحكم العالمي التفاعلي (لغة/اتجاه/عملة/ضريبة/دولة) — حالة مرفوعة تُغذي
@@ -81,7 +81,7 @@ export default function HomePage({ stats, companies, content, authed, onEnterApp
         <div className="s-fade" style={{ display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap", padding: "0 16px" }}>
           {[
             { icon: Globe, text: tr("يعمل في 196 دولة") },
-            { icon: Languages, text: tr("28 لغة") },
+            { icon: Languages, text: tr("27 لغة") },
             { icon: Coins, text: tr("أي عملة") },
           ].map(({ icon: Ic, text }) => (
             <span key={text} style={{

@@ -3,7 +3,7 @@
 /**
  * i18n-app: طبقة ترجمة التطبيق التشغيلي (الداشبورد) — r20.
  *
- * المشكلة: الواجهة العامة متعددة اللغات (i18n.ts بـ 28 لغة) لكن التطبيق
+ * المشكلة: الواجهة العامة متعددة اللغات (i18n.ts بـ 27 لغة) لكن التطبيق
  * نفسه كان عربياً صرفاً — فيبقى عربياً حتى لو غيّر المستخدم اللغة.
  *
  * الحل: دالة tr() عالمية مفتاحها النص العربي المصدر نفسه:
@@ -26,7 +26,7 @@ import { APP_EN } from "./app-dict-en";
 // ── اللغة العالمية للوحدة (تُحدَّث من LangProvider عبر useAppI18n والحدث العام) ──
 let currentLang = "ar";
 
-const RTL_LANGS = new Set(["ar", "fa", "he", "ur", "pa"]);
+const RTL_LANGS = new Set(["ar", "fa", "ur", "pa"]);
 const norm = (l: string | null | undefined) =>
   String(l ?? "").trim().toLowerCase().split(/[-_]/)[0] || "ar";
 

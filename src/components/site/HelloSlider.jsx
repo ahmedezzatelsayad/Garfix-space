@@ -30,7 +30,6 @@ const HELLOS = [
   { c: "es", t: "Hola Mundo", rtl: false, f: "hand", ln: "الإسبانية", le: "Spanish" },
   { c: "fa", t: "سلام دنیا", rtl: true, f: "arab", ln: "الفارسية", le: "Persian" },
   { c: "fr", t: "Bonjour le Monde", rtl: false, f: "hand", ln: "الفرنسية", le: "French" },
-  { c: "he", t: "שלום עולם", rtl: true, f: "serif", ln: "العبرية", le: "Hebrew" },
   { c: "hi", t: "नमस्ते दुनिया", rtl: false, f: "serif", ln: "الهندية", le: "Hindi" },
   { c: "id", t: "Halo Dunia", rtl: false, f: "hand", ln: "الإندونيسية", le: "Indonesian" },
   { c: "it", t: "Ciao Mondo", rtl: false, f: "hand", ln: "الإيطالية", le: "Italian" },
@@ -122,7 +121,7 @@ function readLang() {
 }
 
 export default function HelloSlider({ compact = false }) {
-  const { lang } = useI18n(); // لغة واجهة الموقع (28 لغة) — للتسمية وترتيب البداية
+  const { lang } = useI18n(); // لغة واجهة الموقع (27 لغة) — للتسمية وترتيب البداية
   // ندوّر القائمة بحيث تبدأ السلسلة بلغة واجهة الزائر (ثم بقية المنصة الـ28 فالعالم)
   const order = useMemo(() => {
     const start = (lang || readLang() || "ar").toLowerCase();

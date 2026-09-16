@@ -2,7 +2,7 @@
 
 /**
  * r24: FounderTrustBlock — قسم الثقة: اقتباس المؤسس (من محتوى مدير الموقع)
- * + إحصاءات الجاهزية العالمية (196 دولة · 28 لغة · أي عملة · مراجعة AI).
+ * + إحصاءات الجاهزية العالمية (196 دولة · 27 لغة · أي عملة · مراجعة AI).
  */
 import { Coins, FileCheck2, Globe, Languages, Quote } from "lucide-react";
 import { tr } from "@/lib/i18n-app";

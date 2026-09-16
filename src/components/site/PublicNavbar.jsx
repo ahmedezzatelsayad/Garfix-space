@@ -14,7 +14,7 @@ import { tr } from "@/lib/i18n-app";
 import { LogoMark } from "./site-shared";
 
 export default function PublicNavbar({ page = "home", authed = false, onEnterApp, onNav, content }) {
-  const { t } = useI18n(); // روابط التنقل بـ28 لغة (t) — والنصوص التسويقية الجديدة بـ tr
+  const { t } = useI18n(); // روابط التنقل بـ27 لغة (t) — والنصوص التسويقية الجديدة بـ tr
   const [menuOpen, setMenuOpen] = useState(false);
 
   const links = [
