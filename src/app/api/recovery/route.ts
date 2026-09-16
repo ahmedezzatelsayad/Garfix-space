@@ -135,10 +135,19 @@ export async function POST(req: NextRequest) {
       }
 
       // 3) إعادة ضبط التسلسلات حتى لا تتصادم الإدراجات الجديدة
+      // r25: توافق المحركات — setval/pg_get_serial_sequence لـ PostgreSQL،
+      // وتحديث sqlite_sequence لـ SQLite (INSERT OR REPLACE يضبط آخر معرف مستخدم).
+      const engine = (process.env.DATABASE_URL || "").startsWith("file:") ? "sqlite" : "postgres";
       for (const { table } of Object.values(MODELS)) {
-        await tx.$executeRawUnsafe(
-          `SELECT setval(pg_get_serial_sequence('"${table}"', 'id'), COALESCE((SELECT MAX(id) FROM "${table}"), 0) + 1, false)`,
-        );
+        if (engine === "sqlite") {
+          await tx.$executeRawUnsafe(
+            `INSERT OR REPLACE INTO sqlite_sequence (name, seq) SELECT '${table}', COALESCE((SELECT MAX(id) FROM "${table}"), 0) WHERE EXISTS (SELECT 1 FROM sqlite_sequence WHERE name = '${table}')`,
+          );
+        } else {
+          await tx.$executeRawUnsafe(
+            `SELECT setval(pg_get_serial_sequence('"${table}"', 'id'), COALESCE((SELECT MAX(id) FROM "${table}"), 0) + 1, false)`,
+          );
+        }
       }
     });
 

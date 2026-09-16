@@ -23,10 +23,14 @@ export const CURRENCIES = {
   BHD: { ar: "دينار بحريني",    en: "Bahraini Dinar",  short: "د.ب", shortEn: "BHD", code: "BHD", flag: "🇧🇭", decimals: 3 },
   OMR: { ar: "ريال عماني",      en: "Omani Riyal",     short: "ر.ع", shortEn: "OMR", code: "OMR", flag: "🇴🇲", decimals: 3 },
   EGP: { ar: "جنيه مصري",       en: "Egyptian Pound",  short: "ج.م", shortEn: "EGP", code: "EGP", flag: "🇪🇬", decimals: 2 },
-  USD: { ar: "دولار أمريكي",    en: "US Dollar",       short: "$",   shortEn: "$",   code: "USD", flag: "🇺🇸", decimals: 2 },
-  EUR: { ar: "يورو",            en: "Euro",            short: "€",   shortEn: "€",   code: "EUR", flag: "🇪🇺", decimals: 2 },
-  GBP: { ar: "جنيه إسترليني",   en: "British Pound",   short: "£",   shortEn: "£",   code: "GBP", flag: "🇬🇧", decimals: 2 },
-  TRY: { ar: "ليرة تركية",      en: "Turkish Lira",    short: "₺",   shortEn: "₺",   code: "TRY", flag: "🇹🇷", decimals: 2 },
+  USD: { ar: "دولار أمريكي",    en: "US Dollar",       short: "$",   shortEn: "$",   code: "USD", flag: "🇺🇸", decimals: 2, prefix: true },
+  EUR: { ar: "يورو",            en: "Euro",            short: "€",   shortEn: "€",   code: "EUR", flag: "🇪🇺", decimals: 2, prefix: true },
+  GBP: { ar: "جنيه إسترليني",   en: "British Pound",   short: "£",   shortEn: "£",   code: "GBP", flag: "🇬🇧", decimals: 2, prefix: true },
+  INR: { ar: "روبية هندية",     en: "Indian Rupee",    short: "₹",   shortEn: "₹",   code: "INR", flag: "🇮🇳", decimals: 2, prefix: true },
+  JPY: { ar: "ين ياباني",       en: "Japanese Yen",    short: "¥",   shortEn: "¥",   code: "JPY", flag: "🇯🇵", decimals: 0, prefix: true },
+  CAD: { ar: "دولار كندي",      en: "Canadian Dollar", short: "CA$", shortEn: "CA$", code: "CAD", flag: "🇨🇦", decimals: 2, prefix: true },
+  AUD: { ar: "دولار أسترالي",   en: "Australian Dollar", short: "A$", shortEn: "A$", code: "AUD", flag: "🇦🇺", decimals: 2, prefix: true },
+  TRY: { ar: "ليرة تركية",      en: "Turkish Lira",    short: "₺",   shortEn: "₺",   code: "TRY", flag: "🇹🇷", decimals: 2, prefix: true },
   JOD: { ar: "دينار أردني",     en: "Jordanian Dinar", short: "د.أ", shortEn: "JOD", code: "JOD", flag: "🇯🇴", decimals: 3 },
 };
 
@@ -52,11 +56,33 @@ export function getCurrency() {
   return current;
 }
 
-/** تنسيق مبلغ بعملة محددة (أو الحالية إن غاب الكود) — "92.900 د.ك" */
+/** مجموعة الأرقام بالفواصل — أساس موحّد للتنسيقات (أرقام غربية للقراءة الجدولية) */
+const groupNum = (v, decimals) => {
+  const fixed = Math.abs(v).toFixed(decimals);
+  const [int, dec] = fixed.split(".");
+  const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const sign = v < 0 ? "-" : "";
+  return sign + (dec ? `${grouped}.${dec}` : grouped);
+};
+
+/**
+ * تنسيق مبلغ بعملة محددة (أو الحالية إن غاب الكود).
+ * r25: عملات الرمز-الأمامي ($ € £ ₹ ¥ CA$ A$ ₺) تُعرض «$1,250.00»،
+ * وعملات الخليج/مصر/الأردن تبقى «1,250 ر.س» — بفواصل آلاف للقراءة الجدولية.
+ */
 export function fmtMoney(n, code) {
   const c = code ? currencyOf(code) : current;
   const v = Number(String(n ?? 0).replace(/[^\d.-]/g, "")) || 0;
-  return v.toFixed(c.decimals) + " " + (appLang() === "ar" ? c.short : (c.shortEn || c.short));
+  const sym = appLang() === "ar" ? c.short : (c.shortEn || c.short);
+  const num = groupNum(v, c.decimals);
+  return c.prefix ? `${sym}${num}` : `${num} ${sym}`;
+}
+
+/** رقم بلا رمز — "1,250.00" (محاور الرسوم والنِسب) */
+export function fmtNumber(n, code) {
+  const c = code ? currencyOf(code) : current;
+  const v = Number(String(n ?? 0).replace(/[^\d.-]/g, "")) || 0;
+  return groupNum(v, c.decimals);
 }
 
 /** رمز العملة الحالية (للـ placeholders مثل «السعر د.ك») */

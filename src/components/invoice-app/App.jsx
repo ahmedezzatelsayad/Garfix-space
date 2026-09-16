@@ -24,7 +24,11 @@ import RemindersPanel from "./components/RemindersPanel";
 import { buildStatementHTML } from "./statement";
 import { useTheme, txAdapt, softAdapt, chartColors, lighten } from "./theme";
 import { tr, useAppI18n, appDir, appLang, companyName, dateLocale } from "@/lib/i18n-app";
-import { LanguageSwitcher } from "@/lib/i18n-context";
+// r25: غلاف Business OS العالمي + اللوحة الجديدة + شاشتا المدفوعات/التذكيرات + تجربة التهيئة
+import AppShell from "./shell/AppShell";
+import DashboardHome from "./dashboard/DashboardHome";
+import { PaymentsView, RemindersView } from "./dashboard/OperationsViews";
+import Onboarding from "./onboarding/Onboarding";
 // r23: دول العالم (195) وتقسيماتها الإدارية (محافظات/مقاطعات) لبطاقة العميل
 import { WORLD_COUNTRIES, WORLD_BY_CODE } from "@/lib/countries-world";
 
@@ -1030,158 +1034,6 @@ return (
 );
 }
 
-// ─── Dashboard skeleton (shown while invoices are being fetched) ──
-function DashboardSkeleton({company}){
-const col=company.color;
-return(
-<div aria-busy="true" aria-label={tr("جارٍ تحميل لوحة التحكم")}>
-  <div className="kpi-grid">
-    {[0,1,2,3].map(i=>(
-      <div key={i} className="card" style={{padding:"16px"}}>
-        <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"10px"}}>
-          <div className="sk" style={{width:"30px",height:"30px",borderRadius:"9px",background:`${col}1a`}}/>
-          <div className="sk sk-sm" style={{width:"45%"}}/>
-        </div>
-        <div className="sk sk-lg" style={{width:"72%",marginBottom:"7px"}}/>
-        <div className="sk sk-sm" style={{width:"38%"}}/>
-      </div>
-    ))}
-  </div>
-  <div className="chart-grid">
-    <div className="card" style={{padding:"18px",minHeight:"230px"}}>
-      <div className="sk sk-sm" style={{width:"32%",marginBottom:"14px"}}/>
-      <div className="sk" style={{width:"100%",height:"160px"}}/>
-    </div>
-    <div className="card" style={{padding:"18px",minHeight:"230px"}}>
-      <div className="sk sk-sm" style={{width:"40%",marginBottom:"14px"}}/>
-      <div className="sk" style={{width:"100%",height:"160px"}}/>
-    </div>
-  </div>
-</div>
-);
-}
-
-// ── KPI count-up animation hook (easeOutCubic, remembers previous value) ──
-function useCountUp(target, duration=850){
-const [val,setVal]=useState(0);
-const prevRef=useRef(0);
-useEffect(()=>{
-  const from=prevRef.current;
-  const to=typeof target==="number"&&isFinite(target)?target:0;
-  const start=performance.now();
-  let raf=0;
-  const tick=now=>{
-    const p=from===to?1:Math.min(1,(now-start)/duration);
-    const eased=1-Math.pow(1-p,3);
-    setVal(from+(to-from)*eased);
-    if(p<1)raf=requestAnimationFrame(tick);
-    else prevRef.current=to;
-  };
-  raf=requestAnimationFrame(tick);
-  return()=>cancelAnimationFrame(raf);
-},[target,duration]);
-return val;
-}
-
-// Animated KPI card — numbers count up from their previous value
-function KpiCard({k, onNavigate}){
-const numeric=typeof k.num==="number";
-const v=useCountUp(numeric?k.num:0, 850);
-const display=numeric
-  ? (k.money?fKWD(v):(k.decimals!=null?v.toFixed(k.decimals):String(Math.round(v)))+(k.suffix||""))
-  : k.val;
-return(
-<div key={k.label} style={{background:k.bg,borderRadius:"14px",padding:"14px 16px",border:`1.5px solid ${k.c}22`,...(k.go&&onNavigate?{cursor:"pointer"}:{})}}
-  onClick={k.go&&onNavigate?()=>onNavigate(k.go):undefined}
-  title={k.go?tr("اضغط للعرض"):""}
-  role={k.go&&onNavigate?"button":undefined}
-  aria-label={`${k.label}: ${display}`}>
-<div style={{fontSize:"22px",marginBottom:"6px"}}>{k.icon}</div>
-<div style={{fontSize:"10px",color:"var(--ia-sub)",fontWeight:700,textTransform:"uppercase",letterSpacing:".4px",marginBottom:"3px",display:"flex",alignItems:"center",gap:"5px"}}>{k.label}{k.go&&onNavigate&&<span style={{fontSize:"9px",opacity:.55,fontWeight:900,transform:"scaleX(-1)",display:"inline-block"}}>↩</span>}</div>
-<div style={{fontSize:"17px",fontWeight:900,color:k.c,direction:"ltr",textAlign:"start"}}>{display}</div>
-<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"5px"}}>
-<span style={{fontSize:"11px",color:"var(--ia-sub)"}}>{k.sub}</span>
-{k.badge&&<span style={{fontSize:"11px",fontWeight:700,color:k.badgeC,background:k.badgeC+"1a",padding:"1px 8px",borderRadius:"20px"}}>{k.badge}</span>}
-</div>
-</div>
-);
-}
-
-function Dashboard({invoices, company, onNavigate}){
-const { dark } = useTheme();
-const ch = chartColors(dark);
-const col = company.color;
-const colTx = txAdapt(col, dark);
-const cardBg = softAdapt(company.cardBg, dark);
-const now = new Date();
-const mk=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
-const tm=mk(now);const pm=mk(new Date(now.getFullYear(),now.getMonth()-1));
-const tInvs=invoices.filter(i=>i.date?.startsWith(tm));
-const pInvs=invoices.filter(i=>i.date?.startsWith(pm));
-const totR=invoices.reduce((s,i)=>s+iT(i),0);
-const tR=tInvs.reduce((s,i)=>s+iT(i),0);
-const pR=pInvs.reduce((s,i)=>s+iT(i),0);
-const unpaid=invoices.filter(i=>pN(i.paid||0)<iT(i));
-const unpaidA=unpaid.reduce((s,i)=>s+iT(i)-pN(i.paid||0),0);
-const avg=invoices.length?totR/invoices.length:0;
-const gPct=pR>0?((tR-pR)/pR*100):tR>0?100:0;
-const gUp=gPct>=0;
-const uniqueC=new Set(invoices.map(i=>i.clientPhone).filter(Boolean)).size;
-const months6=Array.from({length:6}).map((_,i)=>{
-const d=new Date(now);d.setMonth(d.getMonth()-5+i);
-const key=mk(d);const label=d.toLocaleDateString(dateLocale(),{month:"short"});
-const rev=invoices.filter(x=>x.date?.startsWith(key)).reduce((s,x)=>s+iT(x),0);
-const cnt=invoices.filter(x=>x.date?.startsWith(key)).length;
-return{label,rev,cnt};
-});
-const kpis=[
-{icon:"💰",label:tr("إجمالي الإيرادات"),val:fKWD(totR),num:totR,money:true,sub:tr("{0} فاتورة",[invoices.length]),c:colTx,bg:cardBg,go:{view:"list",status:"all"}},
-{icon:"📅",label:tr("إيرادات هذا الشهر"),val:fKWD(tR),num:tR,money:true,sub:tr("{0} فاتورة",[tInvs.length]),c:txAdapt("#16a34a",dark),bg:softAdapt("#dcfce7",dark),badge:`${gUp?"▲":"▼"} ${Math.abs(gPct).toFixed(1)}%`,badgeC:txAdapt(gUp?"#16a34a":"#dc2626",dark)},
-{icon:"⏳",label:tr("مستحقات غير مدفوعة"),val:fKWD(unpaidA),num:unpaidA,money:true,sub:tr("{0} فاتورة",[unpaid.length]),c:txAdapt("#b45309",dark),bg:softAdapt("#fef3c7",dark),go:{view:"list",status:"unp"}},
-{icon:"👥",label:tr("إجمالي العملاء"),val:uniqueC+tr(" عميل"),num:uniqueC,suffix:tr(" عميل"),sub:tr("متوسط {0}",[fKWD(avg)]),c:txAdapt("#7c3aed",dark),bg:softAdapt("#ede9fe",dark),go:{view:"customers"}},
-];
-return(
-<div>
-<div className="kpi-grid">
-{kpis.map(k=>(
-  <KpiCard key={k.label} k={k} onNavigate={onNavigate}/>
-))}
-</div>
-<div className="chart-grid">
-<div style={{background:"var(--ia-card)",borderRadius:"14px",padding:"18px 20px",border:"1.5px solid var(--ia-border)"}}>
-<div style={{fontSize:"13px",fontWeight:700,color:colTx,marginBottom:"14px"}}>{tr("📈 الإيرادات الشهرية")}</div>
-<ResponsiveContainer width="100%" height={170}>
-<BarChart data={months6} margin={{top:0,right:4,bottom:0,left:0}}>
-<CartesianGrid strokeDasharray="3 3" stroke={ch.grid} vertical={false}/>
-<XAxis dataKey="label" tick={{fontSize:11,fill:ch.axis,fontFamily:"Cairo"}} axisLine={false} tickLine={false}/>
-<YAxis tick={{fontSize:10,fill:ch.axis2}} axisLine={false} tickLine={false}/>
-<Tooltip formatter={v=>[fKWD(v),tr("الإيرادات")]} contentStyle={{fontFamily:"Cairo",fontSize:12,borderRadius:8,direction:appDir(),background:"var(--ia-card)",border:"1px solid var(--ia-border)",color:"var(--ia-text)"}}/>
-<Bar dataKey="rev" fill={dark?lighten(col,0.65):col} radius={[5,5,0,0]}/>
-</BarChart>
-</ResponsiveContainer>
-</div>
-<div style={{background:"var(--ia-card)",borderRadius:"14px",padding:"18px 20px",border:"1.5px solid var(--ia-border)",display:"flex",flexDirection:"column"}}>
-<div style={{fontSize:"13px",fontWeight:700,color:colTx,marginBottom:"14px"}}>{tr("🧾 عدد الفواتير شهرياً")}</div>
-<ResponsiveContainer width="100%" height={130}>
-<LineChart data={months6} margin={{top:4,right:8,bottom:0,left:0}}>
-<CartesianGrid strokeDasharray="3 3" stroke={ch.grid} vertical={false}/>
-<XAxis dataKey="label" tick={{fontSize:11,fill:ch.axis,fontFamily:"Cairo"}} axisLine={false} tickLine={false}/>
-<YAxis tick={{fontSize:10,fill:ch.axis2}} axisLine={false} tickLine={false} allowDecimals={false}/>
-<Tooltip formatter={v=>[v+tr(" فاتورة"),tr("عدد")]} contentStyle={{fontFamily:"Cairo",fontSize:12,borderRadius:8,background:"var(--ia-card)",border:"1px solid var(--ia-border)",color:"var(--ia-text)"}}/>
-<Line type="monotone" dataKey="cnt" stroke={ch.green} strokeWidth={3} dot={{r:4,fill:ch.green}} activeDot={{r:6}}/>
-</LineChart>
-</ResponsiveContainer>
-<div style={{marginTop:"auto",paddingTop:"10px"}}>
-<div style={{textAlign:"center",background:gUp?softAdapt("#dcfce7",dark):softAdapt("#fee2e2",dark),borderRadius:"8px",padding:"7px"}}>
-<span style={{fontWeight:900,fontSize:"13px",color:txAdapt(gUp?"#16a34a":"#dc2626",dark)}}>{gUp?"▲":"▼"} {tr("نمو")} {Math.abs(gPct).toFixed(1)}{tr("% عن الشهر الماضي")}</span>
-</div>
-</div>
-</div>
-</div>
-</div>
-);
-}
-
 // ─── Invoice Preview ──────────────────────────────────────────────
 function InvPreview({inv, company}){
 const c = company;
@@ -1385,6 +1237,15 @@ const [imp,setImp]=useState(null);   // clients-CSV import preview: {rows, error
 const [impBusy,setImpBusy]=useState(false);
 const [dirSearch,setDirSearch]=useState(""); // quick filter for the directory table
 const impFileRef=useRef();
+
+// r25: أحداث الإجراءات السريعة من الغلاف العالمي (لوحة الأوامر/الإجراءات/FAB)
+useEffect(()=>{
+  const onAdd=()=>setModal({mode:"add"});
+  const onOpen=e=>{ const d=e?.detail||{}; if(d.phone||d.name) setDirSearch(String(d.phone||d.name)); };
+  window.addEventListener("garfix-add-customer",onAdd);
+  window.addEventListener("garfix-open-customer",onOpen);
+  return ()=>{ window.removeEventListener("garfix-add-customer",onAdd); window.removeEventListener("garfix-open-customer",onOpen); };
+},[]);
 
 // ── CSV export of the saved-client directory ──
 // r23: أعمدة الدولة والمحافظة + رؤوس مترجمة تتبع لغة الواجهة (كانت ثابتة بالعربية)
@@ -2482,6 +2343,7 @@ const TABS_LIST=()=>[
 {id:"dash",l:tr("📊 الرئيسية")},
 {id:"list",l:tr("📋 الفواتير")},
 {id:"customers",l:tr("👥 العملاء")},
+{id:"payments",l:tr("💳 المدفوعات")},
 {id:"reports",l:tr("📈 التقارير")},
 {id:"new",l:tr("➕ جديد")},
 {id:"bulk",l:tr("📦 مجمع")},
@@ -2489,7 +2351,9 @@ const TABS_LIST=()=>[
 {id:"chat",l:tr("💬 المساعد الذكي")},
 {id:"print",l:tr("🖨️ طباعة")},
 {id:"purchase",l:tr("🛒 المشتريات")},
+{id:"reminders",l:tr("🔔 التذكيرات")},
 {id:"account",l:tr("👤 حسابي")},
+{id:"help",l:tr("❓ المساعدة")},
 {id:"deepseek",l:"🧠 DeepSeek"},
 {id:"site",l:tr("🌐 الموقع")},
 {id:"system",l:tr("💾 النظام")},
@@ -2536,6 +2400,10 @@ const [showBulkWa,setShowBulkWa]=useState(false); // bulk WhatsApp reminders mod
 const [payLinkInv,setPayLinkInv]=useState(null); // KNET payment-link modal invoice
 const [dbCompanies,setDbCompanies]=useState(null); // r12: سجل الشركات من الخادم (null = لم يُحمّل)
 const [companyModal,setCompanyModal]=useState(null); // r12: {mode:'create'} | {mode:'edit',company}
+const [onboardingSkipped,setOnboardingSkipped]=useState(()=>{ // r25: تخطّي/إتمام التهيئة (عبر التخزين المحلي)
+  try{ return localStorage.getItem("garfix_onboarded")==="1"; }catch{ return false; }
+});
+const [invError,setInvError]=useState(false); // r25: فشل تحميل الفواتير — حالة خطأ قابلة للإجراء
 const { dark, toggle } = useTheme();   // light/dark theme (hooks must run before early returns)
 
 const emptyForm=()=>({clientName:"",clientPhone:"",clientAddress:"",items:[{name:"",desc:"",qty:1,price:""}],shipping:0,taxRate:"",date:today(),dueDate:addD(today(),30),paid:0,notes:""});
@@ -2633,6 +2501,7 @@ useEffect(()=>{
 const refreshInvoices = useCallback(async () => {
   if (!company) return;
   setInvLoading(true);
+  setInvError(false);
   try {
     const invs = await api.listInvoices(company.sk);
     if (invs.length === 0) {
@@ -2651,6 +2520,7 @@ const refreshInvoices = useCallback(async () => {
     dbSet(company.sk, invs);
   } catch {
     setInvoices(dbGet(company.sk) || []);
+    setInvError(true); // r25: حالة خطأ قابلة للإجراء في اللوحة
   } finally {
     setInvLoading(false);
   }
@@ -2677,7 +2547,6 @@ refreshClients();
 },[company, refreshClients]);
 
 const logout=async()=>{ await logoutUser(); setCompany(null); };
-const switchCompany=()=>{setCompany(null);setView("dash");setSelInv(null);setSearch("");setSelectedIds([]);};
 
 const persist=useCallback(async list=>{
 setInvoices(list);
@@ -2995,7 +2864,39 @@ if(sitePage&&!(sitePage==="login"&&user)){
 
 // الزائر غير المسجّل: يرى الموقع العام (الرئيسية) — الدخول من زر «تسجيل الدخول»
 if(!user)return <PublicSite page="home" authed={false} onEnterApp={()=>{}}/>;
-if(!company)return <>
+if(!company){
+  // r25: المشترك بلا شركات → تجربة تهيئة Business OS (شركة جديدة في أقل من دقيقتين، بلا دفع)
+  const isSubscriberUser = profile?.role === "subscriber";
+  if(isSubscriberUser && availableCompanies.length===0 && !onboardingSkipped && !companyModal){
+    return <Onboarding
+      onDone={async (row, quickKey)=>{
+        try{ localStorage.setItem("garfix_onboarded","1"); }catch{}
+        setOnboardingSkipped(true);
+        try{
+          const rows=await api.listCompanies();
+          setDbCompanies(rows);
+          const { refreshAuthUser } = await import("./firebase/auth");
+          refreshAuthUser().catch(()=>{});
+          if(row){
+            // تحديد الشركة الجديدة فوراً (بنفس منطق دمج سجل الخادم)
+            setCompany({
+              id: row.code || row.slug, sk: row.slug, name: row.name, nameAr: row.nameAr || row.name,
+              logo: row.emoji || "🏢", phone: row.phone || "", email: row.email || "", address: row.address || "",
+              city: row.city || "", sellerRef: row.sellerRef || "", manager: row.manager || "", managerPhone: row.managerPhone || "",
+              color: row.color || "#334155", accent: row.accent || row.color || "#64748b",
+              bg: `linear-gradient(135deg, ${(row.color || "#334155")} 0%, #0f172a 100%)`,
+              cardBg: row.cardBg || "#f1f5f9", emoji: row.emoji || "🏢", currency: row.currency || "KWD", dbRow: row,
+            });
+          }
+        }catch{}
+        // نقطة البدء السريع المختارة
+        setView(quickKey==="createInvoice"?"new":quickKey==="addCustomer"?"customers":quickKey==="importData"?"list":quickKey==="askAI"?"chat":"dash");
+        if(quickKey==="importData") setTimeout(()=>setShowImportModal(true),400);
+      }}
+      onCancel={()=>{ try{ localStorage.setItem("garfix_onboarded","1"); }catch{} setOnboardingSkipped(true); }}
+    />;
+  }
+  return <>
   <CompanySelector companies={availableCompanies} onSelect={co=>{setCompany(co);setView("dash");}} onAdd={()=>setCompanyModal({mode:"create"})} onEdit={co=>setCompanyModal({mode:"edit",company:co})}/>
   {companyModal&&(
     <CompanyForm
@@ -3007,14 +2908,99 @@ if(!company)return <>
     />
   )}
 </>;
+}
 
 const col = company.color;
 const colTx = txAdapt(col, dark);          // readable company color for TEXT on cards
 const cardBg = softAdapt(company.cardBg, dark); // soft tinted surface (KPI/summary boxes)
 
+// ── r25: أسلاك غلاف Business OS ─────────────────────────────────────
+// تبديل الشركة مباشرة من منتقي الشريط الجانبي
+const switchToCompany = co => {
+  if(!co || co.id===company.id) return;
+  setCompany(co); setView("dash"); setSelInv(null); setSearch(""); setSelectedIds([]);
+};
+// إجراءات لوحة الأوامر/الإجراءات السريعة/FAB — تفتح مسار العمل المناسب فوراً
+const quickAction = (key, payload) => {
+  switch(key){
+    case "createInvoice": setView("new"); setSelInv(null); break;
+    case "addCustomer":
+      setView("customers"); setSelInv(null);
+      setTimeout(()=>window.dispatchEvent(new CustomEvent("garfix-add-customer")),90);
+      break;
+    case "recordPayment": setView("payments"); break;
+    case "importData": setView("list"); setShowImportModal(true); break;
+    case "viewReports": setView("reports"); break;
+    case "askAI": setView("chat"); setSelInv(null); break;
+    case "openInvoice": if(payload){ setSelInv(payload); setView("list"); } break;
+    case "openCustomer":
+      setView("customers");
+      if(payload) setTimeout(()=>window.dispatchEvent(new CustomEvent("garfix-open-customer",{detail:{phone:payload.phone,name:payload.name}})),90);
+      break;
+  }
+};
+// إجراءات صفوف اللوحة (عرض/تعديل/تكرار/PDF/إرسال/تسجيل دفعة/تذكير/جماعي/عميل)
+const waOpen = inv => {
+  const href=waReminderHref(inv,company);
+  if(href){ logReminderSent(inv,company,href); window.open(href,"_blank","noopener"); }
+};
+const invCallbacks = {
+  onView: inv=>{ setSelInv(inv); setView("list"); },
+  onEdit: inv=>openEdit(inv),
+  onDuplicate: inv=>{
+    setForm({
+      clientName:inv.clientName||"",clientPhone:inv.clientPhone||"",clientAddress:inv.clientAddress||"",
+      items:(inv.items||[]).map(it=>({...it})),
+      shipping:inv.shipping??0,taxRate:inv.taxRate??"",date:today(),dueDate:addD(today(),30),
+      paid:0,notes:inv.notes||"",
+    });
+    setView("new"); setSelInv(null);
+    toast_(tr("✅ فاتورة مكررة — جاهزة للتعديل"));
+  },
+  onPdf: inv=>{ doPdfExport([inv],company,{toast:toast_,setBusy:setPdfBusy,styleId:printStyle}); },
+  onSend: inv=>waOpen(inv),
+  onRecordPayment: inv=>{ setSelInv(inv); setView("list"); },
+  onSendReminder: row=>{ // صف عميل من اللوحة → أفتح فاتورته المتأخرة الأبرز
+    const inv=(row.invs||[]).slice().sort((a,b)=>overdueDays(b)-overdueDays(a))[0];
+    if(inv) waOpen(inv);
+    else toast_(tr("لا فاتورة متبقية لهذا العميل"),"warn");
+  },
+  onBulkRemind: ()=>{ if(overdueList.length) setShowBulkWa(true); },
+  onOpenCustomer: row=>{
+    setView("customers");
+    setTimeout(()=>window.dispatchEvent(new CustomEvent("garfix-open-customer",{detail:{phone:row.phone,name:row.name}})),90);
+  },
+};
+// تنبيهات الشريط العلوي (مشتقة من البيانات الحية)
+const paidTodayCount=invoices.filter(i=>i.date===today()&&getStatus(i)==="paid").length;
+const shellAlerts=[];
+if(overdueList.length) shellAlerts.push({id:"overdue",kind:"bad",title:tr("{0} فاتورة متأخرة عن الاستحقاق",[overdueList.length]),sub:tr("اطّلع وأرسل تذكيرات السداد"),go:()=>setView("reminders")});
+if(paidTodayCount) shellAlerts.push({id:"paidtoday",kind:"ok",title:tr("{0} فواتير حُصّلت اليوم",[paidTodayCount]),sub:tr("تحصيل يمشي بشكل ممتاز"),go:()=>setView("payments")});
+shellAlerts.push({id:"ai",kind:"ai",title:tr("GarfiX AI جاهز"),sub:tr("اسأل بياناتك ونفّذ الإجراءات بمراجعة بشرية"),go:()=>setView("chat")});
+const overdueCount = overdueList.length;
+const canAddCompany = isAdmin || profile?.role === "subscriber";
+
 return(
-<div dir={dir} style={{minHeight:"100vh",background:"var(--ia-bg)",fontFamily:"'Cairo','Tajawal',sans-serif",color:"var(--ia-text)",display:"flex",flexDirection:"column"}}>
-<style>{`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap'); *{box-sizing:border-box} .inp{width:100%;border:1.5px solid var(--ia-border2);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:13px;background:var(--ia-inp-bg);color:var(--ia-text);outline:none;transition:border .15s,box-shadow .15s} .inp:focus{border-color:${col};box-shadow:0 0 0 3px ${col}1a} .inp:hover{border-color:var(--ia-muted)} .inp::placeholder{color:var(--ia-muted)} .btn{border:none;border-radius:8px;padding:9px 16px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap} .btn:hover{filter:brightness(1.06);box-shadow:0 2px 10px rgba(0,0,0,.12)} .btn:active{opacity:.85;transform:scale(.97)} .btn-ghost{background:var(--ia-ghost-bg);color:var(--ia-ghost-tx)} .btn-outline{background:transparent;border:1.5px solid var(--ia-border2);color:var(--ia-text2)} .btn-outline:hover{border-color:${col};color:${colTx}} .btn-red{background:#dc2626;color:#fff} .card{background:var(--ia-card);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);border:1px solid var(--ia-border)} [data-theme="dark"] .card{box-shadow:0 1px 3px rgba(0,0,0,.35)} .trow{transition:background .12s} .trow:hover,.trow:active{background:var(--ia-hover);cursor:pointer} .inv-table tbody tr:last-child td{border-bottom:none} .b-paid{background:var(--ia-ok-bg);color:var(--ia-ok-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-paid::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-ok-tx);margin-inline-end:5px;vertical-align:middle} .b-part{background:var(--ia-warn-bg);color:var(--ia-warn-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-part::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-warn-tx);margin-inline-end:5px;vertical-align:middle} .b-unp{background:var(--ia-red-bg);color:var(--ia-red-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-unp::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-red-tx);margin-inline-end:5px;vertical-align:middle} .b-cancel{background:var(--ia-chip);color:var(--ia-sub);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;text-decoration:line-through} .b-inv{background:var(--ia-blue-bg);color:var(--ia-blue-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;letter-spacing:.3px} @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}} @keyframes garfixAIPulse{0%,100%{transform:scale(1);box-shadow:0 10px 28px rgba(0,0,0,.4)}50%{transform:scale(1.06);box-shadow:0 12px 34px rgba(0,0,0,.5)}} @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}} .navbar{background:${col};position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,.25)} .navbar-top{display:flex;align-items:center;padding:0 12px;height:48px;gap:6px} @media(max-width:420px){.navbar-top{gap:3px;padding:0 6px}.nav-top-label{display:none}.co-name{max-width:58px}} .navbar-tabs{display:flex;overflow-x:auto;padding:4px 12px 6px;gap:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none} .navbar-tabs::-webkit-scrollbar{display:none} .io-btn{background:#0f766e;} .nav-tab{background:transparent;color:rgba(255,255,255,.7);border:1px solid transparent;border-radius:6px;padding:5px 11px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s} .nav-tab:hover{color:#fff;background:rgba(255,255,255,.08)} .nav-tab.active{background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.25)} .nav-tab:active{background:rgba(255,255,255,.2)} .inv-table{width:100%;border-collapse:collapse} .inv-table th{padding:10px 10px;font-size:11px;font-weight:700;color:var(--ia-sub);text-align:start;text-transform:uppercase;letter-spacing:.3px} .inv-table td{padding:10px 10px;border-bottom:1px solid var(--ia-border3);font-size:13px} .col-addr,.col-date,.col-phone,.col-credit{display:none} @media(min-width:500px){.col-phone{display:table-cell}} @media(min-width:680px){.col-date{display:table-cell}.col-credit{display:table-cell}} .form-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px} .form-3col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px} .item-row{display:grid;grid-template-columns:2fr 65px 110px auto;gap:7px;margin-bottom:7px;align-items:center} @media(max-width:500px){.form-2col{grid-template-columns:1fr}.form-3col{grid-template-columns:1fr 1fr}.item-row{grid-template-columns:1fr 55px 90px auto}} .kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px} .kpi-grid>div{transition:transform .18s,box-shadow .18s} .kpi-grid>div:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.08)} @media(min-width:600px){.kpi-grid{grid-template-columns:repeat(4,1fr)}} .chart-grid{display:grid;grid-template-columns:1fr;gap:12px} @media(min-width:680px){.chart-grid{grid-template-columns:1.7fr 1fr}} .print-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end} @media(max-width:480px){.print-grid{grid-template-columns:1fr 1fr;} .print-grid .print-btn{grid-column:1/-1}} .cust-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px} @media(max-width:480px){.cust-stats{grid-template-columns:1fr}} .io-btn{background:linear-gradient(135deg,#0f766e,#0d9488)!important;border:none;box-shadow:0 2px 8px rgba(15,118,110,.3);transition:all .2s!important} .io-btn:hover{box-shadow:0 4px 14px rgba(15,118,110,.45)!important;transform:translateY(-1px)} ::-webkit-scrollbar{width:9px;height:9px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:var(--ia-border2);border-radius:8px;border:2px solid var(--ia-bg)} ::-webkit-scrollbar-thumb:hover{background:var(--ia-muted)} .sk{position:relative;overflow:hidden;background:var(--ia-skel);border-radius:6px} .sk::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.65),transparent);animation:shimmer 1.4s infinite} [data-theme="dark"] .sk::after{background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent)} @keyframes shimmer{100%{transform:translateX(100%)}} .sk-sm{height:11px} .sk-lg{height:22px} .btn:focus-visible,.inp:focus-visible{outline:2.5px solid ${col};outline-offset:2px} .nav-tab:focus-visible{outline:2.5px solid #fff;outline-offset:1px} .wa-btn{background:#16a34a!important;transition:all .18s!important} .wa-btn:hover{background:#15803d!important;box-shadow:0 4px 14px rgba(22,163,74,.4)!important;transform:translateY(-1px)} .garfix-ai-bubble{transition:transform .18s cubic-bezier(.2,.8,.3,1)} .garfix-ai-bubble:hover{animation-play-state:paused;transform:scale(1.1)} .garfix-ai-bubble:active{transform:scale(.93)} .garfix-ai-bubble:hover .garfix-ai-tip,.garfix-ai-bubble:focus-visible .garfix-ai-tip{opacity:1;transform:translateY(0)} .garfix-ai-bubble:focus-visible{outline:2.5px solid ${col};outline-offset:3px} select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:left 10px center;padding-left:26px} .print-chip:hover{transform:translateY(-2px);border-color:var(--ia-muted)!important;box-shadow:0 5px 16px rgba(0,0,0,.09)} [data-theme="dark"] .print-chip:hover{box-shadow:0 5px 16px rgba(0,0,0,.45)} .chart-grid>div{transition:box-shadow .18s} .chart-grid>div:hover{box-shadow:0 4px 16px rgba(0,0,0,.06)} [data-theme="dark"] .chart-grid>div:hover{box-shadow:0 4px 16px rgba(0,0,0,.4)} [data-theme="dark"] .kpi-grid>div:hover{box-shadow:0 6px 18px rgba(0,0,0,.45)} [data-theme="dark"] .btn:hover{filter:brightness(1.15)}`}</style>
+<AppShell
+  dir={dir}
+  view={view}
+  onNavigate={v=>{setView(v);setSelInv(null);setBulkStep(0);}}
+  company={company}
+  companies={availableCompanies}
+  onSwitchCompany={switchToCompany}
+  onAddCompany={canAddCompany?()=>setCompanyModal({mode:"create"}):undefined}
+  onEditCompany={co=>setCompanyModal({mode:"edit",company:co})}
+  user={user} profile={profile} isAdmin={isAdmin} perms={perms}
+  dark={dark} onToggleTheme={toggle}
+  invoices={invoices} clients={clients}
+  alerts={shellAlerts} onOpenAlert={a=>a.go&&a.go()}
+  onLogout={logout} onOpenUsers={()=>setShowAdmin(true)}
+  onManagePlan={()=>setView("account")}
+  overdueCount={overdueCount}
+  onAction={quickAction}
+  onRefreshData={()=>{ refreshInvoices(); refreshClients(); }}
+>
+<style>{`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap'); *{box-sizing:border-box} .inp{width:100%;border:1.5px solid var(--ia-border2);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:13px;background:var(--ia-inp-bg);color:var(--ia-text);outline:none;transition:border .15s,box-shadow .15s} .inp:focus{border-color:${col};box-shadow:0 0 0 3px ${col}1a} .inp:hover{border-color:var(--ia-muted)} .inp::placeholder{color:var(--ia-muted)} .btn{border:none;border-radius:8px;padding:9px 16px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap} .btn:hover{filter:brightness(1.06);box-shadow:0 2px 10px rgba(0,0,0,.12)} .btn:active{opacity:.85;transform:scale(.97)} .btn-ghost{background:var(--ia-ghost-bg);color:var(--ia-ghost-tx)} .btn-outline{background:transparent;border:1.5px solid var(--ia-border2);color:var(--ia-text2)} .btn-outline:hover{border-color:${col};color:${colTx}} .btn-red{background:#dc2626;color:#fff} .card{background:var(--ia-card);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);border:1px solid var(--ia-border)} [data-theme="dark"] .card{box-shadow:0 1px 3px rgba(0,0,0,.35)} .trow{transition:background .12s} .trow:hover,.trow:active{background:var(--ia-hover);cursor:pointer} .inv-table tbody tr:last-child td{border-bottom:none} .b-paid{background:var(--ia-ok-bg);color:var(--ia-ok-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-paid::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-ok-tx);margin-inline-end:5px;vertical-align:middle} .b-part{background:var(--ia-warn-bg);color:var(--ia-warn-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-part::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-warn-tx);margin-inline-end:5px;vertical-align:middle} .b-unp{background:var(--ia-red-bg);color:var(--ia-red-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700} .b-unp::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ia-red-tx);margin-inline-end:5px;vertical-align:middle} .b-cancel{background:var(--ia-chip);color:var(--ia-sub);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;text-decoration:line-through} .b-inv{background:var(--ia-blue-bg);color:var(--ia-blue-tx);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;letter-spacing:.3px} @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}} @keyframes garfixAIPulse{0%,100%{transform:scale(1);box-shadow:0 10px 28px rgba(0,0,0,.4)}50%{transform:scale(1.06);box-shadow:0 12px 34px rgba(0,0,0,.5)}} @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}} .io-btn{background:#0f766e;} .inv-table{width:100%;border-collapse:collapse} .inv-table th{padding:10px 10px;font-size:11px;font-weight:700;color:var(--ia-sub);text-align:start;text-transform:uppercase;letter-spacing:.3px} .inv-table td{padding:10px 10px;border-bottom:1px solid var(--ia-border3);font-size:13px} .col-addr,.col-date,.col-phone,.col-credit{display:none} @media(min-width:500px){.col-phone{display:table-cell}} @media(min-width:680px){.col-date{display:table-cell}.col-credit{display:table-cell}} .form-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px} .form-3col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px} .item-row{display:grid;grid-template-columns:2fr 65px 110px auto;gap:7px;margin-bottom:7px;align-items:center} @media(max-width:500px){.form-2col{grid-template-columns:1fr}.form-3col{grid-template-columns:1fr 1fr}.item-row{grid-template-columns:1fr 55px 90px auto}} .kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px} .kpi-grid>div{transition:transform .18s,box-shadow .18s} .kpi-grid>div:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.08)} @media(min-width:600px){.kpi-grid{grid-template-columns:repeat(4,1fr)}} .chart-grid{display:grid;grid-template-columns:1fr;gap:12px} @media(min-width:680px){.chart-grid{grid-template-columns:1.7fr 1fr}} .print-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end} @media(max-width:480px){.print-grid{grid-template-columns:1fr 1fr;} .print-grid .print-btn{grid-column:1/-1}} .cust-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px} @media(max-width:480px){.cust-stats{grid-template-columns:1fr}} .io-btn{background:linear-gradient(135deg,#0f766e,#0d9488)!important;border:none;box-shadow:0 2px 8px rgba(15,118,110,.3);transition:all .2s!important} .io-btn:hover{box-shadow:0 4px 14px rgba(15,118,110,.45)!important;transform:translateY(-1px)} ::-webkit-scrollbar{width:9px;height:9px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:var(--ia-border2);border-radius:8px;border:2px solid var(--ia-bg)} ::-webkit-scrollbar-thumb:hover{background:var(--ia-muted)} .sk{position:relative;overflow:hidden;background:var(--ia-skel);border-radius:6px} .sk::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.65),transparent);animation:shimmer 1.4s infinite} [data-theme="dark"] .sk::after{background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent)} @keyframes shimmer{100%{transform:translateX(100%)}} .sk-sm{height:11px} .sk-lg{height:22px} .btn:focus-visible,.inp:focus-visible{outline:2.5px solid ${col};outline-offset:2px} .wa-btn{background:#16a34a!important;transition:all .18s!important} .wa-btn:hover{background:#15803d!important;box-shadow:0 4px 14px rgba(22,163,74,.4)!important;transform:translateY(-1px)} .garfix-ai-bubble{transition:transform .18s cubic-bezier(.2,.8,.3,1)} .garfix-ai-bubble:hover{animation-play-state:paused;transform:scale(1.1)} .garfix-ai-bubble:active{transform:scale(.93)} .garfix-ai-bubble:hover .garfix-ai-tip,.garfix-ai-bubble:focus-visible .garfix-ai-tip{opacity:1;transform:translateY(0)} .garfix-ai-bubble:focus-visible{outline:2.5px solid ${col};outline-offset:3px} @media(max-width:900px){.garfix-ai-bubble{display:none}} select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:left 10px center;padding-left:26px} .print-chip:hover{transform:translateY(-2px);border-color:var(--ia-muted)!important;box-shadow:0 5px 16px rgba(0,0,0,.09)} [data-theme="dark"] .print-chip:hover{box-shadow:0 5px 16px rgba(0,0,0,.45)} .chart-grid>div{transition:box-shadow .18s} .chart-grid>div:hover{box-shadow:0 4px 16px rgba(0,0,0,.06)} [data-theme="dark"] .chart-grid>div:hover{box-shadow:0 4px 16px rgba(0,0,0,.4)} [data-theme="dark"] .kpi-grid>div:hover{box-shadow:0 6px 18px rgba(0,0,0,.45)} [data-theme="dark"] .btn:hover{filter:brightness(1.15)}`}</style>
 
   {/* Admin Dashboard Modal */}
   {showAdmin&&<AdminDashboard onClose={()=>setShowAdmin(false)} companies={availableCompanies}/>}
@@ -3043,29 +3029,6 @@ return(
       onClose={()=>setShowImportModal(false)}
     />
   )}
-
-  {/* Navbar */}
-  <div className="navbar">
-    <div className="navbar-top">
-      <button onClick={switchCompany} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"6px",padding:"5px 10px",fontFamily:"inherit",fontSize:"12px",fontWeight:700,cursor:"pointer",color:"#fff",display:"flex",alignItems:"center",gap:"4px",flexShrink:0}}>
-        {company.logo} <span className="co-name" style={{maxWidth:"80px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{companyName(company)}</span> <span style={{opacity:.6,fontSize:"10px"}}>▼</span>
-      </button>
-      <div style={{flex:1}}/>
-      {isAdmin&&<button onClick={()=>setShowAdmin(true)} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"6px",color:"rgba(255,255,255,.9)",padding:"5px 10px",fontFamily:"inherit",fontSize:"12px",fontWeight:700,cursor:"pointer",flexShrink:0}}>⚙️ <span className="nav-top-label">{tr("المستخدمين")}</span></button>}
-      {isAdmin&&<button onClick={()=>setCompanyModal({mode:"edit",company})} title={tr("تعديل بيانات الشركة الحالية")} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"6px",color:"rgba(255,255,255,.9)",padding:"5px 10px",fontFamily:"inherit",fontSize:"12px",fontWeight:700,cursor:"pointer",flexShrink:0}}>🏢✏️</button>}
-      <button onClick={toggle} title={dark?tr("التبديل إلى الوضع النهاري"):tr("التبديل إلى الوضع الليلي")} aria-label={tr("تبديل السمة")} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"6px",color:"#fff",padding:"5px 10px",fontFamily:"inherit",fontSize:"13px",cursor:"pointer",flexShrink:0,lineHeight:1}}>{dark?"☀️":"🌙"}</button>
-      <LanguageSwitcher compact />
-      <button onClick={logout} style={{background:"rgba(0,0,0,.2)",border:"1px solid rgba(255,255,255,.2)",borderRadius:"6px",color:"rgba(255,255,255,.8)",padding:"5px 10px",fontFamily:"inherit",fontSize:"12px",fontWeight:700,cursor:"pointer",flexShrink:0}}>{tr("خروج")}</button>
-    </div>
-    <div className="navbar-tabs">
-      {TABS.filter(t=>{if(t.id==="new")return!!perms.create_invoice;if(t.id==="bulk")return!!perms.bulk_input;if(t.id==="customers")return!!perms.view_customers;if(t.id==="print")return!!perms.print_invoice;if(t.id==="deepseek"||t.id==="system"||t.id==="site")return isAdmin;return true;}).map(t=>(
-        <button key={t.id} className={`nav-tab${view===t.id?" active":""}`}
-          onClick={()=>{setView(t.id);setSelInv(null);setBulkStep(0);}}>
-          {t.l}
-        </button>
-      ))}
-    </div>
-  </div>
 
   {/* Toast */}
   {toast&&<div role="status" aria-live="polite" style={{position:"fixed",top:60,left:"50%",transform:"translateX(-50%)",zIndex:9999,background:toast.type==="warn"?"#f59e0b":"#16a34a",color:"#fff",padding:"8px 20px",borderRadius:"50px",fontWeight:700,fontSize:"13px",boxShadow:"0 4px 16px rgba(0,0,0,.2)",animation:"toastIn .2s",whiteSpace:"nowrap"}}>{toast.msg}</div>}
@@ -3105,30 +3068,25 @@ return(
     </div>
   )}
 
-  <div style={{maxWidth:"1040px",width:"100%",margin:"0 auto",padding:"18px 14px",flex:1}}>
+  <div className="gx-anim">
 
-    {/* DASHBOARD */}
+    {/* DASHBOARD — r25: لوحة GarfiX Business OS الإنتاجية */}
     {view==="dash"&&(
-      <div style={{animation:"fadeUp .25s"}}>
-        {invLoading&&invoices.length===0?(
-          <DashboardSkeleton company={company}/>
-        ):(
-          <Dashboard invoices={invoices} company={company} onNavigate={go=>{if(go.status)setStatusFilter(go.status);setView(go.view);setSelInv(null);}}/>
-        )}
-        {/* r16: المساعد الذكي داخل الداشبورد الرئيسية — بطلب المؤسس:
-            تحليل فوري + إجراءات تنفيذية (إنسان في الحلقة) بلا مغادرة الشاشة */}
-        <div className="card" style={{marginTop:14,padding:"14px 16px 16px",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
-          <span style={{fontSize:18}}>💬</span>
-          <div style={{flex:1,minWidth:200}}>
-            <div style={{fontSize:13.5,fontWeight:900,color:colTx}}>{tr("المساعد الذكي — اسأل بياناتك ونفّذ من هنا")}</div>
-            <div style={{fontSize:11.5,color:"var(--ia-sub)",marginTop:2}}>{tr("ملخصات وتحليلات فورية + إنشاء فواتير وعملاء ودفوعات ببطاقة تأكيد")}</div>
-          </div>
-          <button className="btn" style={{background:col,color:"#fff",padding:"8px 16px"}} onClick={()=>setView("chat")}>{tr("فتح المحادثة الكاملة ←")}</button>
-        </div>
-        <div style={{marginTop:14}}>
-          <SmartChat company={company} onDataChanged={()=>{ refreshInvoices(); refreshClients(); }} />
-        </div>
-      </div>
+      <DashboardHome
+        invoices={invoices}
+        clients={clients}
+        company={company}
+        companiesCount={availableCompanies.length}
+        usersCount={clients.length||1}
+        loading={invLoading}
+        error={invError&&invoices.length===0}
+        onRetry={()=>{ refreshInvoices(); refreshClients(); }}
+        profileName={profile?.displayName||""}
+        onNavigate={go=>{ if(go&&go.status)setStatusFilter(go.status); setView(go&&go.view?go.view:go); setSelInv(null); }}
+        onAction={quickAction}
+        invCallbacks={invCallbacks}
+        statusFilterSetter={setStatusFilter}
+      />
     )}
 
     {/* CUSTOMERS */}
@@ -3779,6 +3737,52 @@ return(
       </div>
     )}
 
+    {/* r25: شاشة المدفوعات — مجموعة MAIN في الشريط الجانبي */}
+    {view==="payments"&&(
+      <PaymentsView
+        invoices={invoices}
+        canEdit={!!perms.edit_invoice}
+        onRecordPayment={invCallbacks.onRecordPayment}
+        onSendReminder={invCallbacks.onSendReminder}
+        onView={invCallbacks.onView}
+        onPdf={invCallbacks.onPdf}
+      />
+    )}
+
+    {/* r25: شاشة التذكيرات — مجموعة OPERATIONS في الشريط الجانبي */}
+    {view==="reminders"&&(
+      <RemindersView
+        invoices={invoices}
+        canEdit={!!perms.edit_invoice}
+        onSendReminder={inv=>waOpen(inv)}
+        onBulkRemind={()=>{ if(overdueList.length) setShowBulkWa(true); }}
+        onView={invCallbacks.onView}
+      />
+    )}
+
+    {/* r25: شاشة المساعدة */}
+    {view==="help"&&(
+      <div className="card" style={{padding:"26px",animation:"fadeUp .25s"}}>
+        <div style={{fontSize:17,fontWeight:900,marginBottom:6}}>{tr("المساعدة والدعم")}</div>
+        <div style={{fontSize:13,color:"var(--ia-sub)",lineHeight:1.9,marginBottom:16}}>
+          {tr("GarfiX نظام تشغيل أعمال عالمي: فواتير وعملاء ومدفوعات وتقارير وذكاء اصطناعي — لأي شركة في أي دولة. اختر ما يناسبك:")}
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:12}}>
+          {[
+            {t:tr("التوثيق"),s:tr("أدلة الاستخدام والميزات"),go:()=>window.open("https://garfix.app","_blank","noopener")},
+            {t:tr("الدعم عبر واتساب"),s:tr("رد سريع من فريق GarfiX"),go:()=>window.open("https://wa.me/201033514479","_blank","noopener")},
+            {t:tr("اسأل GarfiX AI"),s:tr("مساعد متصل ببيانات شركتك"),go:()=>setView("chat")},
+            {t:tr("التكاملات"),s:tr("إعداد مزوّد الذكاء الاصطناعي"),go:()=>setView("deepseek")},
+          ].map((h,i)=>(
+            <button key={i} className="btn btn-outline" style={{flexDirection:"column",alignItems:"flex-start",gap:4,padding:"14px 16px",borderRadius:"12px"}} onClick={h.go}>
+              <b style={{fontSize:13}}>{h.t}</b>
+              <span style={{fontSize:11,color:"var(--ia-sub)",fontWeight:600}}>{h.s}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    )}
+
     {view!=="chat"&&(
       /* r22+r23: فقاعة Garfix AI العائمة — وصول سريع للمساعد من أي شاشة
          + تلميح عند التحويم + تغذية بصرية عند اللمس/النقر */
@@ -3815,7 +3819,7 @@ return(
     </div>
 
   </div>
-</div>
+</AppShell>
 
 );
 }
