@@ -110,7 +110,7 @@ export default function TopBar({
       </div>
 
       {/* العملة (عرض) */}
-      <div ref={curRef} className="gx-tb-cur" style={{ position: "relative", flexShrink: 0 }}>
+      <div ref={curRef} className="gx-tb-curwrap" style={{ position: "relative", flexShrink: 0 }}>
         <button className="gx-top-btn" onClick={() => setCurOpen(o => !o)}
           aria-haspopup="listbox" aria-expanded={curOpen}
           title={tr("عملة العرض — عملة الشركة المحاسبية مستقلة")}>

@@ -139,7 +139,7 @@ export default function AppShell({
           onOpenUsers={onOpenUsers}
           onLogout={onLogout}
           extraActions={
-            <button className="gx-top-btn" onClick={() => setAiOpen(a => !a)}
+            <button className="gx-top-btn gx-tb-aitoggle" onClick={() => setAiOpen(a => !a)}
               title={tr("لوحة GarfiX AI")} aria-label={tr("لوحة GarfiX AI")}
               aria-pressed={aiOpen}
               style={aiOpen ? { background: "var(--ia-hover)", color: GX_ROYAL } : undefined}>

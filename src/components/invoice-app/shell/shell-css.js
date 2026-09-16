@@ -272,13 +272,14 @@ export const SHELL_CSS = `
   .gx-user-meta{display:none}
   .gx-bottom-nav{display:flex}
 }
-@media (max-width:720px){
-  /* الجوال الضيق: نُخفي منتقي الدولة (اللغة/العملة تكفيان) ليتسع الشريط بلا تمرير */
-  .gx-tb-country{display:none}
+@media (max-width:768px){
+  /* الجوال: يبقى في الشريط فقط البحث + الإشعارات + الملف الشخصي (والبرغر)
+     اللغة/العملة/الدولة/السمة/زر AI تُخفى لمنع تجاوز عرض الشاشة —
+     ولا تزال متاحة عبر لوحة الأوامر (⌘K) وشريط التنقل السفلي وقائمة الإجراءات */
+  .gx-tb-lang,.gx-tb-curwrap,.gx-tb-country,.gx-tb-theme,.gx-tb-aitoggle{display:none}
 }
 @media (max-width:480px){
   .gx-search .gx-kbd{display:none}
-  .gx-tb-theme{display:none}
   .gx-user{padding:6px 5px}
 }
 @media (max-width:640px){
