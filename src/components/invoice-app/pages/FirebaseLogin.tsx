@@ -39,12 +39,17 @@ export default function FirebaseLogin() {
   const [showPass, setShowPass] = useState(false);
   const [seats,    setSeats]    = useState<{ registered: number; limit: number; remaining: number; freeOpen: boolean } | null>(null);
   const [cur, setCur] = useState("USD"); // عملة المعاينة الحية
+  const [siteLogo, setSiteLogo] = useState(""); // r26: شعار الموقع المخصص (إن وُجد)
   const { dark, toggle } = useTheme();
 
-  // عدّاد المقاعد المجانية المتبقية
+  // عدّاد المقاعد المجانية المتبقية + شعار الموقع من إدارة المحتوى
   useEffect(() => {
     let alive = true;
     fetchFreeSeats().then(s => alive && setSeats(s)).catch(() => {});
+    fetch("/api/site/content")
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => { if (alive && j?.content?.site_logo) setSiteLogo(String(j.content.site_logo)); })
+      .catch(() => {});
     return () => { alive = false; };
   }, []);
 
@@ -222,7 +227,7 @@ export default function FirebaseLogin() {
           {/* رأس البوابة — التموضع الجديد */}
           <div style={{textAlign:"center",marginBottom:24}}>
             <div style={{display:"inline-flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px",position:"relative",animation:"float 4s ease-in-out infinite"}}>
-              <LogoMark size={74} radius={22} fontSize={38} />
+              <LogoMark size={74} radius={22} fontSize={38} src={siteLogo || undefined} />
             </div>
             <div style={{color:"rgba(201,162,39,.75)",fontSize:10,fontWeight:800,letterSpacing:3,textTransform:"uppercase",marginBottom:9,fontFamily:"'Inter',sans-serif"}}>
               AI BUSINESS OS

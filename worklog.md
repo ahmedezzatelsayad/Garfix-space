@@ -43,3 +43,22 @@ Stage Summary:
 - الاشتراكات وحسابي تعملان (المشكلة كانت بيئة الخادم القديم، حُلّت بإعادة التشغيل)
 - الفاوندر مفعّل بكل الصلاحيات (كلمة المرور: admin123)
 - لقطات: scripts/account-test.png, scripts/subscriptions-test.png, scripts/mobile-topbar-390.png
+
+---
+Task ID: 3
+Agent: Main (Super Z)
+Task: لماذا لا يمكن تغيير شعار الموقع — إضافة ميزة الشعار المخصص
+
+Work Log:
+- السبب: LogoMark كان مكوّناً ثابتاً (حرف «G» ذهبي) بلا أي حقل في إدارة الموقع
+- site-shared.js: LogoMark يقبل الآن src (رابط/data:image) ويعرض الصورة بنسبة أبعادها · DEFAULT_CONTENT أُضيف له site_logo=""
+- SiteManager.jsx: قسم «🖼️ شعار الموقع» جديد — معاينة حية + إدخال رابط https + زر رفع ملف من الجهاز (تصغير تلقائي ≤240px ثم WebP/SVG base64 مع فحص الحجم) + زر إزالة · saveContent يرسل site_logo دائماً (الفارغ يعيد الافتراضي)
+- PublicNavbar.jsx + PublicSite.jsx (footer): تمرير src={content.site_logo}
+- FirebaseLogin.tsx: جلب /api/site/content وعرض site_logo في بوابة الدخول
+- api/site/content/route.ts: VALUE_MAX من 20K إلى 60K حرفاً (لدعم data:image)
+- اختبار كامل بالمتصفح: حقن شعار PNG تجريبي → حفظ → ظهور في الـnavbar (38px) والتذييل وبوابة الدخول للزائر (74px) · ثم تنظيف الشعار التجريبي من DB والعودة للافتراضي
+- next build: ✓ Compiled successfully
+
+Stage Summary:
+- يمكن الآن تغيير شعار الموقع من: النظام → تبويب الموقع → قسم «شعار الموقع» (رفع ملف أو رابط) ثم «حفظ المحتوى»
+- يظهر الشعار في: شريط الموقع العام + التذييل + بوابة الدخول — والافتراضي «G» الذهبي يبقى عند الفراغ

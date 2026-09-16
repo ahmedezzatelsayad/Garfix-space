@@ -45,7 +45,7 @@ export default function PublicNavbar({ page = "home", authed = false, onEnterApp
           style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", flexShrink: 0 }}
           aria-label={tr(content.site_name)}
         >
-          <LogoMark size={38} />
+          <LogoMark size={38} src={content.site_logo || undefined} />
           <span style={{ display: "flex", flexDirection: "column", lineHeight: 1.15 }}>
             <b className="s-brand-name" style={{ color: "#fff", fontSize: 14.5, fontWeight: 900 }}>{tr(content.site_name)}</b>
             <span className="s-brand-sub" style={{ color: "rgba(255,255,255,.35)", fontSize: 9.5, letterSpacing: 1.5, fontFamily: "'Inter',sans-serif" }}>

@@ -89,6 +89,7 @@ export const SITE_CSS = `
 export const DEFAULT_CONTENT = {
   site_name: "الشركة القابضة المتحدة",
   site_name_en: "United Holding Group",
+  site_logo: "",
   hero_badge: "نظام إدارة الحسابات المتكامل",
   hero_title: "إدارة مالية ذكية لكل شركاتك، في مكان واحد",
   hero_sub:
@@ -108,9 +109,35 @@ export const DEFAULT_CONTENT = {
 /**
  * r24: شعار GarfiX — «G» ذهبية بتدرج فاخر (بديل احترافي للإيموجي 🏛️).
  * size: ضلع المربع · sub: نص فرعي اختياري تحت الشعار (غير مستعمل افتراضياً)
+ * r26: src — شعار مخصص (رابط https أو data:image) من إدارة الموقع (site_logo)؛
+ *      إن وُجد تُعرض الصورة بدل «G» مع الحفاظ على نسبة الأبعاد (الارتفاع = size).
  */
-export function LogoMark({ size = 38, radius = 11, fontSize, glow = true }) {
+export function LogoMark({ size = 38, radius = 11, fontSize, glow = true, src }) {
   const fs = fontSize ?? Math.round(size * 0.52);
+  if (src) {
+    return (
+      <span
+        aria-hidden="true"
+        style={{
+          width: size, height: size, borderRadius: radius, flexShrink: 0,
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+          boxShadow: glow ? "0 4px 16px rgba(201,162,39,.35), inset 0 1px 0 rgba(255,255,255,.2)" : "none",
+          background: "rgba(255,255,255,.03)", userSelect: "none",
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={src}
+          alt=""
+          style={{
+            maxWidth: `calc(${size}px + ${Math.round(size * 0.7)}px)`, maxHeight: size,
+            width: "auto", height: "auto", objectFit: "contain", display: "block",
+            borderRadius: Math.max(2, radius - 4),
+          }}
+        />
+      </span>
+    );
+  }
   return (
     <span
       aria-hidden="true"

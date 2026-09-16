@@ -10,7 +10,9 @@ import { requireAdmin } from "@/lib/auth-server";
  */
 
 const KEY_RE = /^[a-z0-9_]{1,60}$/;
-const VALUE_MAX = 20_000;
+// r26: الحد الأقصى لقيمة الحقل — يسمح بشعارات مضمّنة (data:image/webp;base64…)
+// الشعار يُضغط عملياً في الواجهة إلى أقل من ~18K حرفاً، لكن نسمح بهامش أمان.
+const VALUE_MAX = 60_000;
 
 export async function GET() {
   try {

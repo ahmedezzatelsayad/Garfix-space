@@ -130,7 +130,7 @@ function SiteInner({ page = "home", authed = false, onEnterApp = () => {} }) {
             <div className="s-footer-cols">
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                  <LogoMark size={30} radius={9} fontSize={15} />
+                  <LogoMark size={30} radius={9} fontSize={15} src={content.site_logo || undefined} />
                   <b style={{ fontSize: 15 }}>{tr(content.site_name)}</b>
                 </div>
                 <p style={{ color: "rgba(255,255,255,.5)", fontSize: 12.5, lineHeight: 1.9, margin: 0, maxWidth: 340 }}>

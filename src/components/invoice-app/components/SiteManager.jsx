@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import { tr } from "@/lib/i18n-app";
+import { LogoMark } from "@/components/site/site-shared";
 
 /**
  * r13: تبويب 🌐 الموقع (للمدير فقط) — إدارة محتوى الموقع العام:
@@ -87,6 +88,9 @@ export default function SiteManager({ toast }) {
         const v = String(content[f.key] ?? "").trim();
         if (v) payload[f.key] = v;
       }
+      // r26: الشعار — يُرسل دائماً حتى لو فارغاً (المسح يحفظ قيمة فارغة ويرجع الافتراضي «G»)
+      const logo = String(content.site_logo ?? "").trim();
+      payload.site_logo = logo;
       const out = await api.saveSiteContent(payload);
       toast_(tr("✅ تم حفظ محتوى الموقع ({0} حقل) — تحديث الصفحات فوري",[out?.saved ?? 0]));
     } catch (e) {
@@ -97,6 +101,70 @@ export default function SiteManager({ toast }) {
   };
 
   const setField = (k, v) => setContent((p) => ({ ...p, [k]: v }));
+
+  // ── r26: شعار الموقع — رفع ملف محلي (تصغير تلقائي ≤ 240px ثم WebP base64) ──
+  const logoInputRef = useRef(null);
+  const [logoBusy, setLogoBusy] = useState(false);
+
+  const pickLogoFile = () => logoInputRef.current?.click();
+
+  const onLogoFile = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // نفس الملف يمكن اختياره مرة أخرى
+    if (!file) return;
+    if (!/^image\/(png|jpe?g|webp|svg\+xml|gif)$/i.test(file.type)) {
+      toast_(tr("صيغة غير مدعومة — استخدم PNG أو JPG أو WebP أو SVG"), "warn");
+      return;
+    }
+    setLogoBusy(true);
+    const reader = new FileReader();
+    reader.onerror = () => { setLogoBusy(false); toast_(tr("تعذّر قراءة الملف"), "warn"); };
+    reader.onload = () => {
+      const dataUrl = String(reader.result || "");
+      // SVG: يُستخدم كما هو (خفيف أصلاً) إن كان حجمه معقولاً
+      if (file.type === "image/svg+xml") {
+        if (dataUrl.length > 18000) {
+          setLogoBusy(false);
+          toast_(tr("ملف SVG كبير جداً (>{0} حرفاً) — بسّطه أو ارفعه على رابط https", ["18K"]), "warn");
+          return;
+        }
+        setField("site_logo", dataUrl);
+        setLogoBusy(false);
+        toast_(tr("✅ تم تحميل الشعار — اضغط «حفظ المحتوى» لتطبيقه"));
+        return;
+      }
+      // صور نقطية: تصغير إلى 240px أقصى بعد ثم WebP (شفافية محفوظة)
+      const img = new Image();
+      img.onerror = () => { setLogoBusy(false); toast_(tr("تعذّر فتح الصورة"), "warn"); };
+      img.onload = () => {
+        try {
+          const MAX = 240;
+          const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+          const w = Math.max(1, Math.round(img.width * scale));
+          const h = Math.max(1, Math.round(img.height * scale));
+          const cv = document.createElement("canvas");
+          cv.width = w; cv.height = h;
+          const cx = cv.getContext("2d");
+          cx.drawImage(img, 0, 0, w, h);
+          let out = cv.toDataURL("image/webp", 0.92);
+          if (out.length > 18000) out = cv.toDataURL("image/webp", 0.75); // ضغط أكبر إذا لزم
+          if (out.length > 18000) {
+            setLogoBusy(false);
+            toast_(tr("الصورة كبيرة جداً بعد الضغط — استخدم شعاراً أبسط أو رابط https"), "warn");
+            return;
+          }
+          setField("site_logo", out);
+          setLogoBusy(false);
+          toast_(tr("✅ تم تجهيز الشعار ({0}×{1}) — اضغط «حفظ المحتوى» لتطبيقه", [String(w), String(h)]));
+        } catch (err) {
+          setLogoBusy(false);
+          toast_(tr("تعذّر معالجة الصورة: ") + (err?.message || err), "warn");
+        }
+      };
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+  };
 
   // ── أعضاء الفريق ──
   const openAdd = () =>
@@ -203,6 +271,59 @@ export default function SiteManager({ toast }) {
         />
         <div style={{ background: "var(--ia-hover)", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, color: "var(--ia-sub)", lineHeight: 1.8 }}>
           {tr("💡 أزرار المعاينة تفتح صفحات الموقع فوق النظام — زر «↩️ العودة للنظام» في شريط الموقع يعيدك هنا.\n          الزائر غير المسجّل يرى الموقع تلقائياً بمجرد فتح التطبيق.")}
+        </div>
+      </div>
+
+      {/* ── شعار الموقع (r26) ── */}
+      <div className="card" style={{ padding: 18 }}>
+        <SectionTitle
+          icon="🖼️"
+          title={tr("شعار الموقع")}
+          sub={tr("يظهر في شريط الموقع والتذييل وبوابة الدخول — فارغ = الشعار الذهبي «G» الافتراضي")}
+        />
+        <div style={{ display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
+          {/* المعاينة الحية */}
+          <div style={{
+            flexShrink: 0, width: 132, height: 96, borderRadius: 12,
+            background: "linear-gradient(135deg,#0e1d33,#07111f)",
+            border: "1px solid var(--ia-border)", display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <LogoMark size={52} radius={14} src={content.site_logo || undefined} />
+          </div>
+          <div style={{ flex: 1, minWidth: 260, display: "flex", flexDirection: "column", gap: 10 }}>
+            <input
+              className="inp"
+              dir="ltr"
+              placeholder="https://example.com/logo.png — أو ارفع ملفاً بالزر المجاور"
+              value={content.site_logo?.startsWith("data:") ? "" : (content.site_logo ?? "")}
+              onChange={(e) => setField("site_logo", e.target.value.trim())}
+            />
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif"
+                style={{ display: "none" }}
+                onChange={onLogoFile}
+              />
+              <button className="btn btn-outline" onClick={pickLogoFile} disabled={logoBusy}>
+                {logoBusy ? tr("⏳ جارٍ المعالجة…") : tr("⬆️ رفع صورة من جهازك")}
+              </button>
+              {content.site_logo && (
+                <button className="btn btn-outline" onClick={() => setField("site_logo", "")} style={{ color: "#DC2626" }}>
+                  {tr("🗑️ إزالة الشعار")}
+                </button>
+              )}
+              <span style={{ fontSize: 11, color: "var(--ia-sub)" }}>
+                {content.site_logo?.startsWith("data:")
+                  ? tr("✅ شعار مرفوع من الجهاز (مضمّن)")
+                  : tr("PNG / JPG / WebP / SVG — يُصغَّر تلقائياً إلى 240px")}
+              </span>
+            </div>
+            <div style={{ fontSize: 11.5, color: "var(--ia-sub)", lineHeight: 1.8 }}>
+              {tr("بعد اختيار الشعار اضغط «💾 حفظ المحتوى» في القسم التالي — التحديث فوري على صفحات الموقع.")}
+            </div>
+          </div>
         </div>
       </div>
 
