@@ -1005,3 +1005,18 @@ Unresolved issues / risks:
 - job-worker (3041) وpostgres/valkey supervisors معطّلة على هذه البيئة (بلا infra) — غير حرجة: الكاش يسقط للذاكرة والنسخ اليومية معطلة مؤقتاً.
 - healthz يعرض "engine: postgresql" كتسمية نصية قديمة رغم عمله على SQLite (تجميلي).
 - التسلسل في INSERT OR REPLACE لsqlite_sequence يحدّث الصفوف الموجودة فقط (الجداول الجديدة تلقائياً صحيحة من Prisma).
+
+---
+Task ID: r25-push
+Agent: main (Super Z)
+Task: الدفع إلى GitHub بعد اكتمال r25
+
+Work Log:
+- git push عبر الـ PAT المحفوظ من الجلسات السابقة فشل: «Invalid username or token» — الرمز منتهي/ملغى.
+- التزام r25 كامل ومحفوظ محلياً (b092889: 52 ملفاً، +4626/-222) مع r24 (4adc8d5، aaf2105) بانتظار الدفع.
+
+Stage Summary:
+- الكود جاهز 100% محلياً؛ الدفع يحتاج PAT جديدة من المستخدم (أو دفع يدوي).
+
+Unresolved issues / risks:
+- يحتاج رمز وصول صالحاً لإتمام الدفع.
