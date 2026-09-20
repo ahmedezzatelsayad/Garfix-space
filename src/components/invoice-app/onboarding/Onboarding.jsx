@@ -552,8 +552,9 @@ export default function Onboarding({ onDone, onCancel }) {
             </div>
           )}
 
-          {/* أزرار التنقل للخطوات 1-3 */}
-          {step > 0 && step < 4 && (
+          {/* أزرار التنقل للخطوات 1-2 فقط (الخطوة 3 لها زرّا «رجوع» و«أنشئ شركتي الآن» الخاصان بها —
+              r27-fix: كان شرط step<4 يعرض زر «التالي» العام فوق زر الإنشاء فيتخطى إنشاء الشركة كليّاً!) */}
+          {step > 0 && step < 3 && (
             <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
               <button className="ob-btn ob-back" onClick={() => setStep(s => s - 1)}><BackIcon size={15} /> {tr("رجوع")}</button>
               <button className="ob-btn ob-next" style={{ flex: 1 }} disabled={!stepValid(step)} onClick={() => setStep(s => s + 1)}>

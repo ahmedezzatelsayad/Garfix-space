@@ -132,13 +132,15 @@ export default function HelloBoot({ children }: { children?: React.ReactNode }) 
   // check: أول رسم (مطابق للـ SSR — الطبقة الفورية في layout تغطي الفجوة) → play → finale → out → done
   const [phase, setPhase] = useState<"check" | "play" | "finale" | "out" | "done">("check");
   const [idx, setIdx] = useState(0);
-  const lang = useRef(readLang()).current;
+  const [lang] = useState(readLang());
   const isAr = lang === "ar";
 
   // هل شُغّلت الشاشة هذه الجلسة؟ (لا تعمل إلا مرة واحدة لكل جلسة متصفح)
   useEffect(() => {
     let seen = false;
     try { seen = sessionStorage.getItem(BOOT_KEY) === "1"; } catch { /* sessionStorage محجوب */ }
+    // setState متعمد داخل effect: مرحلة "check" الأولية تطابق SSR وتمنع اختلاف الترطيب
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPhase(seen ? "done" : "play");
   }, []);
 
