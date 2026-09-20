@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { hashPassword, hashToken } from "@/lib/passwords";
-import { clientIp } from "@/lib/auth-server";
+import { clientIp, actionRateLimited, noteActionFailure } from "@/lib/auth-server";
 
 /**
  * r16: إعادة تعيين كلمة المرور بالرمز البريدي (من رسالة Resend)
@@ -12,26 +12,13 @@ import { clientIp } from "@/lib/auth-server";
  */
 const MAX_ATTEMPTS = 12;
 const WINDOW_MS = 15 * 60 * 1000;
-const attempts = new Map<string, number[]>();
-
-function rateLimited(ip: string): boolean {
-  const now = Date.now();
-  const list = (attempts.get(ip) || []).filter((t) => now - t < WINDOW_MS);
-  attempts.set(ip, list);
-  return list.length >= MAX_ATTEMPTS;
-}
-function noteAttempt(ip: string): void {
-  const list = attempts.get(ip) || [];
-  list.push(Date.now());
-  attempts.set(ip, list);
-}
 
 export async function POST(req: NextRequest) {
   const ip = clientIp(req);
-  if (rateLimited(ip)) {
+  if (await actionRateLimited("reset", ip, MAX_ATTEMPTS, WINDOW_MS)) {
     return NextResponse.json({ error: "محاولات كثيرة — انتظر ربع ساعة ثم حاول مجدداً" }, { status: 429 });
   }
-  noteAttempt(ip);
+  await noteActionFailure("reset", ip, WINDOW_MS);
 
   const body = (await req.json().catch(() => ({}))) as { token?: unknown; password?: unknown };
   const token = typeof body.token === "string" ? body.token.trim() : "";

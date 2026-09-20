@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   COOKIE_NAME,
   SESSION_TTL_SECONDS,
+  COOKIE_SECURE,
   makeSessionToken,
   verifyCredentials,
   clientIp,
@@ -22,7 +23,7 @@ import { verifyPassword } from "@/lib/passwords";
 export async function POST(req: NextRequest) {
   try {
     const ip = clientIp(req);
-    if (loginRateLimited(ip)) {
+    if (await loginRateLimited(ip)) {
       return NextResponse.json(
         { error: "محاولات كثيرة — انتظر بضع دقائق ثم حاول مجدداً" },
         { status: 429 },
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!user) {
-      noteLoginFailure(ip);
+      await noteLoginFailure(ip);
       // رسالة موحّدة حتى لا يُكشف أي بريد مسجّل من عدمه
       return NextResponse.json(
         { error: "البريد الإلكتروني أو كلمة المرور غير صحيحة" },
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    noteLoginSuccess(ip);
+    await noteLoginSuccess(ip);
     const res = NextResponse.json({
       ok: true,
       user: {
@@ -81,6 +82,7 @@ export async function POST(req: NextRequest) {
     res.cookies.set(COOKIE_NAME, makeSessionToken(user), {
       httpOnly: true,
       sameSite: "lax",
+      secure: COOKIE_SECURE, // r28: فعّل COOKIE_SECURE=true عند النشر خلف HTTPS
       path: "/",
       maxAge: SESSION_TTL_SECONDS,
     });

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/passwords";
-import { COOKIE_NAME, SESSION_TTL_SECONDS, makeSessionToken, clientIp, isReservedAccountEmail } from "@/lib/auth-server";
+import { COOKIE_NAME, SESSION_TTL_SECONDS, COOKIE_SECURE, makeSessionToken, clientIp, isReservedAccountEmail, actionRateLimited, noteActionFailure } from "@/lib/auth-server";
 import { detectCountry } from "@/lib/geo";
 import { LANGUAGES } from "@/lib/i18n";
 
@@ -17,22 +17,9 @@ import { LANGUAGES } from "@/lib/i18n";
 
 export const FREE_SUBSCRIBER_LIMIT = 100;
 
-// ── تحديد معدل التسجيل لكل IP (10 محاولات / 15 دقيقة) ──
+// ── تحديد معدل التسجيل لكل IP (10 محاولات / 15 دقيقة) — r28: عبر Valkey ──
 const WINDOW_MS = 15 * 60 * 1000;
 const MAX_ATTEMPTS = 10;
-const attempts = new Map<string, number[]>();
-
-function registerRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const list = (attempts.get(ip) || []).filter((t) => now - t < WINDOW_MS);
-  attempts.set(ip, list);
-  return list.length >= MAX_ATTEMPTS;
-}
-function noteRegisterAttempt(ip: string): void {
-  const list = attempts.get(ip) || [];
-  list.push(Date.now());
-  attempts.set(ip, list);
-}
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const PHONE_RE = /^\+?\d{6,15}$/;
@@ -54,10 +41,10 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const ip = clientIp(req);
-  if (registerRateLimited(ip)) {
+  if (await actionRateLimited("register", ip, MAX_ATTEMPTS, WINDOW_MS)) {
     return NextResponse.json({ error: "محاولات كثيرة — انتظر ربع ساعة ثم حاول مجدداً" }, { status: 429 });
   }
-  noteRegisterAttempt(ip);
+  await noteActionFailure("register", ip, WINDOW_MS);
 
   try {
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
@@ -140,6 +127,7 @@ export async function POST(req: NextRequest) {
     res.cookies.set(COOKIE_NAME, makeSessionToken({ email: user.email, displayName: user.displayName, role: "viewer" }), {
       httpOnly: true,
       sameSite: "lax",
+      secure: COOKIE_SECURE, // r28: فعّل COOKIE_SECURE=true عند النشر خلف HTTPS
       path: "/",
       maxAge: SESSION_TTL_SECONDS,
     });

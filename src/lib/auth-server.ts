@@ -2,6 +2,7 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypt
 import fs from "node:fs";
 import path from "node:path";
 import { NextRequest, NextResponse } from "next/server";
+import { cacheGet, cacheSet, cacheDel } from "./cache";
 
 /**
  * r13: أمان الخادم — جلسات موقّعة (httpOnly cookie) + تحقق موحّد من الصلاحيات.
@@ -13,6 +14,13 @@ import { NextRequest, NextResponse } from "next/server";
  *   إدارة محتوى الموقع) تتطلب جلسة مدير صالحة موقّعة بـ HMAC-SHA256.
  * - كلمات المرور تُخزَّن هنا كبصمات SHA-256 (وليست نصاً صريحاً) — نفس مصفوفة
  *   الحسابات التجريبية الستة المعروفة في الواجهة.
+ *
+ * r28 (جاهزية الإنتاج):
+ * - الحسابات التجريبية الخمسة تُبنى فقط عند DEMO_MODE=true (افتراضياً معطّلة).
+ * - كلمة مرور المؤسس الرئيسية قابلة للتجاوز من GARFIX_MASTER_PASSWORD (غيّرها عند النشر).
+ * - COOKIE_SECURE=true يجعل كوكيز الجلسة secure (فعّلها خلف HTTPS فقط).
+ * - تحديد معدل الدخول عبر Valkey (طبقة الكاش) بدل الذاكرة — يصمد أمام إعادة التشغيل
+ *   ويُشارَك بين العمليات، مع سقوط آمن للذاكرة عند غياب Valkey.
  *
  * الخدمة العامة الكاملة (NextAuth) ما زالت خارطة الطريق — هذه طبقة دفاع عملية.
  */
@@ -37,16 +45,33 @@ interface ServerUser {
   role: "admin" | "employee";
 }
 
+// ── r28: إعدادات الجاهزية للإنتاج من متغيرات البيئة ──
+/** الحسابات التجريبية مفعّلة فقط عند DEMO_MODE=true (بيئة العرض الداخلية) */
+const DEMO_MODE = process.env.DEMO_MODE === "true";
+/** كلمة مرور المؤسس — عند النشر العلني اضبط GARFIX_MASTER_PASSWORD بقيمة سرية قوية */
+const MASTER_PASS = process.env.GARFIX_MASTER_PASSWORD || "admin123";
+/** r28: أضف COOKIE_SECURE=true عند النشر خلف HTTPS ليصبح كوكي الجلسة secure */
+export const COOKIE_SECURE = process.env.COOKIE_SECURE === "true";
+
 const MASTER_EMAIL = "ahmedezzatelsayad@gmail.com";
+
+/** الحسابات التجريبية الخمسة (موظفو العرض) — تُبنى فقط في DEMO_MODE */
+const DEMO_ACCOUNTS: { email: string; pass: string; displayName: string; role: "admin" | "employee" }[] = [
+  { email: "ayman@manager.com", pass: "ayman123", displayName: "أيمن - مدير", role: "admin" },
+  { email: "info@tawfeer.com", pass: "tawfeer123", displayName: "توفير أونلاين", role: "employee" },
+  { email: "info@laqta.com", pass: "laqta123", displayName: "لقطة", role: "employee" },
+  { email: "info@mahhl.com", pass: "mahhal123", displayName: "محلكم أونلاين", role: "employee" },
+  { email: "info@boss.com", pass: "boss123", displayName: "بوص نيولايف", role: "employee" },
+];
+
+// بريدات محجوزة دوماً (المؤسس + التجريبية) — حتى لو عطّلنا DEMO_MODE يظل التسجيل بها
+// ممنوعاً لئلا يستحوذ أحد على بريد حساب تجريبي ثم يفعّله المؤسس لاحقاً فيجد حساباً دخيلاً.
+const RESERVED_EMAILS = new Set([MASTER_EMAIL, ...DEMO_ACCOUNTS.map((a) => a.email)]);
 
 function buildUsers(): ServerUser[] {
   const defs: { email: string; pass: string; displayName: string; role: "admin" | "employee" }[] = [
-    { email: MASTER_EMAIL, pass: "admin123", displayName: "أحمد عزت الصياد", role: "admin" },
-    { email: "ayman@manager.com", pass: "ayman123", displayName: "أيمن - مدير", role: "admin" },
-    { email: "info@tawfeer.com", pass: "tawfeer123", displayName: "توفير أونلاين", role: "employee" },
-    { email: "info@laqta.com", pass: "laqta123", displayName: "لقطة", role: "employee" },
-    { email: "info@mahhl.com", pass: "mahhal123", displayName: "محلكم أونلاين", role: "employee" },
-    { email: "info@boss.com", pass: "boss123", displayName: "بوص نيولايف", role: "employee" },
+    { email: MASTER_EMAIL, pass: MASTER_PASS, displayName: "أحمد عزت الصياد", role: "admin" },
+    ...(DEMO_MODE ? DEMO_ACCOUNTS : []),
   ];
   return defs.map(({ email, pass, displayName, role }) => ({ email, hash: sha256(pass), displayName, role }));
 }
@@ -55,8 +80,7 @@ const SERVER_USERS = buildUsers();
 
 /** r16: بريدات الحسابات المدمجة — محجوزة: لا يجوز التسجيل بها (منع انتحال المدير/الموظفين) */
 export function isReservedAccountEmail(email: string): boolean {
-  const e = (email || "").trim().toLowerCase();
-  return SERVER_USERS.some((u) => u.email === e);
+  return RESERVED_EMAILS.has((email || "").trim().toLowerCase());
 }
 
 // ── سر التوقيع: يُولَّد مرة ويُخزَّن في db/session-secret (خارج git) ──
@@ -181,10 +205,30 @@ export function requireAdmin(req: NextRequest): NextResponse | null {
   return null;
 }
 
-// ── تحديد معدل محاولات الدخول (in-memory — يُصفَّر عند إعادة التشغيل) ──
+// ── r28: تحديد المعدل عبر Valkey (طبقة الكاش) بسقوط آمن للذاكرة ──
+// النافذة زمنية ثابتة (TTL) وليست منزلقة — فرق مقبول لحدود بهذا الحجم،
+// والمكسب أن العدّاد يصمد أمام إعادة التشغيل ويُشارَك بين العمليات.
 const WINDOW_MS = 5 * 60 * 1000;
 const MAX_ATTEMPTS = 10;
-const attempts = new Map<string, number[]>();
+
+/** محدد عام قابل لإعادة الاستخدام (تسجيل/استعادة/إعادة تعريف…) */
+export async function actionRateLimited(scope: string, id: string, max: number, windowMs: number): Promise<boolean> {
+  const raw = await cacheGet(`rl:${scope}:${id}`);
+  const n = raw ? parseInt(raw, 10) || 0 : 0;
+  return n >= max;
+}
+
+/** سجّل محاولة (كل استدعاء يزيد العدّاد ويجدّد النافذة) */
+export async function noteActionFailure(scope: string, id: string, windowMs: number): Promise<void> {
+  const raw = await cacheGet(`rl:${scope}:${id}`);
+  const n = (raw ? parseInt(raw, 10) || 0 : 0) + 1;
+  await cacheSet(`rl:${scope}:${id}`, String(n), Math.ceil(windowMs / 1000));
+}
+
+/** صفّر عدّاد نطاق معين (بعد نجاح مثلاً) */
+export async function clearActionFailures(scope: string, id: string): Promise<void> {
+  await cacheDel(`rl:${scope}:${id}`);
+}
 
 export function clientIp(req: NextRequest): string {
   const fwd = req.headers.get("x-forwarded-for");
@@ -192,20 +236,15 @@ export function clientIp(req: NextRequest): string {
   return req.headers.get("x-real-ip") || "local";
 }
 
-/** true = تجاوز الحد (يُحجب) */
-export function loginRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const list = (attempts.get(ip) || []).filter((t) => now - t < WINDOW_MS);
-  attempts.set(ip, list);
-  return list.length >= MAX_ATTEMPTS;
+/** true = تجاوز الحد (يُحجب) — r28: صار عبر Valkey */
+export async function loginRateLimited(ip: string): Promise<boolean> {
+  return actionRateLimited("login", ip, MAX_ATTEMPTS, WINDOW_MS);
 }
 
-export function noteLoginFailure(ip: string): void {
-  const list = attempts.get(ip) || [];
-  list.push(Date.now());
-  attempts.set(ip, list);
+export async function noteLoginFailure(ip: string): Promise<void> {
+  await noteActionFailure("login", ip, WINDOW_MS);
 }
 
-export function noteLoginSuccess(ip: string): void {
-  attempts.delete(ip);
+export async function noteLoginSuccess(ip: string): Promise<void> {
+  await clearActionFailures("login", ip);
 }

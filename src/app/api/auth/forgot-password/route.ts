@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { generateResetToken, hashToken } from "@/lib/passwords";
-import { clientIp } from "@/lib/auth-server";
+import { clientIp, actionRateLimited, noteActionFailure } from "@/lib/auth-server";
 import { getResendConfig, sendEmail, resetPasswordEmail } from "@/lib/resend";
 
 /**
@@ -17,26 +17,13 @@ import { getResendConfig, sendEmail, resetPasswordEmail } from "@/lib/resend";
 const TOKEN_TTL_MINUTES = 30;
 const MAX_ATTEMPTS = 8;
 const WINDOW_MS = 15 * 60 * 1000;
-const attempts = new Map<string, number[]>();
-
-function rateLimited(ip: string): boolean {
-  const now = Date.now();
-  const list = (attempts.get(ip) || []).filter((t) => now - t < WINDOW_MS);
-  attempts.set(ip, list);
-  return list.length >= MAX_ATTEMPTS;
-}
-function noteAttempt(ip: string): void {
-  const list = attempts.get(ip) || [];
-  list.push(Date.now());
-  attempts.set(ip, list);
-}
 
 export async function POST(req: NextRequest) {
   const ip = clientIp(req);
-  if (rateLimited(ip)) {
+  if (await actionRateLimited("forgot", ip, MAX_ATTEMPTS, WINDOW_MS)) {
     return NextResponse.json({ error: "محاولات كثيرة — انتظر ربع ساعة ثم حاول مجدداً" }, { status: 429 });
   }
-  noteAttempt(ip);
+  await noteActionFailure("forgot", ip, WINDOW_MS);
 
   // خدمة البريد مهيأة؟ (نرد قبل أي استعلام حتى لا يتسرب وجود البريد)
   const cfg = await getResendConfig();
