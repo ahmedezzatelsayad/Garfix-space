@@ -2,11 +2,21 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { chatCompleteStream, deepSeekActive, type ChatMessage } from "@/lib/ai-provider";
 import { buildProjectContext, contextToSystemPrompt } from "@/lib/ai-context";
+import {
+  getSessionScope,
+  requireCompanyAccess,
+  unauthorizedResponse,
+  aiRateLimited,
+  noteAiAction,
+  aiRateLimitedResponse,
+} from "@/lib/auth-server";
 
 export const dynamic = "force-dynamic";
 
 // POST /api/ai/chat — الشات الذكي المتصل بكامل المشروع (SSE بثّ حيّ)
 // body: { message, conversationId?, companySlug?, companyName? }
+// r29 (S3): تتطلب جلسة + ملكية الشركة + ملكية المحادثة + حد معدل لكل مستخدم
+// (30 إجراء/5 دقائق — كان مفتوحاً للزوار يستهلك توكنات DeepSeek ويتسرب بيانات العملاء).
 export async function POST(req: NextRequest) {
   const t0 = Date.now();
   let conversationId: number | null = null;
@@ -14,6 +24,12 @@ export async function POST(req: NextRequest) {
   let provider = "builtin";
 
   try {
+    // r29 (S3): بوابة الجلسة + حد المعدل لكل مستخدم
+    const scope = await getSessionScope(req);
+    if (!scope) return unauthorizedResponse();
+    const userId = scope.session.email;
+    if (await aiRateLimited(userId)) return aiRateLimitedResponse();
+
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
     const message = typeof body.message === "string" ? body.message.trim() : "";
     const companySlug = typeof body.companySlug === "string" && body.companySlug.trim() ? body.companySlug.trim() : undefined;
@@ -35,20 +51,40 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // إنشاء/إيجاد المحادثة
-    let conversation = null as { id: number; title: string; companySlug: string | null } | null;
+    // r29 (S3): سياق الشركة يتطلب ملكيتها (المدير يجتاز؛ بلا شركة = المدير فقط)
+    const denied = await requireCompanyAccess(req, companySlug ?? null);
+    if (denied) return denied;
+
+    // إنشاء/إيجاد المحادثة — r29 (S3): استئناف محادثة يتطلب ملكيتها (صاحبها أو شركة متاحة)
+    let conversation = null as { id: number; title: string; companySlug: string | null; ownerEmail: string | null } | null;
     if (conversationId) {
       conversation = await db.aiConversation.findUnique({ where: { id: conversationId } });
+      if (conversation) {
+        const ownerOk =
+          scope.all ||
+          conversation.ownerEmail === userId ||
+          (conversation.companySlug ? scope.slugs.includes(conversation.companySlug) : false);
+        if (!ownerOk) {
+          return new Response(JSON.stringify({ error: "لا يمكنك الوصول إلى هذه المحادثة" }), {
+            status: 403,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+      }
     }
     if (!conversation) {
       conversation = await db.aiConversation.create({
         data: {
           title: message.slice(0, 60),
           companySlug: companySlug ?? null,
+          ownerEmail: userId, // r29 (S3): المحادثة ملك لمنشئها
         },
       });
       conversationId = conversation.id;
     }
+
+    // r29 (S3): احتساب الإجراء قبل استهلاك المزوّد (نجاح الطلب أو فشله يعدّان)
+    await noteAiAction(userId);
 
     // حفظ رسالة المستخدم
     await db.aiMessage.create({

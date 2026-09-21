@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
     const planByCode = new Map(plans.map((p) => [p.code, p]));
 
     // استخدام كل مشترك (خطته + عدّاداته) — تسلسلي بسيط (قائمة قصيرة)
-    const subscribers = [];
+    const subscribers: Array<{ plan: string; [k: string]: unknown }> = [];
     for (const u of users) {
       const { plan, usage } = await getUsageSnapshot(u);
       let companies: string[] = [];

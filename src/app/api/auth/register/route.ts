@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/passwords";
-import { COOKIE_NAME, SESSION_TTL_SECONDS, COOKIE_SECURE, makeSessionToken, clientIp, isReservedAccountEmail, actionRateLimited, noteActionFailure } from "@/lib/auth-server";
+import { COOKIE_NAME, SESSION_TTL_SECONDS, COOKIE_SECURE, makeSessionToken, clientIp, isReservedAccountEmail, actionRateLimited, noteActionFailure, clearActionFailures } from "@/lib/auth-server";
 import { detectCountry } from "@/lib/geo";
 import { LANGUAGES } from "@/lib/i18n";
 
@@ -44,7 +44,12 @@ export async function POST(req: NextRequest) {
   if (await actionRateLimited("register", ip, MAX_ATTEMPTS, WINDOW_MS)) {
     return NextResponse.json({ error: "محاولات كثيرة — انتظر ربع ساعة ثم حاول مجدداً" }, { status: 429 });
   }
-  await noteActionFailure("register", ip, WINDOW_MS);
+
+  // r29 (C6): العدّاد لا يُزد إلا عند الفشل (كان يزيد على كل طلب فكانت عشر
+  // تسجيلات ناجحة من شبكة واحدة تُحجب ظلماً) — والنجاح يصفرّه (كما في الدخول).
+  const fail = async () => {
+    await noteActionFailure("register", ip, WINDOW_MS);
+  };
 
   try {
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
@@ -55,19 +60,24 @@ export async function POST(req: NextRequest) {
 
     // ── تحقق صارم من المدخلات ──
     if (displayName.length < 2 || displayName.length > 60) {
+      await fail();
       return NextResponse.json({ error: "الاسم مطلوب (2-60 محرفاً)" }, { status: 400 });
     }
     if (!EMAIL_RE.test(email)) {
+      await fail();
       return NextResponse.json({ error: "صيغة البريد الإلكتروني غير صحيحة" }, { status: 400 });
     }
     if (password.length < 8 || password.length > 100) {
+      await fail();
       return NextResponse.json({ error: "كلمة المرور يجب أن تكون 8 أحرف على الأقل" }, { status: 400 });
     }
     if (phone && !PHONE_RE.test(phone.replace(/[\s-]/g, ""))) {
+      await fail();
       return NextResponse.json({ error: "صيغة رقم الجوال غير صحيحة" }, { status: 400 });
     }
     // منع انتحال حسابات النظام المدمجة (المدير/الموظفون)
     if (isReservedAccountEmail(email)) {
+      await fail();
       return NextResponse.json({ error: "هذا البريد محجوز لحساب قائم — استخدم «نسيت كلمة المرور؟» أو بريداً آخر" }, { status: 409 });
     }
 
@@ -83,6 +93,7 @@ export async function POST(req: NextRequest) {
     // ── تفرّد البريد ──
     const dup = await db.appUser.findUnique({ where: { email } });
     if (dup) {
+      await fail();
       return NextResponse.json({ error: "هذا البريد مسجّل مسبقاً — سجّل الدخول مباشرة" }, { status: 409 });
     }
 
@@ -109,6 +120,9 @@ export async function POST(req: NextRequest) {
 
     const remaining = Math.max(0, FREE_SUBSCRIBER_LIMIT - (registered + 1));
 
+    // r29 (C6): نجاح التسجيل يصفرّ عدّاد المحاولات (نفس نمط الدخول)
+    await clearActionFailures("register", ip);
+
     // تسجيل + دخول بضغطة واحدة: كوكي جلسة موقّعة (بلا أي صلاحيات إدارية خادمياً)
     const res = NextResponse.json(
       {
@@ -133,6 +147,11 @@ export async function POST(req: NextRequest) {
     });
     return res;
   } catch (err) {
+    // تعارض التفرّد (سباق بريد مكرر) يُحتسب فشلاً أيضاً
+    if (err && typeof err === "object" && (err as { code?: string }).code === "P2002") {
+      await noteActionFailure("register", ip, WINDOW_MS);
+      return NextResponse.json({ error: "هذا البريد مسجّل مسبقاً — سجّل الدخول مباشرة" }, { status: 409 });
+    }
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }

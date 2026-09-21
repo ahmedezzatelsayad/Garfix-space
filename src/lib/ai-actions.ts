@@ -129,38 +129,63 @@ async function createInvoice(args: Record<string, unknown>, ctx: ActionContext):
 
   const subtotal = items.reduce((s, it) => s + it.qty * it.price, 0);
 
-  // نفس ترقيم التطبيق: INV + (أكبر رقم رقمي في فواتير الشركة + 1)
-  const existing = await db.invoice.findMany({
-    where: ctx.companySlug ? { companySlug: ctx.companySlug } : {},
-    select: { invoiceNumber: true },
-  });
-  const maxN = existing.reduce((m, i) => Math.max(m, parseInt(i.invoiceNumber.replace(/\D/g, "") || "0", 10) || 0), 0);
-  const invoiceNumber = `INV${maxN + 1}`;
+  // r29 (C7): ترقيم race-safe — الحساب والإنشاء داخل معاملة واحدة + قيد التفرّد
+  // (companySlug, invoiceNumber) في الـ schema؛ عند تعارض متزامن (P2002) تُعاد
+  // المحاولة مرة واحدة بترقيم محسوب من جديد.
+  const createdFields = {
+    companySlug: ctx.companySlug || null,
+    clientName,
+    clientPhone: clientPhone || null,
+    clientEmail: clientEmail || null,
+    clientAddress: clientAddress || null,
+    issueDate: todayISODate(),
+    dueDate: ISO_DATE.test(dueDateRaw) ? dueDateRaw : todayISODate(),
+    status: "issued",
+    lineItems: JSON.stringify(
+      items.map((it) => ({ desc: it.name, qty: it.qty, price: it.price, total: +(it.qty * it.price).toFixed(3) })),
+    ),
+    subtotal,
+    taxRate: 0,
+    taxAmount: 0,
+    total: subtotal,
+    shipping: 0,
+    paid: 0,
+    notes: notes || `أُنشئت عبر المساعد الذكي — ${new Date().toISOString().slice(0, 16).replace("T", " ")}`,
+    source: "smart-chat",
+  };
 
-  const created = await db.invoice.create({
-    data: {
-      invoiceNumber,
-      companySlug: ctx.companySlug || null,
-      clientName,
-      clientPhone: clientPhone || null,
-      clientEmail: clientEmail || null,
-      clientAddress: clientAddress || null,
-      issueDate: todayISODate(),
-      dueDate: ISO_DATE.test(dueDateRaw) ? dueDateRaw : todayISODate(),
-      status: "issued",
-      lineItems: JSON.stringify(
-        items.map((it) => ({ desc: it.name, qty: it.qty, price: it.price, total: +(it.qty * it.price).toFixed(3) })),
-      ),
-      subtotal,
-      taxRate: 0,
-      taxAmount: 0,
-      total: subtotal,
-      shipping: 0,
-      paid: 0,
-      notes: notes || `أُنشئت عبر المساعد الذكي — ${new Date().toISOString().slice(0, 16).replace("T", " ")}`,
-      source: "smart-chat",
-    },
-  });
+  let created: { id: number; invoiceNumber: string } | null = null;
+  for (let attempt = 0; attempt < 2 && !created; attempt++) {
+    try {
+      created = await db.$transaction(async (tx) => {
+        // نفس ترقيم التطبيق: INV + (أكبر رقم رقمي في فواتير الشركة + 1)
+        const existing = await tx.invoice.findMany({
+          where: ctx.companySlug ? { companySlug: ctx.companySlug } : {},
+          select: { invoiceNumber: true },
+        });
+        const maxN = existing.reduce(
+          (m, i) => Math.max(m, parseInt(i.invoiceNumber.replace(/\D/g, "") || "0", 10) || 0),
+          0,
+        );
+        const invoiceNumber = `INV${maxN + 1}`;
+        const row = await tx.invoice.create({ data: { ...createdFields, invoiceNumber } });
+        return { id: row.id, invoiceNumber };
+      });
+    } catch (err) {
+      const code = (err as { code?: string }).code;
+      if (code === "P2002" && attempt === 0) continue; // تعارض متزامن → محاولة أخيرة
+      return {
+        ok: false,
+        summary: "",
+        errors: [`فشل إنشاء الفاتورة: ${err instanceof Error ? err.message : String(err)}`],
+      };
+    }
+  }
+  if (!created) {
+    return { ok: false, summary: "", errors: ["تعارض ترقيم الفواتير — أعد المحاولة بعد لحظات"] };
+  }
+  const invoiceNumber = created.invoiceNumber;
+
   await invalidateInvoices(ctx.companySlug ?? undefined);
   const cur = currencyOf(ctx.currency);
   return {
@@ -185,42 +210,54 @@ async function registerPayment(args: Record<string, unknown>, ctx: ActionContext
   if (dateRaw && !ISO_DATE.test(dateRaw)) errors.push("التاريخ يجب أن يكون بصيغة YYYY-MM-DD");
   if (errors.length) return { ok: false, summary: "", errors };
 
-  const invoice = await db.invoice.findFirst({
-    where: {
-      invoiceNumber,
-      ...(ctx.companySlug ? { companySlug: ctx.companySlug } : {}),
-    },
-  });
-  if (!invoice) {
-    return { ok: false, summary: "", errors: [`لم يتم العثور على فاتورة برقم ${invoiceNumber}${ctx.companySlug ? " في هذه الشركة" : ""}`] };
-  }
+  // r29 (C7): قراءة-تحقق-كتابة داخل معاملة واحدة (كانت خارجها فتُتجاوز حالات
+  // التزامن وتُدفع فاتورة مرتين) — نفس نمط مسار المدفوعات الرسمي.
+  const result = await db.$transaction(async (tx) => {
+    const invoice = await tx.invoice.findFirst({
+      where: {
+        invoiceNumber,
+        ...(ctx.companySlug ? { companySlug: ctx.companySlug } : {}),
+      },
+    });
+    if (!invoice) {
+      return {
+        ok: false as const,
+        errors: [
+          `لم يتم العثور على فاتورة برقم ${invoiceNumber}${ctx.companySlug ? " في هذه الشركة" : ""}`,
+        ],
+      };
+    }
 
-  const total = num(invoice.subtotal) + num(invoice.taxAmount) + num(invoice.shipping);
-  const paid = num(invoice.paid);
-  if (amount! > total - paid + 1e-9) {
-    return {
-      ok: false,
-      summary: "",
-      errors: [`المبلغ ${amount} يتجاوز المتبقي على الفاتورة (${fmtMoneyFor(total - paid, ctx.currency)})`],
-    };
-  }
+    const total = num(invoice.subtotal) + num(invoice.taxAmount) + num(invoice.shipping);
+    const paid = num(invoice.paid);
+    const remaining = total - paid;
+    if (amount! > remaining + 1e-9) {
+      return {
+        ok: false as const,
+        errors: [`المبلغ ${amount} يتجاوز المتبقي على الفاتورة (${fmtMoneyFor(remaining, ctx.currency)})`],
+      };
+    }
 
-  const payment = await db.payment.create({
-    data: {
-      invoiceId: invoice.id,
-      amount: amount!,
-      method: method in PAY_METHODS ? method : "knet",
-      date: ISO_DATE.test(dateRaw) ? dateRaw : todayISODate(),
-      note: note || `سُجّلت عبر المساعد الذكي`,
-    },
+    const payment = await tx.payment.create({
+      data: {
+        invoiceId: invoice.id,
+        amount: amount!,
+        method: method in PAY_METHODS ? method : "knet",
+        date: ISO_DATE.test(dateRaw) ? dateRaw : todayISODate(),
+        note: note || `سُجّلت عبر المساعد الذكي`,
+      },
+    });
+    await tx.invoice.update({ where: { id: invoice.id }, data: { paid: paid + amount! } });
+    return { ok: true as const, paymentId: payment.id, method: payment.method, remaining: remaining - amount! };
   });
-  await db.invoice.update({ where: { id: invoice.id }, data: { paid: paid + amount! } });
+
+  if (!result.ok) return { ok: false, summary: "", errors: result.errors };
+
   await invalidateInvoices(ctx.companySlug ?? undefined);
-  const remaining = total - paid - amount!;
   return {
     ok: true,
-    summary: `تم تسجيل دفعة ${fmtMoneyFor(amount, ctx.currency)} (${PAY_METHODS[payment.method]}) على الفاتورة ${invoiceNumber} — المتبقي ${fmtMoneyFor(remaining, ctx.currency)}.`,
-    entity: { id: payment.id, type: "payment", invoiceNumber, amount },
+    summary: `تم تسجيل دفعة ${fmtMoneyFor(amount, ctx.currency)} (${PAY_METHODS[result.method]}) على الفاتورة ${invoiceNumber} — المتبقي ${fmtMoneyFor(result.remaining, ctx.currency)}.`,
+    entity: { id: result.paymentId, type: "payment", invoiceNumber, amount },
   };
 }
 

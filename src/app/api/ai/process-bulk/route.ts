@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { chatComplete } from "@/lib/ai-provider";
-import { getSession, getSessionAppUser } from "@/lib/auth-server";
+import { getSession, getSessionAppUser, aiRateLimited, noteAiAction, aiRateLimitedResponse } from "@/lib/auth-server";
 import { checkAiQuota, incrAiInvoices } from "@/lib/plans";
 
 /**
@@ -37,6 +37,10 @@ export async function POST(req: NextRequest) {
   if (!sess) {
     return NextResponse.json({ error: "الجلسة غير صالحة — سجّل الدخول من جديد", code: "SESSION_REQUIRED" }, { status: 401 });
   }
+
+  // r29 (S3): حد معدل موحّد لمسارات الذكاء (30 إجراء/5 دقائق لكل مستخدم)
+  const userId = sess.email;
+  if (await aiRateLimited(userId)) return aiRateLimitedResponse();
 
   try {
     const body = await readJsonBody(req);
@@ -87,6 +91,9 @@ No markdown, no commentary. prices as strings or numbers (we accept both).`;
       ],
       { json: true, maxTokens: 4000 },
     );
+
+    // r29 (S3): احتساب الإجراء عند نداء المزوّد فعلياً
+    await noteAiAction(userId);
 
     let parsed: unknown;
     try {

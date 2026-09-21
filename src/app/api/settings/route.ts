@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { cacheWrap, invalidateSettings } from "@/lib/cache";
+import { getSession, requireCompanyAccess, unauthorizedResponse } from "@/lib/auth-server";
 
 /**
  * Server-side company settings (r9) — replaces localStorage-only persistence
@@ -13,11 +14,19 @@ import { cacheWrap, invalidateSettings } from "@/lib/cache";
  * PUT  /api/settings
  *   { companySlug, key, value }   (value: any JSON-serialisable object)
  *   → 200 { key, companySlug, value, updatedAt }  (upsert semantics)
+ *
+ * r29 (S1): القراءة والكتابة تتطلبان جلسة + ملكية الشركة — كانت مفتوحة
+ * بالكامل (أي زائر يقرأ/يستبدل إعدادات أي شركة: قوالب روابط الدفع وحدود الائتمان).
  */
 
 const MAX_VALUE_BYTES = 64 * 1024; // 64KB per setting — plenty for maps/templates
 
 export async function GET(req: NextRequest) {
+  // r29 (S1): إعدادات شركة = بيانات الشركة — ملكية مطلوبة
+  const companySlug0 = req.nextUrl.searchParams.get("companySlug")?.trim() || "";
+  const denied = await requireCompanyAccess(req, companySlug0);
+  if (denied) return denied;
+
   const { searchParams } = new URL(req.url);
   const companySlug = searchParams.get("companySlug")?.trim() || "";
   const keysRaw = searchParams.get("keys")?.trim() || "";
@@ -63,6 +72,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
+  // r29 (S1): بوابة الجلسة قبل أي تحقق آخر — الطلبات المجهولة ترى 401 دائماً
+  // (وليس 400 من تحقق companySlug الذي يسبق الفحص) حتى لا تتسرب تفاصيل التحقق.
+  if (!getSession(req)) return unauthorizedResponse();
+
   let body: Record<string, unknown>;
   try {
     body = await req.json();
@@ -76,6 +89,9 @@ export async function PUT(req: NextRequest) {
   if (!companySlug) {
     return NextResponse.json({ error: "companySlug مطلوب" }, { status: 400 });
   }
+  // r29 (S1): كتابة إعدادات شركة غيرك → 403
+  const denied = await requireCompanyAccess(req, companySlug);
+  if (denied) return denied;
   if (!key || !/^[a-zA-Z0-9_.-]+$/.test(key)) {
     return NextResponse.json({ error: "key غير صالحة" }, { status: 400 });
   }

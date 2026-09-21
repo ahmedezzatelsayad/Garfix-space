@@ -3,19 +3,19 @@
  * TopBar — الشريط العلوي العالمي لـ GarfiX Business OS (r25).
  *
  * يسار: زر القائمة (جوال) + البحث العالمي (⌘K / Ctrl K).
- * يمين: اللغة · العملة (عرض) · الدولة · السمة · الإشعارات · المستخدم.
+ * يمين: اللغة · العملة (شارة عملة الشركة) · الدولة · السمة · الإشعارات · المستخدم.
  *
- * ملاحظة معمارية: اللغة/الدولة/العملة هنا تفضيلات عرض عالمية —
- * عملة الشركة المحاسبية تبقى مستقلة في إعدادات الشركة ولا تُغيَّر من هنا.
+ * ملاحظة معمارية: اللغة/الدولة تفضيلات عرض عالمية — عملة العرض تتبع عملة
+ * الشركة المحاسبية (تُضبط من إعدادات الشركة ولا تُغيَّر من هنا — r29/F4).
  */
 import { useEffect, useRef, useState } from "react";
 import {
   Search, Languages, Sun, Moon, Bell, ChevronDown, LogOut, User as UserIcon,
-  ShieldCheck, CircleDollarSign, AlertTriangle, CheckCircle2, Sparkles, Info, ArrowRight, ArrowLeft,
+  ShieldCheck, AlertTriangle, CheckCircle2, Sparkles, Info, ArrowRight, ArrowLeft,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n-context";
 import { tr, appDir } from "@/lib/i18n-app";
-import { CURRENCIES, setCurrency, useCurrency } from "../currency";
+import { useCurrency } from "../currency";
 import { WORLD_COUNTRIES } from "@/lib/countries-world";
 import { GX_GOLD, GX_ROYAL } from "./shell-css";
 
@@ -46,7 +46,6 @@ export default function TopBar({
   const { lang, setLang, language, languages } = useI18n();
   const cur = useCurrency();
   const [langOpen, setLangOpen, langRef] = useMenu();
-  const [curOpen, setCurOpen, curRef] = useMenu();
   const [coOpen, setCoOpen, coRef] = useMenu();
   const [bellOpen, setBellOpen, bellRef] = useMenu();
   const [userOpen, setUserOpen, userRef] = useMenu();
@@ -62,7 +61,6 @@ export default function TopBar({
   const roleLabel = isAdmin ? tr("مدير النظام") : (profile?.role === "subscriber" ? tr("مشترك") : tr("موظف"));
 
   const doSetLang = code => { setLang(code); setLangOpen(false); };
-  const doSetCurrency = code => { setCurrency(code); setCurOpen(false); };
   const doSetCountry = code => { onSetCountry?.(code); setCoOpen(false); };
 
   return (
@@ -109,35 +107,15 @@ export default function TopBar({
         )}
       </div>
 
-      {/* العملة (عرض) */}
-      <div ref={curRef} className="gx-tb-curwrap" style={{ position: "relative", flexShrink: 0 }}>
-        <button className="gx-top-btn" onClick={() => setCurOpen(o => !o)}
-          aria-haspopup="listbox" aria-expanded={curOpen}
-          title={tr("عملة العرض — عملة الشركة المحاسبية مستقلة")}>
+      {/* العملة — شارة ساكنة لعملة الشركة المحاسبية (عرض فقط)
+          r29 (F4): أُزيل مبدّل «عملة العرض» — كان يبدّل الرمز/المنازل بلا أي تحويل
+          فعلي للمبالغ (92.900 د.ك تُعرض $92.90) — عرضُ مالٍ مضلل. يُعاد المبدّل
+          لاحقاً مع جدول أسعار صرف حقيقي + تمييز «≈ محوّل». */}
+      <div className="gx-tb-curwrap" style={{ position: "relative", flexShrink: 0 }} title={tr("عملة الشركة المحاسبية — تُضبط من إعدادات الشركة")}>
+        <span className="gx-top-btn" style={{ cursor: "default" }} aria-label={tr("عملة الشركة المحاسبية")}>
           <span className="gx-tb-flag" aria-hidden="true">{cur.flag}</span>
           <span className="gx-tb-cur gx-num" style={{ fontWeight: 800 }}>{companyCurCode}</span>
-          <ChevronDown size={12} style={{ opacity: .5 }} />
-        </button>
-        {curOpen && (
-          <div className="gx-menu" role="listbox">
-            <div className="gx-menu-label">{tr("عملة العرض")}</div>
-            <div className="gx-menu-scroll">
-              {Object.values(CURRENCIES).map(c => (
-                <button key={c.code} className="gx-menu-item" role="option" aria-selected={c.code === companyCurCode}
-                  onClick={() => doSetCurrency(c.code)}>
-                  <span aria-hidden="true" style={{ fontSize: 15 }}>{c.flag}</span>
-                  <span>{lang === "ar" ? c.ar : (c.en || c.ar)}</span>
-                  <span className="gx-mi-end">{c.code === companyCurCode ? "✓" : c.code}</span>
-                </button>
-              ))}
-            </div>
-            <div className="gx-menu-sep" />
-            <div style={{ padding: "6px 10px", fontSize: 10.5, color: "var(--ia-muted)", fontWeight: 600, display: "flex", gap: 6, alignItems: "center" }}>
-              <CircleDollarSign size={12} />
-              {tr("تُضبط عملة المحاسبة من إعدادات الشركة")}
-            </div>
-          </div>
-        )}
+        </span>
       </div>
 
       {/* الدولة */}

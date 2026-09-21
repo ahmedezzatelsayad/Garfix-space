@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import * as XLSX from "xlsx";
 import { api } from "./api";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
@@ -17,7 +17,7 @@ import JobsPanel from "./components/JobsPanel";
 import CompanyForm from "./components/CompanyForm";
 import SiteManager from "./components/SiteManager";
 import PublicSite from "../site/PublicSite";
-import { fmtMoney, setCurrency, currencySymbol, CURRENCIES } from "./currency";
+import { fmtMoney, setCurrency, currencySymbol, curFieldLabel, CURRENCIES } from "./currency";
 import ReportsTab from "./components/ReportsTab";
 import PaymentsPanel from "./components/PaymentsPanel";
 import RemindersPanel from "./components/RemindersPanel";
@@ -944,11 +944,14 @@ const metaRows=rows.map(r=>({
   country:"KW",ct:"Kuwait",
 }));
 // Sheet 2 – Full customer data
-const fullHeaders=[tr("رقم الهاتف"),tr("الاسم"),tr("العنوان"),tr("إجمالي المشتريات"),tr("عدد الفواتير"),tr("آخر شراء"),tr("للميتا (هاتف)")];
+// r29 (M7): الرؤوس والصفوف من نفس المتغيرات — كانت الرؤوس تُترجم (وقت التصدير)
+// بينما مفاتيح الصفوف عربية حرفية، فبالإنجليزية يُنتج toCSV أعمدة فارغة (r[h] لا يجد المفتاح)
+const hPhone=tr("رقم الهاتف"),hName=tr("الاسم"),hAddr=tr("العنوان"),hSpent=tr("إجمالي المشتريات"),hCount=tr("عدد الفواتير"),hLast=tr("آخر شراء"),hMeta=tr("للميتا (هاتف)");
+const fullHeaders=[hPhone,hName,hAddr,hSpent,hCount,hLast,hMeta];
 const fullRows=rows.map(r=>({
-  "رقم الهاتف":r.phone,"الاسم":r.name,"العنوان":r.address,
-  "إجمالي المشتريات":r.totalSpent.toFixed(3),"عدد الفواتير":r.invoiceCount,
-  "آخر شراء":fDate(r.lastDate),"للميتا (هاتف)":"+965"+r.phone.replace(/^\+?965/,""),
+  [hPhone]:r.phone,[hName]:r.name,[hAddr]:r.address,
+  [hSpent]:r.totalSpent.toFixed(3),[hCount]:r.invoiceCount,
+  [hLast]:fDate(r.lastDate),[hMeta]:"+965"+r.phone.replace(/^\+?965/,""),
 }));
 downloadCSV(toCSV(metaHeaders, metaRows), `Meta_Audience_${today()}.csv`);
 setTimeout(()=>downloadCSV(toCSV(fullHeaders, fullRows), `Customers_${today()}.csv`), 300);
@@ -1037,14 +1040,16 @@ return (
 // ─── Invoice Preview ──────────────────────────────────────────────
 function InvPreview({inv, company}){
 const c = company;
-const sub=inv.items.reduce((s,it)=>s+pN(it.qty)*pN(it.price),0);
+// r29 (F1): تحصين — الصفوف المجمّعة بلا مصفوفة عناصر (من لوحات التحصيل) لا تُنهي التطبيق
+const items=Array.isArray(inv?.items)?inv.items:[];
+const sub=items.reduce((s,it)=>s+pN(it.qty)*pN(it.price),0);
 const taxR=pN(inv.taxRate||0);const tax=+(sub*taxR/100).toFixed(2);
 const ship=pN(inv.shipping||0);const tot=sub+tax+ship;const paid=pN(inv.paid||0);
 const due=tot-paid;
 const isCancelled=inv.status==='cancelled';
 const stC=stColor[getStatus(inv)];
 const stT=tr(stLabel[getStatus(inv)]);
-const empty=Math.max(0,5-inv.items.length);
+const empty=Math.max(0,5-items.length);
 const logoImg=getLogoImg(c.id);
 const TH={background:c.color,color:"#fff",padding:"9px 10px",fontSize:"11.5px",fontWeight:700,textAlign:"start"};
 const TD={padding:"9px 10px",fontSize:"12px",borderBottom:"1px solid #f0f0f0"};
@@ -1094,7 +1099,7 @@ return(
   {[tr("المنتج / الخدمة"),tr("الوصف"),tr("الكمية"),tr("سعر الوحدة"),tr("الإجمالي")].map(h=><th key={h} style={TH}>{h}</th>)}
 </tr></thead>
 <tbody>
-{inv.items.map((it,i)=>(
+{items.map((it,i)=>(
 <tr key={i} style={{background:i%2===1?"#f7f8fc":"#fff"}}>
 <td style={{...TD,textAlign:"center",color:"#aaa",fontSize:"11px"}}>{i+1}</td>
 <td style={{...TD,fontWeight:600}}>{it.name||""}</td>
@@ -1819,7 +1824,7 @@ onClose={()=>setShowImport(false)}
         {/* limit editor */}
         <div style={{display:"flex",gap:"8px",alignItems:"center"}}>
           <input className="inp" style={{width:"130px",direction:"ltr",textAlign:"start",padding:"7px 10px",fontSize:"12px"}} type="number" step="0.5" min="0"
-            placeholder={tr("حد ائتمان (KD)")} value={shown} onChange={e=>setCreditInput(e.target.value)}
+            placeholder={curFieldLabel(tr("حد ائتمان (KD)"))} value={shown} onChange={e=>setCreditInput(e.target.value)}
             title={tr("الحد الأقصى للديون المسموح بها لهذا العميل")}/>
           <button className="btn" style={{background:col,color:"#fff",fontSize:"12px",padding:"7px 14px"}} onClick={saveCredit}>{tr("💾 حفظ الحد")}</button>
           {hasLimit&&<button className="btn btn-ghost" style={{fontSize:"11.5px",padding:"7px 12px"}} onClick={()=>{setCreditInput("0");}}>{tr("🗑️ إزالة")}</button>}
@@ -2044,10 +2049,11 @@ style={{background:creditBlock?"#dc2626":col,color:"#fff",border:"none",borderRa
 </button>
 </div>
 )}
+{/* r29 (M1): تمرير أفقي بدل القص — آخر الأعمدة كانت تُقتطع صامتة على 390px */}
 {customers.length===0?(
 <div className="card" style={{padding:"48px",textAlign:"center",color:"var(--ia-muted)"}}><div style={{fontSize:"40px",marginBottom:"10px"}}>👥</div><div style={{fontWeight:600}}>{tr("لا توجد عملاء")}</div></div>
 ):(
-<div className="card" style={{overflow:"hidden"}}>
+<div className="card" style={{overflowX:"auto"}}>
 <table style={{width:"100%",borderCollapse:"collapse"}}>
 <thead><tr style={{background:"var(--ia-soft)",borderBottom:"2px solid var(--ia-border2)"}}>
 {[tr("العميل"),tr("التلفون"),tr("إجمالي الإنفاق"),tr("عدد الفواتير"),tr("آخر شراء"),tr("الرصيد المستحق"),tr("المنتجات"),tr("للميتا")].map(h=>(
@@ -2162,7 +2168,7 @@ return(
   <div style={{overflowY:"auto",flex:1,padding:"16px 20px"}}>
 
     {/* Amount */}
-    <label style={{fontSize:"11px",color:"var(--ia-sub)",fontWeight:700,display:"block",marginBottom:"5px"}}>{tr("💰 المبلغ المطلوب (KD)")}</label>
+    <label style={{fontSize:"11px",color:"var(--ia-sub)",fontWeight:700,display:"block",marginBottom:"5px"}}>{curFieldLabel(tr("💰 المبلغ المطلوب (KD)"))}</label>
     <div style={{display:"flex",gap:"8px",marginBottom:"14px"}}>
       <input className="inp" style={{direction:"ltr",textAlign:"start",fontWeight:800,fontSize:"15px"}} type="number" step="0.001" min="0" value={amount} onChange={e=>setAmount(e.target.value)}/>
       <button className="btn" style={{background:tealBg,color:tealTx,whiteSpace:"nowrap",fontSize:"12px"}} onClick={()=>setAmount(remaining.toFixed(3))} title={tr("إرجاع المبلغ إلى المتبقي الفعلي على الفاتورة")}>{tr("↺ المتبقي")}</button>
@@ -2412,7 +2418,10 @@ const [form,setForm]=useState(emptyForm());
 // Filter available companies based on user permissions
 // r12: يُدمج سجل الخادم فوق الإعدادات المحلية — المدير يرى كل الشركات (بما فيها المضافة حديثاً)،
 // والموظف يرى فقط ما في قائمته. حقول DB غير الفارغة تتفوق على الافتراضيات hard-coded.
-const COMPANIES_MERGED = (() => {
+// r29 (F2): useMemo — كان الـ IIFE يُنتج كائنات مدمجة جديدة كل رندر، فتتغير هوية
+// `company` المُستنتجة لكل مستخدم ذي شركة واحدة بعد كل commit ← تأثيرات الجلب
+// (refreshInvoices/refreshClients) تعيد التنفيذ بلا نهاية ← عاصفة GET دائمة.
+const COMPANIES_MERGED = useMemo(() => {
   const merged = {};
   for (const [k, co] of Object.entries(COMPANIES)) merged[k] = co;
   for (const row of dbCompanies || []) {
@@ -2450,12 +2459,13 @@ const COMPANIES_MERGED = (() => {
     }
   }
   return merged;
-})();
+}, [dbCompanies]);
 
 // r16: مطابقة بالكود (الأنظمة المدمجة) أو بالـ slug (شركات المشتركين المسجّلين من الخادم)
-const availableCompanies = Object.values(COMPANIES_MERGED).filter(co =>
+// r29 (F2): مصفوفة مستقرة الهوية أيضاً — حتى لا تتغذى أي قائمة/تأثير منها بكل رندر
+const availableCompanies = useMemo(() => Object.values(COMPANIES_MERGED).filter(co =>
   isAdmin ? true : (allowedCompanies.includes(co.id) || allowedCompanies.includes(co.sk))
-);
+), [COMPANIES_MERGED, isAdmin, allowedCompanies]);
 
 // Auto-direct single-company users straight to their dashboard (skip selector).
 // Derived during render instead of an effect (lint-clean, no cascading renders):
@@ -2463,6 +2473,10 @@ const availableCompanies = Object.values(COMPANIES_MERGED).filter(co =>
 const company = (!authLoading && selectedCompany===null && availableCompanies.length===1)
   ? availableCompanies[0]
   : selectedCompany;
+// r29 (F2): مقابض بدائية مستقرة للجلب/الحفظ — السلاسل النصية (sk/id) لا تتغير هويتها
+// بين الرندرات مهما أعيد إنشاء كائن company المُستنتج أعلاه.
+const companySk = company?.sk;
+const companyId = company?.id;
 
 // r12: سجل الشركات من الخادم — يُحمّل مرة بعد الدخول (الإعدادات hard-coded تبقى fallback)
 useEffect(()=>{
@@ -2499,59 +2513,61 @@ useEffect(()=>{
 },[company?.id]);
 
 const refreshInvoices = useCallback(async () => {
-  if (!company) return;
+  if (!companySk) return;
   setInvLoading(true);
   setInvError(false);
   try {
-    const invs = await api.listInvoices(company.sk);
+    const invs = await api.listInvoices(companySk);
     if (invs.length === 0) {
-      const local = dbGet(company.sk) || [];
+      const local = dbGet(companySk) || [];
       if (local.length > 0) {
         for (const inv of local) {
-          try { await api.createInvoice({ ...inv, companySlug: company.sk }, company.sk); } catch {}
+          try { await api.createInvoice({ ...inv, companySlug: companySk }, companySk); } catch {}
         }
-        const migrated = await api.listInvoices(company.sk);
+        const migrated = await api.listInvoices(companySk);
         setInvoices(migrated);
-        dbSet(company.sk, migrated);
+        dbSet(companySk, migrated);
         return;
       }
     }
     setInvoices(invs);
-    dbSet(company.sk, invs);
+    dbSet(companySk, invs);
   } catch {
-    setInvoices(dbGet(company.sk) || []);
+    setInvoices(dbGet(companySk) || []);
     setInvError(true); // r25: حالة خطأ قابلة للإجراء في اللوحة
   } finally {
     setInvLoading(false);
   }
-}, [company]);
+}, [companySk]);
 
+// r29 (F2): مفاتيح بدائية (sk/id) بدل هوية كائن company — كائن جديد كل رندر
+// كان يُشعل هذه التأثيرات بعد كل commit (عاصفة GET /api/invoices دائمة)
 useEffect(()=>{
-if(!company)return;
+if(!companySk)return;
 // refreshInvoices is async — every setState inside it runs after an await,
 // so this is the standard data-fetching effect, not a synchronous cascade.
  
 refreshInvoices();
-},[company, refreshInvoices]);
+},[companySk, refreshInvoices]);
 
 const refreshClients = useCallback(async () => {
-  if (!company) return;
-  try { setClients((await api.listClients(company.id)) || []); } catch {}
-}, [company]);
+  if (!companyId) return;
+  try { setClients((await api.listClients(companyId)) || []); } catch {}
+}, [companyId]);
 
 useEffect(()=>{
-if(!company)return;
+if(!companyId)return;
 // Same async data-fetching pattern as refreshInvoices above.
  
 refreshClients();
-},[company, refreshClients]);
+},[companyId, refreshClients]);
 
 const logout=async()=>{ await logoutUser(); setCompany(null); };
 
 const persist=useCallback(async list=>{
 setInvoices(list);
-if(company)dbSet(company.sk,list);
-},[company]);
+if(companySk)dbSet(companySk,list);
+},[companySk]);
 
 const toast_=(msg,type="ok")=>{setToast({msg,type});setTimeout(()=>setToast(null),2600);};
 
@@ -2838,7 +2854,7 @@ useEffect(()=>{
   // React قد يعيد تطبيق عنوان metadata عند اكتمال الإنعاش — إعادة ضبط متأخرة تفوز بالسباق
   const id=setTimeout(apply,700);
   return ()=>clearTimeout(id);
-},[company,view,sitePage,user,lang]);
+},[companyId,view,sitePage,user,lang]);
 // بعد دخول المستخدم من #/login: ننظّف الهاش بلا قفزة ونعود للتطبيق
 useEffect(()=>{
   if(user&&sitePage==="login"){
@@ -2959,7 +2975,14 @@ const invCallbacks = {
   },
   onPdf: inv=>{ doPdfExport([inv],company,{toast:toast_,setBusy:setPdfBusy,styleId:printStyle}); },
   onSend: inv=>waOpen(inv),
-  onRecordPayment: inv=>{ setSelInv(inv); setView("list"); },
+  // r29 (F1): قد يصل صف عميل مجمّع (بلا items) من بطاقات التحصيل — نطبّعه إلى فاتورة فعلية
+  // (الأكثر إلحاحاً: أول فاتورة متبقية مرتّبة بالتأخير) قبل تخزينه كفاتورة محددة.
+  onRecordPayment: row=>{
+    const inv=(row&&Array.isArray(row.invs)&&row.invs.length)
+      ?(row.invs.slice().sort((a,b)=>overdueDays(b)-overdueDays(a)).find(i=>iT(i)-pN(i.paid||0)>0)||row.invs[0])
+      :row;
+    setSelInv(inv); setView("list");
+  },
   onSendReminder: row=>{ // صف عميل من اللوحة → أفتح فاتورته المتأخرة الأبرز
     const inv=(row.invs||[]).slice().sort((a,b)=>overdueDays(b)-overdueDays(a))[0];
     if(inv) waOpen(inv);
@@ -3264,23 +3287,25 @@ return(
         {filtered.length>0&&totalPages>1&&(
           <div style={{display:"flex",alignItems:"center",gap:"6px",marginTop:"12px",flexWrap:"wrap",justifyContent:"center"}}>
             <button className="btn btn-ghost" style={{padding:"5px 12px",fontSize:"12px",opacity:safePage<=1?.5:1}} disabled={safePage<=1} onClick={()=>goToPage(safePage-1)}>{tr("→ السابق")}</button>
-            {Array.from({length:totalPages}).slice(0,7).map((_,i)=>{
-              let p=i+1;
-              if(totalPages>7){
-                if(p>4&&p<totalPages-2){
-                  if(p===5)return<span key={p} style={{color:"var(--ia-muted)",fontSize:"12px",padding:"0 2px"}}>…</span>;
-                  return null;
-                }
-              }
-              const active=p===safePage;
-              return(
+            {(()=>{ // r29 (M2): نافذة ترقيم حول الصفحة الحالية (1 … p-1 p p+1 … N) — كانت الصفحة الوسطى النشطة بلا زر عند totalPages>7
+              const win=[];
+              const add=p=>{if(p>=1&&p<=totalPages&&!win.includes(p))win.push(p);};
+              add(1);
+              if(safePage-3>1)win.push(-1);
+              for(let p=safePage-2;p<=safePage+2;p++)add(p);
+              if(safePage+3<totalPages)win.push(-2);
+              add(totalPages);
+              return win.map(p=>{
+                if(p<0)return <span key={"ell"+p} style={{color:"var(--ia-muted)",fontSize:"12px",padding:"0 2px"}}>…</span>;
+                const active=p===safePage;
+                return(
                 <button key={p} onClick={()=>goToPage(p)} style={{
                   border:`1.5px solid ${active?col:"var(--ia-border)"}`,background:active?col:"var(--ia-card)",
                   color:active?"#fff":"var(--ia-sub)",borderRadius:"7px",padding:"4px 11px",
                   fontFamily:"inherit",fontSize:"12px",fontWeight:800,cursor:"pointer",transition:"all .15s",
                 }}>{p}</button>
-              );
-            })}
+              );});
+            })()}
             <button className="btn btn-ghost" style={{padding:"5px 12px",fontSize:"12px",opacity:safePage>=totalPages?.5:1}} disabled={safePage>=totalPages} onClick={()=>goToPage(safePage+1)}>{tr("التالي ←")}</button>
             <span style={{fontSize:"11px",color:"var(--ia-muted)",marginInlineStart:"8px"}}>{(safePage-1)*safePS+1}–{Math.min(safePage*safePS,filtered.length)} {tr("من")} {filtered.length}</span>
           </div>
@@ -3381,7 +3406,7 @@ return(
             <input className="inp" type="date" value={form.date} onChange={e=>setField("date",e.target.value)}/></div>
           <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("تاريخ الاستحقاق")}</label>
             <input className="inp" type="date" value={form.dueDate} onChange={e=>setField("dueDate",e.target.value)}/></div>
-          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("المدفوع (KD)")}</label>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{curFieldLabel(tr("المدفوع (KD)"))}</label>
             <input className="inp" placeholder="0.000" value={form.paid} onChange={e=>setField("paid",e.target.value)}/></div>
         </div>
         <div style={{fontSize:"10px",fontWeight:700,color:"var(--ia-muted)",textTransform:"uppercase",letterSpacing:".5px",marginBottom:"9px"}}>{tr("المنتجات")}</div>
@@ -3486,7 +3511,7 @@ return(
             <input className="inp" type="date" value={editForm.date} onChange={e=>setEditField("date",e.target.value)}/></div>
           <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("تاريخ الاستحقاق")}</label>
             <input className="inp" type="date" value={editForm.dueDate} onChange={e=>setEditField("dueDate",e.target.value)}/></div>
-          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("المدفوع (KD)")}</label>
+          <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{curFieldLabel(tr("المدفوع (KD)"))}</label>
             <input className="inp" placeholder="0.000" value={editForm.paid} onChange={e=>setEditField("paid",e.target.value)}/></div>
           <div><label style={{fontSize:"11px",color:"var(--ia-sub)",display:"block",marginBottom:"4px"}}>{tr("حالة الطلب")}</label>
             <select className="inp" value={editForm.status||""} onChange={e=>setEditField("status",e.target.value)}>

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { tr, dateLocale } from "@/lib/i18n-app";
+import { logoutUser } from "../firebase/auth";
 
 /**
  * r17/r18: لوحة المؤسس — إدارة الاشتراكات (تبويب في مودال AdminDashboard).
@@ -55,6 +56,7 @@ export default function SubscriptionsPanel({ toast_ }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
+  const [sessionExpired, setSessionExpired] = useState(false); // r19/r29: بطاقة جلسة منتهية بدل الخطأ الغامض
   const [drafts, setDrafts] = useState({});
   const [expanded, setExpanded] = useState({});
   const [savingPlan, setSavingPlan] = useState(null);
@@ -69,9 +71,15 @@ export default function SubscriptionsPanel({ toast_ }) {
   const load = useCallback(async () => {
     setLoading(true);
     setErr(null);
+    setSessionExpired(false);
     try {
       const res = await fetch("/api/admin/subscriptions");
       const j = await res.json().catch(() => ({}));
+      // r19/r29: انتهاء جلسة الخادم → بطاقة إعادة دخول أنيقة بدل خطأ عام
+      if (res.status === 401) {
+        setSessionExpired(true);
+        throw new Error(j.error || tr("انتهت الجلسة"));
+      }
       if (!res.ok) throw new Error(j.error || `HTTP ${res.status}`);
       setData(j);
       const nd = {};
@@ -197,6 +205,25 @@ export default function SubscriptionsPanel({ toast_ }) {
 
   /* ── خطأ ── */
   if (err) {
+    // r19/r29: جلسة الخادم منتهية — خروج ودّي وإعادة توجيه لبوابة الدخول
+    if (sessionExpired) {
+      return (
+        <div style={{ direction: "rtl" }}>
+          <style>{STYLE}</style>
+          <div style={{ background: "var(--ia-warn-bg)", border: "1px solid #fde68a66", borderRadius: 12, padding: "26px 24px", color: "var(--ia-warn-tx)", fontSize: 13, lineHeight: 1.9, animation: "subFade .4s ease both" }} role="alert">
+            <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 8 }}>⌛ {tr("انتهت جلستك على الخادم")}</div>
+            <div style={{ marginBottom: 18 }}>{tr("انتهت جلستك على الخادم — بياناتك محفوظة وآمنة. سجّل الدخول من جديد للمتابعة.")}</div>
+            <button
+              onClick={() => { try { location.hash = "#/login"; } catch { /* ignore */ } logoutUser(); }}
+              className="btn sub-btn"
+              style={{ background: "#b45309", color: "#fff", fontWeight: 800 }}
+            >
+              🔑 {tr("تسجيل الدخول من جديد")}
+            </button>
+          </div>
+        </div>
+      );
+    }
     return (
       <div style={{ direction: "rtl" }}>
         <style>{STYLE}</style>

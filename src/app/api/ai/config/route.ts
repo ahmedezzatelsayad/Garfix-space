@@ -4,8 +4,10 @@ import { DEEPSEEK_MODELS, getAiConfig, maskKey } from "@/lib/ai-provider";
 import { invalidateSettings } from "@/lib/cache";
 import { requireAdmin } from "@/lib/auth-server";
 
-// GET /api/ai/config — إعداد DeepSeek الحالي (المفتاح مقنّع)
-export async function GET() {
+// GET /api/ai/config — إعداد DeepSeek الحالي (المفتاح مقنّع) — r29: للمديرين فقط
+export async function GET(req: NextRequest) {
+  const denied = requireAdmin(req);
+  if (denied) return denied;
   try {
     const row = await db.aiSetting.findUnique({ where: { provider: "deepseek" } });
     return NextResponse.json({

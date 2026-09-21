@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Payment } from "@prisma/client";
 import { db } from "@/lib/db";
-import { num, parseIdParam, readBody, todayISODate } from "@/lib/serialize";
+import { num, parseIdParam, readBody, todayISODate, ISO_DATE_RE } from "@/lib/serialize";
 import { invalidateInvoices } from "@/lib/cache";
+import { getSessionScope, unauthorizedResponse, forbiddenCompanyResponse } from "@/lib/auth-server";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -28,8 +29,11 @@ function serializePayment(p: Payment) {
 }
 
 // GET /api/invoices/[id]/payments — list payments for an invoice, date desc
-export async function GET(_req: NextRequest, { params }: RouteContext) {
+export async function GET(req: NextRequest, { params }: RouteContext) {
   try {
+    const scope = await getSessionScope(req);
+    if (!scope) return unauthorizedResponse();
+
     const { id: idStr } = await params;
     const id = parseIdParam(idStr);
     if (id === null) {
@@ -39,6 +43,10 @@ export async function GET(_req: NextRequest, { params }: RouteContext) {
     const invoice = await db.invoice.findUnique({ where: { id } });
     if (!invoice) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    // r29 (S1): مدفوعات فاتورة شركة غير متاحة للجلسة → 403
+    if (!scope.all && (!invoice.companySlug || !scope.slugs.includes(invoice.companySlug))) {
+      return forbiddenCompanyResponse();
     }
 
     const rows = await db.payment.findMany({
@@ -58,6 +66,9 @@ export async function GET(_req: NextRequest, { params }: RouteContext) {
 // untouched (the frontend derives display status from paid vs total).
 export async function POST(req: NextRequest, { params }: RouteContext) {
   try {
+    const scope = await getSessionScope(req);
+    if (!scope) return unauthorizedResponse();
+
     const { id: idStr } = await params;
     const id = parseIdParam(idStr);
     if (id === null) {
@@ -66,15 +77,34 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
 
     const body = await readBody(req);
     const amount = num(body.amount);
-    const method = String(body.method || "knet"); // cash | knet | online | card
-    const date = String(body.date || todayISODate());
-    const note = body.note == null ? null : String(body.note);
+    const method = String(body.method || "knet").slice(0, 20); // cash | knet | online | card
+    const dateRaw = String(body.date || todayISODate()).slice(0, 10);
+    const date = ISO_DATE_RE.test(dateRaw) ? dateRaw : todayISODate();
+    const note = body.note == null ? null : String(body.note).slice(0, 500);
 
     if (!(amount > 0)) {
       return NextResponse.json(
         { error: "المبلغ يجب أن يكون أكبر من صفر" },
         { status: 400 },
       );
+    }
+    if (body.date != null && !ISO_DATE_RE.test(dateRaw)) {
+      return NextResponse.json(
+        { error: "تاريخ الدفعة يجب أن يكون بصيغة YYYY-MM-DD" },
+        { status: 400 },
+      );
+    }
+
+    // r29 (S1): تسجيل دفعة على فاتورة شركة غير متاحة → 403 (قبل المعاملة)
+    const target = await db.invoice.findUnique({
+      where: { id },
+      select: { companySlug: true },
+    });
+    if (!target) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    if (!scope.all && (!target.companySlug || !scope.slugs.includes(target.companySlug))) {
+      return forbiddenCompanyResponse();
     }
 
     const created = await db.$transaction(async (tx) => {

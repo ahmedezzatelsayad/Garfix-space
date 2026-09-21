@@ -172,7 +172,7 @@ export function PaymentsView({ invoices = [], fmt, onRecordPayment, onSendRemind
                             <User size={15} />
                           </button>
                           {canEdit && (
-                            <button className="gx-ibtn" title={tr("تسجيل دفعة")} aria-label={tr("تسجيل دفعة")} onClick={() => onRecordPayment?.(r)}>
+                            <button className="gx-ibtn" title={tr("تسجيل دفعة")} aria-label={tr("تسجيل دفعة")} onClick={() => onRecordPayment?.((r.invs || [])[0])}>
                               <Wallet size={15} color="#2563EB" />
                             </button>
                           )}

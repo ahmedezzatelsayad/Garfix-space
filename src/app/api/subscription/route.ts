@@ -79,7 +79,7 @@ export async function PUT(req: NextRequest) {
   }
   try {
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-    const data: { displayName?: string; phone?: string | null; lang?: string; countryCode?: string } = {};
+    const data: { displayName?: string; phone?: string | null; lang?: string; countryCode?: string | null } = {};
 
     if (typeof body.displayName === "string") {
       const name = body.displayName.trim();

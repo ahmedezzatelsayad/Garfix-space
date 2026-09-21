@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { getSessionScope, unauthorizedResponse, forbiddenCompanyResponse } from "@/lib/auth-server";
 
 /**
  * GET /api/reminders?companySlug=…&invoiceId=…
@@ -7,17 +8,31 @@ import { db } from "@/lib/db";
  * POST /api/reminders
  *   { invoiceId?, clientPhone?, clientName?, channel?, message?, amount? }
  *   → 201 created reminder log (audit trail for WhatsApp payment reminders)
+ * r29 (S1): تتطلب جلسة؛ السجلات محصورة بشركات الجلسة، والتسجيل على فاتورة
+ * يتطلب ملكية شركة الفاتورة.
  */
 export async function GET(req: NextRequest) {
+  const scope = await getSessionScope(req);
+  if (!scope) return unauthorizedResponse();
+
   const { searchParams } = new URL(req.url);
-  const companySlug = searchParams.get("companySlug") ?? undefined;
+  const companySlug = searchParams.get("companySlug")?.trim() || undefined;
   const invoiceIdRaw = searchParams.get("invoiceId");
   const invoiceId = invoiceIdRaw ? Number(invoiceIdRaw) : undefined;
   const limitRaw = searchParams.get("limit");
   const limit = limitRaw ? Math.min(Math.max(Number(limitRaw) || 50, 1), 200) : 50;
 
-  const where: Record<string, unknown> = {};
-  if (companySlug) where.companySlug = companySlug;
+  if (companySlug && !scope.all && !scope.slugs.includes(companySlug)) {
+    return forbiddenCompanyResponse();
+  }
+
+  const where: Record<string, unknown> = {
+    ...(companySlug
+      ? { companySlug }
+      : scope.all
+        ? {}
+        : { companySlug: { in: scope.slugs } }), // r29: بلا شركة → شركات الجلسة
+  };
   if (invoiceId && Number.isFinite(invoiceId)) where.invoiceId = invoiceId;
 
   const reminders = await db.reminderLog.findMany({
@@ -44,6 +59,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const scope = await getSessionScope(req);
+  if (!scope) return unauthorizedResponse();
+
   let body: Record<string, unknown>;
   try {
     body = await req.json();
@@ -82,9 +100,18 @@ export async function POST(req: NextRequest) {
     if (!inv) {
       return NextResponse.json({ error: "الفاتورة غير موجودة" }, { status: 404 });
     }
+    // r29 (S1): تسجيل تذكير على فاتورة شركة غير متاحة → 403
+    if (!scope.all && (!inv.companySlug || !scope.slugs.includes(inv.companySlug))) {
+      return forbiddenCompanyResponse();
+    }
     clientName = clientName || inv.clientName;
     clientPhone = clientPhone || inv.clientPhone;
     companySlug = companySlug || inv.companySlug || null;
+  }
+
+  // r29 (S1): شركة صريحة في الطلب يجب أن تكون ضمن شركات الجلسة
+  if (companySlug && !scope.all && !scope.slugs.includes(companySlug)) {
+    return forbiddenCompanyResponse();
   }
 
   const created = await db.reminderLog.create({

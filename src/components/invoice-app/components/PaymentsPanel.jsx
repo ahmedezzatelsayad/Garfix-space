@@ -9,7 +9,7 @@ import { useTheme, txAdapt, softAdapt } from "../theme";
 // new partial payments (cash / KNET / online / card). The backend keeps
 // the invoice.paid field in sync with the sum of its payments.
 
-import { fmtMoney } from "../currency";
+import { fmtMoney, curFieldLabel } from "../currency";
 import { tr } from "@/lib/i18n-app";
 const toW = s => String(s || "").replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d));
 const pN = s => parseFloat(toW(String(s || 0)).replace(/[^\d.]/g, "")) || 0;
@@ -170,7 +170,7 @@ export default function PaymentsPanel({ inv, company, onChanged, canEdit }) {
               {tr("فاتورة")} <b>{inv.invNum}</b> {tr("• المتبقي")} <b style={{ color: "var(--ia-red-tx)" }}>{fKWD(remaining)}</b>
             </div>
 
-            <label style={{ fontSize: "11px", color: "var(--ia-sub)", display: "block", marginBottom: "4px", fontWeight: 700 }}>{tr("المبلغ (KD) *")}</label>
+            <label style={{ fontSize: "11px", color: "var(--ia-sub)", display: "block", marginBottom: "4px", fontWeight: 700 }}>{curFieldLabel(tr("المبلغ (KD) *"))}</label>
             <input className="inp" style={{ marginBottom: "12px", direction: "ltr", textAlign: "start", fontWeight: 800, fontSize: "15px" }} placeholder={remaining ? String(+remaining.toFixed(3)) : "0.000"} value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
 
             <label style={{ fontSize: "11px", color: "var(--ia-sub)", display: "block", marginBottom: "6px", fontWeight: 700 }}>{tr("طريقة الدفع")}</label>

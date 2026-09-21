@@ -1,19 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { num } from "@/lib/serialize";
+import { invoiceTotal } from "@/lib/serialize";
 import { cacheWrap } from "@/lib/cache";
+import { getSessionScope, unauthorizedResponse, forbiddenCompanyResponse } from "@/lib/auth-server";
 
 // GET /api/dashboard/revenue-by-month?companySlug=
-// Groups invoices by issueDate "YYYY-MM"; revenue = subtotal + shipping.
+// Groups invoices by issueDate "YYYY-MM"; revenue = subtotal + taxAmount + shipping
+// (r29/C1: كانت الضريبة مُغفّلة هنا بينما مسار المدفوعات يحسبها).
 // Returns entries sorted ascending, limited to the last 12 months present.
-// (r10: كاش Valkey 60 ثانية)
+// (r10: كاش Valkey 60 ثانية · r29/S1: جلسة + عزل شركات الجلسة)
 export async function GET(req: NextRequest) {
   try {
-    const companySlug = req.nextUrl.searchParams.get("companySlug") ?? undefined;
+    const scope = await getSessionScope(req);
+    if (!scope) return unauthorizedResponse();
 
-    const result = await cacheWrap(`rev:${companySlug ?? "all"}`, 60, async () => {
+    const companySlug = req.nextUrl.searchParams.get("companySlug")?.trim() || undefined;
+    if (companySlug && !scope.all && !scope.slugs.includes(companySlug)) {
+      return forbiddenCompanyResponse();
+    }
+
+    const where = companySlug
+      ? { companySlug }
+      : scope.all
+        ? {}
+        : { companySlug: { in: scope.slugs } };
+    const scopeKey = companySlug || (scope.all ? "all" : scope.slugs.join("+"));
+
+    const result = await cacheWrap(`rev:v2:${scopeKey}`, 60, async () => {
       const invoices = await db.invoice.findMany({
-        where: companySlug ? { companySlug } : {},
+        where,
         orderBy: { createdAt: "desc" },
       });
 
@@ -23,7 +38,7 @@ export async function GET(req: NextRequest) {
         const month = date.substring(0, 7);
         if (!month) continue;
         if (!monthMap[month]) monthMap[month] = { revenue: 0, count: 0 };
-        monthMap[month].revenue += num(inv.subtotal) + num(inv.shipping);
+        monthMap[month].revenue += invoiceTotal(inv);
         monthMap[month].count++;
       }
 

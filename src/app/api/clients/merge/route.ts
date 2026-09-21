@@ -2,12 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { invalidateInvoices, invalidateClients } from "@/lib/cache";
 import { requireAdmin } from "@/lib/auth-server";
+import { companyMatchKeys } from "@/lib/company-access";
 
 /**
  * POST /api/clients/merge — دمج عميلين مكررين (r11)
  * يوحّد كل فواتير «المصدر» (بمطابقة phKey للرقم) على اسم/رقم/عنوان «الهدف»
  * وينظّف صفوف جدول clients المتعلقة بالمصدر — كل ذلك داخل معاملة واحدة.
  * body: { companySlug, from: {phone, name?}, to: {phone, name, address?} }
+ * r29 (C4): تنظيف صفوف المصدر/الهدف محصور الآن بشركة companySlug فقط — كان
+ * يحذف صفوف كل الشركات التي تتطابق أرقامها (فقدان بيانات عبر المستأجرين).
  */
 
 // مفتاح الرقم القانوني: أرقام فقط + إزالة + و إزالة 965 عند اتباعها بـ8 أرقام
@@ -53,6 +56,11 @@ export async function POST(req: NextRequest) {
     });
     const toMerge = sourceInvoices.filter((inv) => phKey(inv.clientPhone) === fromPh);
 
+    // r29 (C4): مفاتيح شركة الدمج (slug/code/name/nameAr) — تنظيف الدليل محصور بها
+    const companyKeys = await companyMatchKeys([companySlug]);
+    const inCompany = (c: { company: string | null }): boolean =>
+      companyKeys.has(String(c.company ?? "").trim().toLowerCase());
+
     let merged = 0;
     let clientsRemoved = 0;
 
@@ -69,14 +77,21 @@ export async function POST(req: NextRequest) {
         merged++;
       }
 
-      // تنظيف صفوف دليل العملاء للمصدر (أي تهجئة رقم) وتوحيد صف الهدف
-      const clientRows = await tx.client.findMany({});
-      const sourceRows = clientRows.filter((c) => phKey(c.phone) === fromPh);
+      // تنظيف صفوف دليل العملاء للمصدر (أي تهجئة رقم) وتوحيد صف الهدف —
+      // r29 (C4): داخل شركة companySlug فقط (كان findMany({}) لكل الشركات)
+      const clientRows = await tx.client.findMany({
+        where: { company: { not: null } },
+      });
+      const sourceRows = clientRows.filter(
+        (c) => inCompany(c) && phKey(c.phone) === fromPh,
+      );
       for (const row of sourceRows) {
         await tx.client.delete({ where: { id: row.id } });
         clientsRemoved++;
       }
-      const targetRows = clientRows.filter((c) => phKey(c.phone) === toPh);
+      const targetRows = clientRows.filter(
+        (c) => inCompany(c) && phKey(c.phone) === toPh,
+      );
       for (const row of targetRows) {
         await tx.client.update({
           where: { id: row.id },
@@ -92,7 +107,7 @@ export async function POST(req: NextRequest) {
           data: {
             name: toName,
             phone: toPhoneRaw,
-            company: null,
+            company: companySlug, // r29 (C4): يُنسب للشركة المدمجة (كان null)
             address: toAddress ?? null,
           },
         });

@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { chatComplete } from "@/lib/ai-provider";
+import {
+  getSessionScope,
+  unauthorizedResponse,
+  aiRateLimited,
+  noteAiAction,
+  aiRateLimitedResponse,
+} from "@/lib/auth-server";
 
 interface CatalogProduct {
   id: number;
@@ -10,17 +17,35 @@ interface CatalogProduct {
 }
 
 // POST /api/ai/process-items — body: { rawText, catalog }
+// r29 (S3): تتطلب جلسة + حد معدل (30/5 دقائق) + سقف طول rawText (10000 محرف)
+// — كانت مفتوحة للزوار بنص غير محدود يحرق توكنات المزوّد.
+const MAX_RAW_TEXT = 10_000;
+
 export async function POST(req: NextRequest) {
   try {
+    const scope = await getSessionScope(req);
+    if (!scope) return unauthorizedResponse();
+    const userId = scope.session.email;
+    if (await aiRateLimited(userId)) return aiRateLimitedResponse();
+
     const body = await readJsonBody(req);
     const rawText = typeof body.rawText === "string" ? body.rawText : "";
     const catalog: CatalogProduct[] = Array.isArray(body.catalog)
-      ? (body.catalog as CatalogProduct[])
+      ? (body.catalog as CatalogProduct[]).slice(0, 500)
       : [];
 
     if (!rawText.trim()) {
       return NextResponse.json({ error: "rawText is required" }, { status: 400 });
     }
+    if (rawText.length > MAX_RAW_TEXT) {
+      return NextResponse.json(
+        { error: `النص أطول من الحد (${MAX_RAW_TEXT} محرف)` },
+        { status: 400 },
+      );
+    }
+
+    // r29 (S3): احتساب الإجراء قبل نداء المزوّد
+    await noteAiAction(userId);
 
     const catalogText =
       catalog.length > 0

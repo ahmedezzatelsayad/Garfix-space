@@ -3,25 +3,30 @@
 /**
  * HelloBoot — شاشة إقلاع «Hello, World» بأسلوب آيفون بكل لغات العالم 🌏
  *
- * التجربة: شاشة سوداء خالصة تُحيّ الزائر بـ«مرحباً بالعالم» لغةً لغة (٨٢ لغة)،
+ * التجربة: شاشة سوداء خالصة تُحيّ الزائر بـ«مرحباً بالعالم» لغةً لغة (٧٦ لغة)،
  * بخطّ يدوي أنيق للغات اللاتينية — مثل إقلاع أجهزة آبل الشهير — ثم تُختتم
  * بشعار Garfix الذهبي قبل كشف التطبيق.
  *
  * - تعمل مرة واحدة لكل جلسة متصفح (sessionStorage: garfix_hello_boot).
  * - أي نقرة/لمسة في أي مكان = تخطٍّ فوري.
- * - حماية «قبل أول رسم»: سكربت مضمّن في layout.tsx يضبط html[data-garfix-boot]
- *   ويعرض طبقة سوداء فورية (#garfix-hello-boot) حتى قبل تحميل React — بلا وميض.
+ * - حماية «قبل أول رسم» (r29/F5): سكربت مضمّن في layout.tsx يضبط
+ *   html[data-garfix-boot] فتُلوَّن الخلفية سوداء فوراً (CSS) قبل تحميل React —
+ *   بلا وميض وبلا إضافة عُقد DOM قد تُربك الترطيب؛ يزيله هذا المكوّن عند بدء
+ *   العرض، مع مؤقّت أمان ٦ ثوانٍ داخل السكربت نفسه.
  * - هذا المكوّن يعرض {children} دائماً (التطبيق يُحمّل خلف الشاشة) + طبقة الإقلاع فوقه.
+ * - مركّب في src/app/page.tsx حول <App/> — تراكيب فقط من جهة العميل، ولا
+ *   يظهر شيء لمحركات البحث (مرحلة "check" تطابق SSR تماماً).
  */
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
-/* ─── «مرحباً بالعالم» بكل لغات العالم (٨٢ لغة) ───
+/* ─── «مرحباً بالعالم» بكل لغات العالم (٧٦ لغة) ───
  * f: hand = خطّ يدوي لاتيني · serif = سيريف للغات غير اللاتينية · sans = CJK
  * rtl: اللغات المكتوبة من اليمين لليسار
+ * r29 (M6): حُذف العبرية (he) — قرار r26: 27 لغة بلا إسرائيل/العبرية.
  */
 const HELLOS = [
-  // لغات المنصة الـ28 أولاً (بترتيب مبدّل اللغة)
+  // لغات المنصة الـ27 أولاً (بترتيب مبدّل اللغة)
   { c: "ar", t: "مرحباً بالعالم", rtl: true, f: "arab" },
   { c: "en", t: "Hello, World", rtl: false, f: "hand" },
   { c: "bn", t: "হ্যালো বিশ্ব", rtl: false, f: "serif" },
@@ -30,7 +35,6 @@ const HELLOS = [
   { c: "es", t: "Hola Mundo", rtl: false, f: "hand" },
   { c: "fa", t: "سلام دنیا", rtl: true, f: "arab" },
   { c: "fr", t: "Bonjour le Monde", rtl: false, f: "hand" },
-  { c: "he", t: "שלום עולם", rtl: true, f: "serif" },
   { c: "hi", t: "नमस्ते दुनिया", rtl: false, f: "serif" },
   { c: "id", t: "Halo Dunia", rtl: false, f: "hand" },
   { c: "it", t: "Ciao Mondo", rtl: false, f: "hand" },
@@ -168,7 +172,7 @@ export default function HelloBoot({ children }: { children?: React.ReactNode }) 
     }
   }, [phase]);
 
-  // بمجرد ظهور طبقتنا: أسقط طبقة ما-قبل-الرسم الفورية (بلا وميض — قبل الرسم)
+  // بمجرد ظهور طبقتنا: أسقط خلفية ما-قبل-الرسم الفورية (بلا وميض — قبل الرسم)
   useLayoutEffect(() => {
     if (phase === "play" || phase === "finale") {
       try { document.documentElement.removeAttribute("data-garfix-boot"); } catch { /* ignore */ }

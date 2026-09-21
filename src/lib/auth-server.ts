@@ -78,6 +78,17 @@ function buildUsers(): ServerUser[] {
 
 const SERVER_USERS = buildUsers();
 
+// ── r29 (29-fix-api): خرائط موظفي العرض → شركاتهم ──
+// أكواد الشركة (تُحل إلى slugs من جدول Company عند الفحص) — تطابق SEED_PROFILES
+// في الواجهة (firebase/users.js): الموظف يرى شركته فقط، وأيمن يرى الكل (لكنه admin أصلاً).
+const DEMO_ACCOUNT_COMPANIES: Record<string, string[]> = {
+  "ayman@manager.com": ["tawfeer", "mahhal", "boss", "laqta"],
+  "info@tawfeer.com": ["tawfeer"],
+  "info@laqta.com": ["laqta"],
+  "info@mahhl.com": ["mahhal"],
+  "info@boss.com": ["boss"],
+};
+
 /** r16: بريدات الحسابات المدمجة — محجوزة: لا يجوز التسجيل بها (منع انتحال المدير/الموظفين) */
 export function isReservedAccountEmail(email: string): boolean {
   return RESERVED_EMAILS.has((email || "").trim().toLowerCase());
@@ -203,6 +214,140 @@ export function requireAdmin(req: NextRequest): NextResponse | null {
     );
   }
   return null;
+}
+
+// ── r29 (29-fix-api): بوابة الجلسة + عزل المستأجرين لمسارات الأعمال ──
+// كان مستوى البيانات الأساسي (فواتير/عملاء/كتالوج/مدفوعات/داشبورد/ذكاء) مفتوحاً
+// بالكامل بلا جلسة ولا فحص ملكية — هذه الطبقة تُغلقه بنفس نمط requireAdmin.
+
+/** نطاق الشركات المتاحة لجلسة صالحة */
+export interface SessionScope {
+  session: SessionUser;
+  /** true = مدير عام (المؤسس/أيمن) — يرى كل الشركات */
+  all: boolean;
+  /** slugs الشركات المتاحة (فارغ عندما all=true) */
+  slugs: string[];
+}
+
+/** 401 موحّد لمسارات الأعمال (بلا جلسة صالحة) */
+export function unauthorizedResponse(): NextResponse {
+  return NextResponse.json(
+    { error: "الجلسة غير صالحة — سجّل الخروج ثم الدخول من جديد", code: "SESSION_REQUIRED" },
+    { status: 401 },
+  );
+}
+
+/** 403 موحّد لمحاولة الوصول لشركة ليست ضمن شركات الجلسة */
+export function forbiddenCompanyResponse(): NextResponse {
+  return NextResponse.json(
+    { error: "لا يمكنك الوصول إلى بيانات هذه الشركة", code: "OWNER_REQUIRED" },
+    { status: 403 },
+  );
+}
+
+/**
+ * حارس الجلسة لمسارات الأعمال — يُستدعى أول سطر في المعالج:
+ *   const denied = requireSession(req); if (denied) return denied;
+ * يعيد NextResponse (401) أو null إذا وُجدت جلسة صالحة.
+ */
+export function requireSession(req: NextRequest): NextResponse | null {
+  return getSession(req) ? null : unauthorizedResponse();
+}
+
+// كاش نطاق خفيف (30 ثانية) حتى لا تضرب عاصفة طلبات الواجهة قاعدة البيانات
+// ببحث AppUser/Company في كل طلب — مفتاحه بريد الجلسة ومحدود بعدد المستخدمين.
+const scopeCache = new Map<string, { all: boolean; slugs: string[]; exp: number }>();
+
+/**
+ * نطاق الجلسة: مدير عام → كل الشركات؛ مشترك مسجّل (AppUser) → شركاته (slugs)؛
+ * موظف عرض → شركاته (أكواد تُحل إلى slugs من DB). أي بريد آخر → نطاق فارغ.
+ * يعيد null بلا جلسة صالحة.
+ */
+export async function getSessionScope(req: NextRequest): Promise<SessionScope | null> {
+  const sess = getSession(req);
+  if (!sess) return null;
+  if (sess.role === "admin") return { session: sess, all: true, slugs: [] };
+
+  const email = (sess.email || "").trim().toLowerCase();
+  const cached = scopeCache.get(email);
+  if (cached && cached.exp > Date.now()) {
+    return { session: sess, all: cached.all, slugs: cached.slugs };
+  }
+
+  let slugs: string[] = [];
+  try {
+    const { db } = await import("@/lib/db");
+    const appUser = await db.appUser.findUnique({ where: { email } });
+    if (appUser) {
+      try {
+        slugs = (JSON.parse(appUser.companies) as unknown[])
+          .map((s) => String(s ?? "").trim())
+          .filter(Boolean);
+      } catch {
+        slugs = [];
+      }
+    } else {
+      const codes = DEMO_ACCOUNT_COMPANIES[email];
+      if (codes?.length) {
+        const rows = await db.company.findMany({
+          where: { code: { in: codes } },
+          select: { slug: true },
+        });
+        slugs = rows.map((r) => r.slug);
+      }
+    }
+  } catch {
+    slugs = []; // قاعدة غير متاحة — نطاق فارغ (أضيق أماناً)
+  }
+
+  if (scopeCache.size > 500) scopeCache.clear();
+  scopeCache.set(email, { all: false, slugs, exp: Date.now() + 30_000 });
+  return { session: sess, all: false, slugs };
+}
+
+/**
+ * حارس مستأجر شركة محددة (S1): المدير العام يجتاز دائماً؛ المشترك/الموظف يجب
+ * أن تكون الشركة ضمن شركاته. slug فارغ/غائب = مدير فقط (COMPANY_REQUIRED).
+ * يعيد NextResponse (401/403) أو null عند الاجتياز.
+ */
+export async function requireCompanyAccess(
+  req: NextRequest,
+  companySlug: string | null | undefined,
+): Promise<NextResponse | null> {
+  const scope = await getSessionScope(req);
+  if (!scope) return unauthorizedResponse();
+  if (scope.all) return null;
+  const slug = String(companySlug ?? "").trim();
+  if (!slug) {
+    return NextResponse.json(
+      { error: "الشركة مطلوبة — اختر إحدى شركاتك للعمل على بياناتها", code: "COMPANY_REQUIRED" },
+      { status: 403 },
+    );
+  }
+  if (!scope.slugs.includes(slug)) return forbiddenCompanyResponse();
+  return null;
+}
+
+// ── r29 (S3): حد معدل موحّد لمسارات الذكاء الاصطناعي (30 إجراء/5 دقائق لكل مستخدم) ──
+const AI_WINDOW_MS = 5 * 60 * 1000;
+const AI_MAX_ACTIONS = 30;
+
+/** true = تجاوز الحد (يُحجب 429) — المفتاح rl:ai:{userId} في Valkey */
+export async function aiRateLimited(userId: string): Promise<boolean> {
+  return actionRateLimited("ai", userId, AI_MAX_ACTIONS, AI_WINDOW_MS);
+}
+
+/** سجّل إجراء ذكاء اصطناعي واحداً (كل تنفيذ فعلي يزيد العدّاد) */
+export async function noteAiAction(userId: string): Promise<void> {
+  await noteActionFailure("ai", userId, AI_WINDOW_MS);
+}
+
+/** 429 موحّد لمسارات الذكاء الاصطناعي */
+export function aiRateLimitedResponse(): NextResponse {
+  return NextResponse.json(
+    { error: "كثفت استخدام المساعد الذكي — انتظر خمس دقائق ثم حاول مجدداً", code: "AI_RATE_LIMITED" },
+    { status: 429 },
+  );
 }
 
 // ── r28: تحديد المعدل عبر Valkey (طبقة الكاش) بسقوط آمن للذاكرة ──

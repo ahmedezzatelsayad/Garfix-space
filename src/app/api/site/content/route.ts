@@ -35,11 +35,9 @@ export async function PUT(req: NextRequest) {
   try {
     const body = (await req.json().catch(() => ({}))) as { content?: unknown };
     const content = (body.content ?? {}) as Record<string, unknown>;
-    const entries = Object.entries(content).filter(([k, v]) => {
-      if (!KEY_RE.test(k)) return false;
-      if (typeof v !== "string") return false;
-      return true;
-    });
+    const entries = Object.entries(content).filter(
+      (e): e is [string, string] => KEY_RE.test(e[0]) && typeof e[1] === "string"
+    );
     if (!entries.length) {
       return NextResponse.json({ error: "لا توجد حقول صالحة للحفظ (مفاتيح a-z0-9_ وقيم نصية)" }, { status: 400 });
     }

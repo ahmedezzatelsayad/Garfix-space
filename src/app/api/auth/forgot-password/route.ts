@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { generateResetToken, hashToken } from "@/lib/passwords";
-import { clientIp, actionRateLimited, noteActionFailure } from "@/lib/auth-server";
+import { clientIp, actionRateLimited, noteActionFailure, clearActionFailures } from "@/lib/auth-server";
 import { getResendConfig, sendEmail, resetPasswordEmail } from "@/lib/resend";
 
 /**
@@ -23,7 +23,11 @@ export async function POST(req: NextRequest) {
   if (await actionRateLimited("forgot", ip, MAX_ATTEMPTS, WINDOW_MS)) {
     return NextResponse.json({ error: "محاولات كثيرة — انتظر ربع ساعة ثم حاول مجدداً" }, { status: 429 });
   }
-  await noteActionFailure("forgot", ip, WINDOW_MS);
+  // r29 (H8/C6): العدّاد يُزد عند الفشل فقط (بريد غير صالح / فشل الإرسال) — كان
+  // يزيد على كل طلب فكانت استعادة 503 «غير مهيأة» أو نجاحات متتالية تحجب المستخدم.
+  const fail = async () => {
+    await noteActionFailure("forgot", ip, WINDOW_MS);
+  };
 
   // خدمة البريد مهيأة؟ (نرد قبل أي استعلام حتى لا يتسرب وجود البريد)
   const cfg = await getResendConfig();
@@ -37,6 +41,7 @@ export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as { email?: unknown };
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   if (!email) {
+    await fail();
     return NextResponse.json({ error: "البريد الإلكتروني مطلوب" }, { status: 400 });
   }
 
@@ -60,10 +65,14 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // رابط الاستعادة — أصل الطلب من هيدرز الطلب (يعمل خلف البوابة)
-    const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "localhost:3000";
-    const proto = req.headers.get("x-forwarded-proto") || (host.includes("localhost") ? "http" : "https");
-    const resetUrl = `${proto}://${host}/#/reset?token=${token}`;
+    // رابط الاستعادة — r29 (C8): من متغير بيئة موثوق فقط (APP_BASE_URL أو SITE_URL
+    // كما في sitemap/robots)؛ كان يُبنى من هيدر Host المُتحكَّم به من العميل خلف
+    // البوابة (reset-poisoning: ضحية تستلم رابطاً لموقع المهاجم). بلا متغير بيئة
+    // يُرسل رابط نسبي (يُهيَّأ عند النشر بضبط APP_BASE_URL في .env).
+    const base = (process.env.APP_BASE_URL || process.env.SITE_URL || "")
+      .trim()
+      .replace(/\/+$/, "");
+    const resetUrl = `${base || ""}/#/reset?token=${token}`;
 
     const sent = await sendEmail({
       to: email,
@@ -72,9 +81,13 @@ export async function POST(req: NextRequest) {
     });
     if (!sent.ok) {
       console.error("[forgot-password] send failed:", sent.error);
+      await fail();
       // خطأ الإرسال يظهر (مفتاح غير صالح مثلاً) — بلا كشف معلومات إضافية
       return NextResponse.json({ error: `تعذر إرسال البريد: ${sent.error}` }, { status: 502 });
     }
+
+    // r29 (H8/C6): نجاح الإرسال يصفرّ العدّاد (نفس نمط الدخول/التسجيل)
+    await clearActionFailures("forgot", ip);
 
     return NextResponse.json(GENERIC_OK);
   } catch (err) {

@@ -6,19 +6,32 @@ import {
   invoiceTotal,
   invoicePaymentStatus,
 } from "@/lib/serialize";
+import { getSessionScope, unauthorizedResponse, forbiddenCompanyResponse } from "@/lib/auth-server";
 
 /**
  * GET /api/invoices/export?companySlug=X
  * Downloads the invoice list as a CSV file (UTF-8 with BOM so Excel
  * renders the Arabic columns correctly).
+ * r29 (S1): تتطلب جلسة؛ شركة محددة يجب أن تكون ضمن شركات الجلسة، وبلا شركة
+ * يرى المدير الكل ويرى المشترك/الموظف شركاتهم فقط.
  */
 export async function GET(req: NextRequest) {
   try {
-    const companySlug = req.nextUrl.searchParams.get("companySlug") ?? undefined;
+    const scope = await getSessionScope(req);
+    if (!scope) return unauthorizedResponse();
+
+    const companySlug = req.nextUrl.searchParams.get("companySlug")?.trim() || undefined;
+    if (companySlug && !scope.all && !scope.slugs.includes(companySlug)) {
+      return forbiddenCompanyResponse();
+    }
 
     const invoices = await db.invoice.findMany({
       where: {
-        ...(companySlug ? { companySlug } : {}),
+        ...(companySlug
+          ? { companySlug }
+          : scope.all
+            ? {}
+            : { companySlug: { in: scope.slugs } }),
       },
       orderBy: { createdAt: "desc" },
     });

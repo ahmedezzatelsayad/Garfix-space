@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { num, parseIdParam } from "@/lib/serialize";
 import { invalidateInvoices } from "@/lib/cache";
+import { getSessionScope, unauthorizedResponse, forbiddenCompanyResponse } from "@/lib/auth-server";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -17,12 +18,31 @@ class PaymentRouteError extends Error {
 // DELETE /api/payments/[id] — remove a payment and roll the parent invoice's
 // `paid` back by the payment amount (clamped at >= 0) in one transaction.
 // The invoice `status` field is left untouched.
-export async function DELETE(_req: NextRequest, { params }: RouteContext) {
+// r29 (S1): تتطلب جلسة + ملكية شركة الفاتورة الأم.
+export async function DELETE(req: NextRequest, { params }: RouteContext) {
   try {
+    const scope = await getSessionScope(req);
+    if (!scope) return unauthorizedResponse();
+
     const { id: idStr } = await params;
     const id = parseIdParam(idStr);
     if (id === null) {
       return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+    }
+
+    // r29 (S1): تحقق الملكية قبل المعاملة (الفاتورة الأم تُقرأ داخلها مجدداً)
+    const existing = await db.payment.findUnique({
+      where: { id },
+      include: { invoice: { select: { companySlug: true } } },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    if (
+      !scope.all &&
+      (!existing.invoice?.companySlug || !scope.slugs.includes(existing.invoice.companySlug))
+    ) {
+      return forbiddenCompanyResponse();
     }
 
     await db.$transaction(async (tx) => {

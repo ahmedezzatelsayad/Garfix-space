@@ -81,7 +81,7 @@ export default function OutstandingPayments({
                       <button className="gx-ibtn gx-hide-m" title={tr("عرض العميل")} aria-label={tr("عرض العميل")}
                         onClick={() => onViewCustomer?.(r)}><User size={15} /></button>
                       <button className="gx-ibtn" title={tr("تسجيل دفعة")} aria-label={tr("تسجيل دفعة")}
-                        onClick={() => onRecordPayment?.(r)}><Wallet size={15} color="#2563EB" /></button>
+                        onClick={() => onRecordPayment?.((r.invs || [])[0])}><Wallet size={15} color="#2563EB" /></button>
                     </div>
                   </td>
                 </tr>

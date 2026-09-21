@@ -89,6 +89,8 @@ export const DASH_CSS = `
 .gx-ibtn:hover{background:var(--ia-hover);color:var(--ia-text)}
 .gx-ibtn:focus-visible{outline:2px solid #2563EB;outline-offset:1px}
 .gx-ibtn.gx-danger:hover{background:rgba(239,68,68,.1);color:#DC2626}
+/* r29 (M4): أهداف لمس ≥44px على الأجهزة الخشنة اللمس فقط — الحواسيب تبقى مضغوطة */
+@media (pointer:coarse){.gx-ibtn{min-width:44px;min-height:44px}}
 
 /* ═══ الإجراءات السريعة ═══ */
 .gx-qas{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-top:14px}

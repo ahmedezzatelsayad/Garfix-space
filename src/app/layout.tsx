@@ -177,6 +177,20 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
+        {/* r29 (F5): خلفية سوداء فورية قبل الترطيب لشاشة ترحيب HelloBoot —
+            تُضبط فقط إن لم تُشاهَد هذه الجلسة (sessionStorage)، ويزيلها
+            HelloBoot عند بدء العرض. مؤقّت أمان ٦ث داخل السكربت يمنع
+            بقاءها سوداء لو فشل تحميل React. لا تُضاف أي عُقد DOM —
+            سمة على <html> فقط (نفس نمط سكربت اللغة/السمة أدناه). */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              'try{if(sessionStorage.getItem("garfix_hello_boot")!=="1"){document.documentElement.setAttribute("data-garfix-boot","1");setTimeout(function(){try{document.documentElement.removeAttribute("data-garfix-boot")}catch(e){}},6000)}}catch(e){}',
+          }}
+        />
+        <style
+          dangerouslySetInnerHTML={{ __html: "html[data-garfix-boot]{background:#000 !important}" }}
+        />
         {/* r22: قبل أول رسم — لغة الزائر المخزنة (اتجاه + lang) بلا وميض عربي */}
         <script
           dangerouslySetInnerHTML={{

@@ -94,37 +94,30 @@ const labelOf = (id: string): string => DYN_LABELS[id] || COMPANY_LABELS[id] || 
 
       const list = await Promise.race([getAllUsers(), timeout]) as any[];
 
-      // Log collection state for debugging
-      console.log(`[loadUsers] Firestore returned ${list.length} document(s)`);
-      if (list.length === 0) {
-        console.warn("[loadUsers] users collection is empty or does not exist yet");
-      }
-
+      // r29 (M9): أُزيل ضجيج console التشخيصي (سجلات حقبة Firestore لا تطابق
+      // الخلفية الحالية) — لوحة الإنتاج تبقى نظيفة للمشغّل.
       setUsers((list as UserRecord[]).filter((u) => u.email !== user?.email));
     } catch (e: any) {
       const code: string = e?.code ?? "";
       const msg: string  = e?.message ?? String(e);
 
-      // Log full error details to console for debugging
-      console.error("[loadUsers] FAILED", { code, message: msg, raw: e });
-
+      // r29 (M9): رسائل مُعاد صياغتها لواقع PostgreSQL/الواجهة المحلية —
+      // كانت كلها تشير لـ Firebase Console/Firestore وهو غير موجود أصلاً.
       if (code === "__timeout__") {
-        setLoadErr(tr("انتهت مهلة الاتصال (12 ث) — تحقق من الإنترنت أو قواعد Firestore ثم أعد المحاولة."));
+        setLoadErr(tr("انتهت مهلة تحميل المستخدمين (12 ث) — تحقق من الاتصال بالخادم ثم أعد المحاولة."));
       } else if (code === "permission-denied") {
-        setLoadErr(
-          tr('مرفوض (permission-denied) — افتح Firebase Console ← Firestore ← Rules وتأكد أن القاعدة تسمح لـ request.auth != null بالقراءة.')
-        );
+        setLoadErr(tr("مرفوض — تحقق من صلاحيات حسابك بهذا الإجراء ثم أعد المحاولة."));
       } else if (code === "not-found") {
-        setLoadErr(tr("مجموعة users غير موجودة في Firestore — أضف أول مستخدم وستُنشأ تلقائياً."));
+        setLoadErr(tr("قائمة المستخدمين فارغة بعد — أضف أول مستخدم وستُنشأ تلقائياً."));
       } else if (
         code.includes("unavailable") ||
         code.includes("network") ||
         msg.includes("network") ||
         msg.includes("Failed to fetch")
       ) {
-        setLoadErr(tr("تعذّر الاتصال بـ Firestore — تحقق من الإنترنت وأعد المحاولة."));
+        setLoadErr(tr("تعذّر الاتصال بالخادم — تحقق من الإنترنت وأعد المحاولة."));
       } else {
-        setLoadErr(tr("خطأ Firestore{0}: {1}",[code ? ` [${code}]` : "",msg || tr("غير معروف")]));
+        setLoadErr(tr("خطأ تحميل المستخدمين{0}: {1}",[code ? ` [${code}]` : "",msg || tr("غير معروف")]));
       }
     } finally {
       // Always unblock loading — no matter what happens above

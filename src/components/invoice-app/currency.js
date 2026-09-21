@@ -90,6 +90,17 @@ export function currencySymbol() {
   return appLang() === "ar" ? current.short : (current.shortEn || current.short);
 }
 
+/**
+ * r29 (M8): تسمية حقل مع رمز العملة الفعلية — يستبدل «KD» الصلب داخل مفاتيح
+ * القاموس الموجودة (عربي/إنجليزي) برمز عملة الجلسة الحالية، دون تعديل قاموس EN
+ * (ملف lib مملوك لطبقة الخادم). مثال: curFieldLabel("المدفوع (KD)") →
+ * "المدفوع (ر.س)" بالعربية و "Paid (SAR)" بالإنجليزية — بعد أن كانت التسميات
+ * تدّعي KD لكل الشركات مهما كانت عملتها المحاسبية.
+ */
+export function curFieldLabel(label) {
+  return String(label ?? "").replace("KD", currencySymbol());
+}
+
 /** hook: يعيد رندر المكوّن عند تغيّر عملة الجلسة + يعطيك بياناتها */
 export function useCurrency() {
   const [, force] = useState(0);

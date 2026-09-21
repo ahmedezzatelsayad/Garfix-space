@@ -52,6 +52,8 @@ model Client {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  // r29 (M10): عزل قوائم العملاء لكل شركة يستفيد من فهرس على company
+  @@index([company])
   @@map("clients")
 }
 
@@ -82,6 +84,12 @@ model Invoice {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
+  // r29 (C7): تفرّد رقم الفاتورة داخل الشركة — يجعل الترقية race-safe
+  // (تعارضان متزامنان يفشل الثاني بـ P2002 فيُعاد المحاولة برقم جديد).
+  // ملاحظة Postgres: companySlug الفارغ يعامَل NULLs-distinct فلا يقيّد السطور غير المسندة.
+  @@unique([companySlug, invoiceNumber])
+  // r29 (M10): كل استعلامات القوائم/الداشبورد/الذكاء ترشّح بالشركة
+  @@index([companySlug])
   @@map("invoices")
 }
 
@@ -176,16 +184,20 @@ model AiSetting {
 }
 
 // r10: محادثات المساعد الذكي — محفوظة على الخادم لكل شركة
+// r29 (S3): ownerEmail = بريد منشئ المحادثة — تُحصر القائمة/القراءة/الحذف
+// في محادثات المستخدم نفسه أو محادثات شركاته المتاحة (المدير يرى الكل).
 model AiConversation {
   id          Int         @id @default(autoincrement())
   title       String      @default("محادثة جديدة")
   companySlug String?
+  ownerEmail  String?
   model       String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   messages    AiMessage[]
 
   @@index([companySlug])
+  @@index([ownerEmail])
   @@map("ai_conversations")
 }
 

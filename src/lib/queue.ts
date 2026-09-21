@@ -73,7 +73,7 @@ export async function workerHealth(): Promise<Record<string, unknown> | null> {
 export async function queueOverview() {
   const q = getQueue();
   const [counts, schedulers, done, failed, worker] = await Promise.all([
-    q.getJobCounts("waiting", "active", "completed", "failed", "delayed", "paused"),
+    q.getJobCounts("waiting", "active", "completed", "failed", "delayed"),
     q.getJobSchedulers(0, 20),
     q.getJobs(["completed"], 0, 24, false),
     q.getJobs(["failed"], 0, 24, false),

@@ -4,7 +4,7 @@
  *
  * SalesByProduct: مخطط دائري (إيراد/كمية) بأعلى المنتجات + «أخرى».
  * TopCustomers: كبار العملاء (صورة-حرفية + الإنفاق + عدد الفواتير + فرز).
- * GlobalStatus: بصمة العمارة العالمية (195 دولة · 27 لغة · أي عملة · الشركات).
+ * GlobalStatus: بصمة العمارة العالمية (دول العالم · لغات المنصة · أي عملة · الشركات).
  * AlertCenter: تنبيهات الأعمال الحية + توصية AI بزر «راجع مع AI».
  * AiInsights: ماذا حدث / لماذا يهم / الإجراء الموصى / الأثر المتوقع.
  */
@@ -14,6 +14,8 @@ import {
   AlertTriangle, CheckCircle2, ArrowRight, ArrowLeft, Zap,
 } from "lucide-react";
 import { appDir, tr } from "@/lib/i18n-app";
+import { LANGUAGES } from "@/lib/i18n";
+import { WORLD_COUNTRIES } from "@/lib/countries-world";
 import { Donut, CardHead } from "./chartlets";
 
 /* ── ألوان القطاعات ── */
@@ -125,9 +127,10 @@ export function TopCustomers({ customers = [], fmt, onOpen }) {
 
 /* ═══ الحالة العالمية للأعمال ═══ */
 export function GlobalStatus({ companiesCount = 1, usersCount = 1 }) {
+  // r29 (M6): الأعداد تُشتق من البيانات نفسها — كانت «195/28» صلبة ولا تطابق 196/27
   const stats = [
-    { v: "195", l: () => tr("دولة"), icon: Globe2 },
-    { v: "28", l: () => tr("لغة"), icon: Languages },
+    { v: String(WORLD_COUNTRIES.length), l: () => tr("دولة"), icon: Globe2 },
+    { v: String(LANGUAGES.length), l: () => tr("لغة"), icon: Languages },
     { v: tr("أي"), l: () => tr("عملة"), icon: Coins },
     { v: String(companiesCount), l: () => tr("شركة"), icon: Building2 },
     { v: String(usersCount), l: () => tr("مستخدم"), icon: ShieldCheck },

@@ -46,6 +46,8 @@ const pickPgUrl = (...urls: Array<string | undefined>): string =>
 const DATABASE_URL = pickPgUrl(process.env.DATABASE_URL, dotenv.DATABASE_URL);
 const VALKEY_HOST = process.env.VALKEY_HOST || "127.0.0.1";
 const VALKEY_PORT = Number(process.env.VALKEY_PORT || 6379);
+// r29: Valkey requirepass — كلمة المرور تُقرأ من البيئة أو .env الجذري (حمّاية من تهريب الأوامر عبر بروكسي Caddy)
+const VALKEY_PASSWORD = process.env.VALKEY_PASSWORD || dotenv.VALKEY_PASSWORD || undefined;
 
 // ————— عدّادات الحالة (لمنفذ 3041) —————
 const state = {
@@ -214,7 +216,7 @@ const processors: Record<string, (d: JobData) => Promise<Record<string, unknown>
 
 // ————— الطابور + تسجيل المجدولة —————
 const queue = new Queue(QUEUE_NAME, {
-  connection: { host: VALKEY_HOST, port: VALKEY_PORT, maxRetriesPerRequest: null },
+  connection: { host: VALKEY_HOST, port: VALKEY_PORT, password: VALKEY_PASSWORD, maxRetriesPerRequest: null },
 });
 
 async function registerRepeatables(): Promise<void> {
@@ -246,7 +248,7 @@ const worker = new Worker(
       state.currentJob = null;
     }
   },
-  { connection: { host: VALKEY_HOST, port: VALKEY_PORT, maxRetriesPerRequest: null }, concurrency: 2 },
+  { connection: { host: VALKEY_HOST, port: VALKEY_PORT, password: VALKEY_PASSWORD, maxRetriesPerRequest: null }, concurrency: 2 },
 );
 
 worker.on("completed", (job) => {

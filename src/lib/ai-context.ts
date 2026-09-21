@@ -8,6 +8,7 @@ import { cacheWrap } from "@/lib/cache";
 import { invoicePaymentStatus, invoiceTotal, num } from "@/lib/serialize";
 import { currencyOf } from "@/lib/currency-shared";
 import { actionProtocolPrompt } from "@/lib/ai-actions";
+import { companyMatchKeys } from "@/lib/company-access";
 
 export interface CompanyContextInput {
   companySlug?: string;
@@ -30,7 +31,7 @@ interface ContextSnapshot {
   generatedAt: string;
   companies: { name: string; slug: string; invoiceCount: number }[];
   scope: string;
-  currency: { code: string; short: string; ar: string; decimals: number };
+  currency: { code: string; short: string; ar: string; en?: string; shortEn?: string; decimals: number };
   kpis: {
     totalInvoices: number;
     totalRevenue: number;
@@ -58,7 +59,16 @@ export async function buildProjectContext(input: CompanyContextInput): Promise<C
     const companies = await db.company.findMany({ select: { name: true, slug: true, currency: true } });
     // r15: عملة الشركة الفعّالة (بعد r12 العملة إعداد لكل شركة) — كل تُنسيق المبالغ بها
     const curInfo = currencyOf(companies.find((c) => c.slug === slug)?.currency);
-    const cur = { code: curInfo.code, short: curInfo.short, ar: curInfo.ar, decimals: curInfo.decimals };
+    // r29: نمرر en/shortEn أيضاً — كانت تسقط من اللقطة فيقع السؤال الإنجليزي على
+    // الاسم العربي دائماً (خطأ TS سابق: cur.en غير موجود على النوع الضيق).
+    const cur = {
+      code: curInfo.code,
+      short: curInfo.short,
+      ar: curInfo.ar,
+      en: curInfo.en ?? undefined,
+      shortEn: curInfo.shortEn ?? undefined,
+      decimals: curInfo.decimals,
+    };
     // عدّ الفواتير لكل شركة (Company بلا علاقات في الـ schema — نحسبها من الفواتير مباشرة)
     const invoiceCountRows = await db.invoice.groupBy({
       by: ["companySlug"],
@@ -78,7 +88,19 @@ export async function buildProjectContext(input: CompanyContextInput): Promise<C
       orderBy: { createdAt: "desc" },
       take: 400,
     });
-    const totalClients = await db.client.count();
+    // r29 (C5/H5): عدد العملاء محصور بالشركة (كان عدد عملاء كل الشركات في سياق
+    // المساعد أيضاً) — مطابقة عمود company بكل صيغه (slug/code/name/nameAr).
+    let totalClients = 0;
+    if (slug) {
+      const keys = await companyMatchKeys([slug]);
+      const clientRows = await db.client.findMany({ select: { company: true } });
+      totalClients = clientRows.filter((r) => {
+        const v = String(r.company ?? "").trim().toLowerCase();
+        return !!v && keys.has(v);
+      }).length;
+    } else {
+      totalClients = await db.client.count();
+    }
     const catalog = await db.productCatalog.findMany({
       where: slug ? { companySlug: slug } : {},
       take: 60,
@@ -187,8 +209,6 @@ export function contextToSystemPrompt(snap: ContextSnapshot, lang?: string): str
   lines.push(`العملة الرسمية لنطاق العمل الحالي هي ${cur.ar} (${cur.code}) — اختصرها "${cur.short}" بعد الأرقام، وبمنازلها العشرية (${cur.decimals}).`);
   lines.push(`إن سُئلت عن شيء غير موجود في البيانات فاذكر ذلك بصراحة ولا تخترع أرقاماً.`);
   }
-  lines.push(`العملة الرسمية لنطاق العمل الحالي هي ${cur.ar} (${cur.code}) — اختصرها "${cur.short}" بعد الأرقام، وبمنازلها العشرية (${cur.decimals}).`);
-  lines.push(`إن سُئلت عن شيء غير موجود في البيانات فاذكر ذلك بصراحة ولا تخترع أرقاماً.`);
   lines.push("");
   lines.push(`— نطاق العمل الحالي: ${snap.scope}`);
   lines.push(`— تاريخ اللقطة: ${snap.generatedAt.replace("T", " ").slice(0, 16)}`);

@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useRef, useState } from "react";
-import { onAuthChange } from "../firebase/auth";
+import { logoutUser, onAuthChange } from "../firebase/auth";
 import { getUserProfile, isMasterAdmin, ALL_COMPANIES } from "../firebase/users";
 import { tr } from "@/lib/i18n-app";
 
@@ -77,6 +77,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsub = onAuthChange(async (firebaseUser: User | null) => {
       try {
         if (firebaseUser) {
+          // r19 (أُعيد تطبيقه في r29): إن كان المستخدم دخله الخادم (role مُعبّأ من
+          // /api/auth/login أو التسجيل) → تحقّق من صلاحية جلسة الخادم عبر
+          // GET /api/auth/me. هذا يغطي سيناريو إعادة توليد db/session-secret بعد
+          // إعادة تشغيل الـ sandbox: الكوكيز القديمة تُبطل بينما localStorage يُبقي
+          // الواجهة «داخلة» فتفتح لوحات تعتمد على الجلسة وتفشل بـ 401 غامضة.
+          // 401 → خروج نظيف + توجيه لبوابة الدخول + علم الرسالة الكهرمانية.
+          // فشل الشبكة لا يُسقط الجلسة (تسامحاً مع العمل دون اتصال).
+          if (firebaseUser.role) {
+            try {
+              const res = await fetch("/api/auth/me");
+              if (res.status === 401) {
+                try { sessionStorage.setItem("garfix_session_expired", "1"); } catch { /* sessionStorage محجوب */ }
+                await logoutUser();
+                try { location.hash = "#/login"; } catch { /* ignore */ }
+                return;
+              }
+            } catch { /* دون اتصال — نبقي الجلسة المحلية */ }
+          }
           setUser(firebaseUser);
           if (isMasterAdmin(firebaseUser.email ?? "")) {
             setProfile({

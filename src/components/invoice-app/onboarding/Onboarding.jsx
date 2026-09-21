@@ -262,7 +262,7 @@ export default function Onboarding({ onDone, onCancel }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 20 }}>
           <LanguageSwitcher />
           <div style={{ color: "rgba(255,255,255,.3)", fontSize: 10.5, fontWeight: 600, textAlign: "center" }}>
-            {tr("196 دولة · 27 لغة · أي عملة")}
+            {tr("195 دولة · 27 لغة · أي عملة")}
           </div>
         </div>
       </aside>

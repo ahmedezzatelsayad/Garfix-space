@@ -46,6 +46,20 @@ export function parseIdParam(value: string): number | null {
   return Number.isInteger(id) ? id : null;
 }
 
+/** r29 (C3): حالات الفاتورة المعروفة — أي حالة أخرى تُرفض (400) */
+export const INVOICE_STATUSES = [
+  "draft",
+  "issued",
+  "sent",
+  "paid",
+  "pending",
+  "cancelled",
+  "overdue",
+] as const;
+
+/** r29 (C3): تاريخ بصيغة YYYY-MM-DD (الصيغة الوحيدة المخزنة في DB) */
+export const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
 /* ------------------------------ serializers ------------------------------ */
 
 export function serializeInvoice(inv: Invoice) {
@@ -106,8 +120,16 @@ export function serializePurchaseInvoice(p: PurchaseInvoice) {
 
 /* --------------------------- dashboard helpers --------------------------- */
 
-export function invoiceTotal(inv: Pick<Invoice, "subtotal" | "shipping">): number {
-  return num(inv.subtotal) + num(inv.shipping);
+/**
+ * إجمالي الفاتورة = المجموع + الضريبة + التوصيل.
+ * r29 (C1): كانت الضريبة (taxAmount، حقول r18) مُغفّلة هنا منذ r18 فاختلفت كل
+ * الأرقام المشتقة (داشبورد/تصدير CSV/سياق المساعد) عن مسار المدفوعات الذي
+ * يحسبها صحيحاً — الآن الكل يقرأ من هذه الدالة الواحدة.
+ */
+export function invoiceTotal(
+  inv: Pick<Invoice, "subtotal" | "taxAmount" | "shipping">,
+): number {
+  return num(inv.subtotal) + num(inv.taxAmount) + num(inv.shipping);
 }
 
 /**
@@ -115,7 +137,7 @@ export function invoiceTotal(inv: Pick<Invoice, "subtotal" | "shipping">): numbe
  * cancel | paid | part | unp
  */
 export function invoicePaymentStatus(
-  inv: Pick<Invoice, "status" | "subtotal" | "shipping" | "paid">,
+  inv: Pick<Invoice, "status" | "subtotal" | "taxAmount" | "shipping" | "paid">,
 ): string {
   if (inv.status === "cancelled") return "cancel";
   const tot = invoiceTotal(inv);

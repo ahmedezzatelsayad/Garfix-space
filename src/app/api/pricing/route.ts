@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { listPlans, FREE_SUBSCRIBER_LIMIT } from "@/lib/plans";
-import { WORLD_COUNTRIES, flagOf, resolvePricingGeo, convertAndFormat, type Region } from "@/lib/geo";
+import { WORLD_COUNTRIES, flagOf, resolvePricingGeo, convertAndFormat } from "@/lib/geo";
 
 /**
  * r17+r18: صفحة الأسعار العامة — الخطط بالدولار + تحويل لعملة بلد الزائر حسب الـ IP
@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
         nameAr: c.nameAr,
         nameEn: c.nameEn,
         currency: c.currency,
-        region: c.region as Region,
+        region: c.region,
         vat: c.vat,
         arabic: c.arabic,
         flag: flagOf(c.code),

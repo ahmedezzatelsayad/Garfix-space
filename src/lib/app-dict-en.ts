@@ -1365,7 +1365,6 @@ export const APP_EN: Record<string, string> = {
   "⏳ جارٍ التحميل…": "⏳ Loading…",
   "— بدون محافظة —": "— None —",
   "— بلا تقسيمات —": "— No divisions —",
-  "🌍 الدول العربية": "🌍 Arab Countries",
   "🏛️ الشرق الأوسط": "🏛️ Middle East",
   "🏰 أوروبا": "🏰 Europe",
   "🏯 آسيا": "🏯 Asia",

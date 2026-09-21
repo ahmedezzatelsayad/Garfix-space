@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { cacheWrap, cacheDelPattern } from "@/lib/cache";
-import { requireAdmin, getSessionAppUser } from "@/lib/auth-server";
+import { requireAdmin, getSessionAppUser, getSessionScope, unauthorizedResponse } from "@/lib/auth-server";
 import { checkCompaniesQuota } from "@/lib/plans";
 
 /**
@@ -108,12 +108,28 @@ function latinSlug(s: string): string {
   );
 }
 
-export async function GET() {
+/**
+ * r29 (S2): دليل الشركات بات يتطلب جلسة — المدير العام يرى الكل، والمشترك/
+ * الموظف يرى شركاته فقط (كان مفتوحاً للزوار: هاتف/بريد/عنوان/مدير كل الشركات).
+ * نداء الموقع العام وهو مسجّل الخروج يسقط بأمان (401 → catch) — عناصره الدنيا
+ * (اسم/شعار/عملة) متاحة عبر /api/site/stats (publicCompanies) بلا أي PII.
+ */
+export async function GET(req: NextRequest) {
   try {
-    const companies = await cacheWrap("companies:all", 60, async () => {
-      const rows = await db.company.findMany({ orderBy: { id: "asc" } });
-      return rows.map(serializeCompany);
-    });
+    const scope = await getSessionScope(req);
+    if (!scope) return unauthorizedResponse();
+
+    const companies = await cacheWrap(
+      scope.all ? "companies:all" : `companies:own:${scope.slugs.join("+")}`,
+      60,
+      async () => {
+        const rows = await db.company.findMany({ orderBy: { id: "asc" } });
+        const visible = scope.all
+          ? rows
+          : rows.filter((r) => scope.slugs.includes(r.slug)); // r29 (S2)
+        return visible.map(serializeCompany);
+      },
+    );
     return NextResponse.json({ companies });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });

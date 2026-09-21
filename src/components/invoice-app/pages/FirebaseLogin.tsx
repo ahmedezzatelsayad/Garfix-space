@@ -40,6 +40,7 @@ export default function FirebaseLogin() {
   const [seats,    setSeats]    = useState<{ registered: number; limit: number; remaining: number; freeOpen: boolean } | null>(null);
   const [cur, setCur] = useState("USD"); // عملة المعاينة الحية
   const [siteLogo, setSiteLogo] = useState(""); // r26: شعار الموقع المخصص (إن وُجد)
+  const [sessionExpired, setSessionExpired] = useState(false); // r19/r29: بانر انتهاء الجلسة (مرة واحدة)
   const { dark, toggle } = useTheme();
 
   // عدّاد المقاعد المجانية المتبقية + شعار الموقع من إدارة المحتوى
@@ -51,6 +52,17 @@ export default function FirebaseLogin() {
       .then(j => { if (alive && j?.content?.site_logo) setSiteLogo(String(j.content.site_logo)); })
       .catch(() => {});
     return () => { alive = false; };
+  }, []);
+
+  // r19 (أُعيد تطبيقه في r29): شريط كهرماني لمرة واحدة بعد الخروج التلقائي من انتهاء
+  // جلسة الخادم — يُضبط من AuthContext (garfix_session_expired) ويُمسح بعد العرض.
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem("garfix_session_expired") === "1") {
+        setSessionExpired(true);
+        sessionStorage.removeItem("garfix_session_expired");
+      }
+    } catch { /* sessionStorage محجوب */ }
   }, []);
 
   const switchMode = (m: Mode) => {
@@ -224,6 +236,19 @@ export default function FirebaseLogin() {
       }}>
         {/* ── يسار/يمين حسب اللغة: النموذج ── */}
         <div style={{width:"100%",maxWidth:430,order:1}}>
+          {/* r19/r29: بانر انتهاء الجلسة — لمرة واحدة بعد الخروج التلقائي */}
+          {sessionExpired && (
+            <div role="alert" style={{
+              display:"flex",alignItems:"flex-start",gap:9,
+              background:"rgba(245,158,11,.1)",border:"1px solid rgba(245,158,11,.4)",
+              borderRadius:12,padding:"11px 15px",color:"#fbbf24",
+              fontSize:12.5,fontWeight:700,lineHeight:1.8,marginBottom:16,
+              animation:"fadeUp .4s ease both",
+            }}>
+              <span aria-hidden="true" style={{fontSize:15,lineHeight:1.4}}>⌛</span>
+              <span>{tr("انتهت جلستك على الخادم — سجّل الدخول من جديد")}</span>
+            </div>
+          )}
           {/* رأس البوابة — التموضع الجديد */}
           <div style={{textAlign:"center",marginBottom:24}}>
             <div style={{display:"inline-flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px",position:"relative",animation:"float 4s ease-in-out infinite"}}>
@@ -308,7 +333,7 @@ export default function FirebaseLogin() {
                 {err && msgBox(err, false)}
                 {okMsg && msgBox(okMsg, true)}
                 {submitBtn(
-                  loading||!name||!email||!pass||!pass2||(seats&&!seats.freeOpen),
+                  loading||!name||!email||!pass||!pass2||(!!seats && !seats.freeOpen),
                   doRegister,
                   <Sparkles size={15} aria-hidden="true" />,
                   seats&&!seats.freeOpen ? t("pricing.seatsFull") : t("login.signUp")
