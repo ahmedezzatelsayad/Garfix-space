@@ -66,3 +66,4 @@ mini-services/*/node_modules/
 mini-services/*/service.log
 *.db
 next-dev.log
+garfix-io/

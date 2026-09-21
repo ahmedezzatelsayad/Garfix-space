@@ -2486,6 +2486,33 @@ useEffect(()=>{
   return()=>{live=false;};
 },[user?.uid]);
 
+// ── r26: تكامل Garfix.io — رابط ERP مخصص لكل عميل (?co=<code|slug>) ──
+// يُقرأ مرة عند التحميل ويبقى معلقاً حتى يكتمل الدخول، ثم تُحدَّد الشركة المطابقة تلقائياً
+// (تدخل من garfix.io بـ /?co=tawfeer → تسجيل الدخول → تفتح لك شركة توفير مباشرة بلا منتقي).
+const deepCoRef = useRef("");
+if(!deepCoRef.current){
+  try{ deepCoRef.current = (new URLSearchParams(window.location.search).get("co")||"").trim(); }catch{}
+}
+useEffect(()=>{
+  const code = deepCoRef.current;
+  if(!code || authLoading || !user) return;
+  const match = availableCompanies.find(co => co.id===code || co.sk===code || (co.sk||"").startsWith("tw_inv_"+code+"_"));
+  if(!match) return;
+  deepCoRef.current = "";
+  // نظّف الرابط من المعامل بعد الاستهلاك (تبقى بقية المعاملات والـ hash كما هي)
+  try{
+    const u = new URL(window.location.href);
+    u.searchParams.delete("co");
+    const qs = u.searchParams.toString();
+    window.history.replaceState(null,"", u.pathname + (qs?("?"+qs):"") + u.hash);
+  }catch{}
+  if(!company || company.id!==match.id){
+    setCompany(match);
+    setView("dash"); setSelInv(null); setSearch(""); setSelectedIds([]);
+    toast_(tr("تم فتح شركة {0} من رابط Garfix.io",[companyName(match)]),"ok");
+  }
+},[authLoading, user?.uid, availableCompanies.length, company?.id]);
+
 // r12: عملة الجلسة تتبع الشركة النشطة — كل تنسيقات المبالغ (fKWD→fmtMoney) تقرأها
 useEffect(()=>{
   if(!company)return;

@@ -1119,3 +1119,40 @@ Unresolved issues / risks / next-phase priorities:
 - M10 (قاموس EN لبيان PDF) وM3 (a11y للمودالات العشرة) مؤجلان — المرحلة التالية المنطقية.
 - مراقبة ذاكرة الإنتاج موصى بها (dev وصل ~1.9GB مع سقوط GC؛ الإنتاج أخف بكثير بلا ترجمة حية).
 - خارطة الطريق القائمة: بوابة دفع (Stripe/Tap)، Webhooks، تقارير شهرية بالبريد.
+
+---
+Task ID: 4 (تكملة من فرع r26 المحلي)
+Agent: Main (Super Z)
+Task: إتمام الـ push إلى GitHub بـ PAT (سجل تاريخي من الفرع المحلي)
+
+Stage Summary:
+- كل العمل المحلي (r25 + r26) متاح الآن على github.com/ahmedezzatelsayad/Garfix-space
+- توصية أمنية: .env متتبَّع في git رغم وجوده في .gitignore — يُفضَّل مستقبلاً `git rm --cached .env` (لا يحوي أسراراً حالياً لكنه ممارسة غير سليمة)
+
+---
+Task ID: 5
+Agent: Main (Super Z)
+Task: تكامل منصة Garfix.io (repo منفصل) مع نظام Garfix ERP (المشروع الرئيسي)
+
+Work Log:
+- استنساخ repo الجديد إلى /home/z/my-project/garfix-io (منصة SaaS: موقع تسويقي + dashboard عميل + لوحة مؤسس، zustand بدون خادم فعلي)
+- ERP (المشروع الرئيسي):
+  - API جديد: /api/companies/public — قائمة شركات عامة (code/name/nameAr/emoji فقط، بلا بيانات حساسة) مع CORS مفتوح + OPTIONS preflight + كاش 300 ثانية + دمج الشركات المدمجة مع سجل القاعدة
+  - App.jsx: deep-link ‏?co=<code|slug> — يُقرأ عند التحميل ويبقى معلقاً حتى اكتمال الدخول ثم يحدد الشركة المطابقة تلقائياً (id/sk/tw_inv_<code>_ prefix)، يبدّل الشركة حتى مع جلسة قائمة، ينظف الرابط بعد الاستهلاك، toast تأكيد
+- Garfix-io:
+  - package.json: منفذ dev من 3000 إلى 3001 (لتشغيل المنصتين معاً)
+  - store.ts: erpBase جديدة (افتراضي http://localhost:3000) + setErpBase مع persist
+  - founder-view.tsx: بطاقة «تكامل Garfix ERP» (عنوان أساسي + حفظ + زر جلب الشركات من الـ ERP الحقيقي عبر fetch مع AbortController 6 ثوان) + شرائح الشركات الجالبة + منتقي شركة داخل محرر رابط ERP لكل عميل يبني {erpBase}/?co=<code> تلقائياً + تحديث روابط العملاء التجريبية للـ ERP الحقيقي
+  - login-view.tsx: الرابط التجريبي الافتراضي → localhost:3000/?co=tawfeer
+  - i18n.ts: مفاتيح erpSettings كاملة (ar/en)
+- التحقق بالمتصفح (ERP:3000 + io:3001):
+  - لوحة المؤسس: «جلب الشركات» أحضر الشركات الأربع الحقيقية (بعد إصلاح CORS) ✓
+  - منتقي الشركة ملأ رابط خالد بـ ?co=boss وحفظه ✓
+  - دخول founder عبر /?co=mahhal → اختارت «Mahhal Online Store» تلقائياً بلا منتقي ونظفت الرابط ✓
+  - عميل تجريبي في المنصة → «افتح Garfix ERP» → تبويب جديد على :3000 تحوّل مباشرة لـ Tawfeer ✓
+- next build: ✓ للمشروعين
+- لقطات: scripts/garfix-io-founder-integration.png, scripts/erp-deeplink-mahhal.png, scripts/erp-deeplink-tawfeer-from-io.png
+
+Stage Summary:
+- التكامل ثلاثي الأركان يعمل: (1) لوحة مؤسس garfix.io تجلب شركات ERP الحقيقية وتبني روابط مخصصة ?co=، (2) ERP يفتح الشركة المقصودة تلقائياً بعد الدخول أو يبدّلها في جلسة قائمة، (3) بطاقة ERP في dashboard العميل تفتح النظام الحقيقي
+- الافتراضيات محلية (localhost:3000) وقابلة للتغيير من لوحة المؤسس عند النشر على دومين حقيقي
