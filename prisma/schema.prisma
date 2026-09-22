@@ -35,6 +35,9 @@ model Company {
   taxEnabled      Boolean  @default(true)
   defaultTaxRate  Float? // مثل 15 (السعودية) / 5 (الإمارات) / 0 (الكويت) — فارغ = بلا ضريبة
   firebaseOwnerId String?
+  // ── المرحلة 1 (تكامل Garfix Stores): slug متجر المسوّق في منصة المتاجر —
+  // يربط أوامر المتجر بشركة الـ ERP المستقبِلة لها (webhook order.created).
+  storesSlug      String?  @unique
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
@@ -81,6 +84,11 @@ model Invoice {
   paid          Float         @default(0)
   notes         String?
   source        String?
+  // ── المرحلة 1 (تكامل Garfix Stores): مرجع خارجي للأمر الذي أنشأ الفاتورة —
+  // رقم الطلب في منصة المتاجر. القيد الفريد يجعل استقبال الـ webhook idempotent
+  // (إعادة الإرسال أو المحاولة المتزامنة لا تُنشئ فاتورة مكررة أبداً).
+  externalSource String?
+  externalRef    String?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
@@ -88,6 +96,8 @@ model Invoice {
   // (تعارضان متزامنان يفشل الثاني بـ P2002 فيُعاد المحاولة برقم جديد).
   // ملاحظة Postgres: companySlug الفارغ يعامَل NULLs-distinct فلا يقيّد السطور غير المسندة.
   @@unique([companySlug, invoiceNumber])
+  // المرحلة 1: فاتورة واحدة لكل أمر خارجي داخل الشركة (idempotency للـ webhooks)
+  @@unique([companySlug, externalSource, externalRef])
   // r29 (M10): كل استعلامات القوائم/الداشبورد/الذكاء ترشّح بالشركة
   @@index([companySlug])
   @@map("invoices")
@@ -100,6 +110,9 @@ model Payment {
   method    String   @default("knet") // cash | knet | online | card
   date      String // YYYY-MM-DD
   note      String?
+  // ── المرحلة 1: مرجع أمر المتجر الذي ولّد هذه الدفعة (COD مُحصّل) —
+  // فريد عالمياً: إعادة إرسال حدث delivered لا تسجّل الدفعة مرتين.
+  externalRef String? @unique
   createdAt DateTime @default(now())
   invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 

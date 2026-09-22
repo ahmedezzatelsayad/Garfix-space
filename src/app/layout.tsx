@@ -198,6 +198,14 @@ export default function RootLayout({
               'try{var gl=localStorage.getItem("garfix_lang")||"ar";var rtl=["ar","fa","ur","pa"].indexOf(gl)>=0;document.documentElement.lang=gl;document.documentElement.dir=rtl?"rtl":"ltr";}catch(e){}',
           }}
         />
+        {/* المرحلة 1 (تكامل Garfix Stores): عنوان المنصة للواجهة (زر القفزة عبر SSO) */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{window.__GARFIX_STORES_BASE__=${JSON.stringify(
+              process.env.STORES_BASE_URL || "",
+            )}}catch(e){}`,
+          }}
+        />
       </head>
       <body className="antialiased bg-background text-foreground">
         {/* Apply stored light/dark theme before first paint (no flash) */}

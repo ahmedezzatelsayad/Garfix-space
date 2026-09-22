@@ -74,6 +74,16 @@ export default function FirebaseLogin() {
     setLoading(true); setErr(""); setOkMsg("");
     try {
       await loginUser(email.trim(), pass);
+      // المرحلة 1 (SSO): قفزة العودة لرحلة الدخول الموحد بعد الدخول الناجح —
+      // نقبل فقط مسار authorize من نفس الأصل (لا open redirect)
+      try {
+        const ssoNext = new URLSearchParams(window.location.search).get("sso_next");
+        const authorizePrefix = window.location.origin + "/api/auth/sso/authorize";
+        if (ssoNext && ssoNext.startsWith(authorizePrefix)) {
+          window.location.href = ssoNext;
+          return;
+        }
+      } catch { /* تجاهل */ }
     } catch (e: any) {
       const msgs: Record<string, string> = {
         "auth/user-not-found":     tr("البريد الإلكتروني غير مسجل"),

@@ -1191,3 +1191,32 @@ Work Log:
 Stage Summary:
 - المستودعان متزامنان 100% مع GitHub، الجهاز المحلي نظيف، لا مهام دفع معلقة
 - الـ PAT الثالث صالح لكن غير مطلوب حالياً — يُنصح المستخدم بـ revoke (انكشف في المحادثة) أو إبقاؤه للجلسات القادمة
+
+---
+Task ID: 8 (المرحلة 1 — تكامل المنظومة)
+Agent: Main (Super Z)
+Task: المرحلة 1 «العمود الفقري»: SSO كامل (ERP = IdP) + Webhooks (متاجر → ERP فواتير تلقائية) + إعادة براند Mahhl إلى Garfix Stores
+
+Work Log:
+- البيئة أُعيد إحياؤها بعد تصفير الساندبوكس: PG 17 (setup-postgres.sh → infra/pg + قاعدتا garfix وmahhl) + Valkey 8.1.1 بكلمة مرور جديدة (db/valkey-pass) + بذر ERP (seed-site + seed-demo-data) + خادما dev (ERP:3000 / Stores:3001)
+- ERP — المخطط: Company.storesSlug (فريد — ربط متجر بشركة) + Invoice.externalSource/externalRef بقيد فريد [companySlug, externalSource, externalRef] + Payment.externalRef فريد → idempotency كاملة للـ webhooks
+- ERP — SSO IdP: src/lib/sso.ts (أكواد لمرة واحدة في Valkey TTL 120ث مرتبطة بـ redirect_uri) + /api/auth/sso/authorize (جلسة → كود، لا جلسة → /?sso_login=1&sso_next=#/login) + /api/auth/sso/token (استبدال server-to-server) + قائمة سماح SSO_ALLOWED_REDIRECTS (مطابقة origin+path صارمة، evil.com → 400)
+- ERP — مستقبِل webhooks: /api/webhooks/stores بتوقيع HMAC-SHA256 (timing-safe) — order.created → upsert عميل + فاتورة GS-<order> (بنود تُعاد حسابتها من المصدر) + order.status_changed: delivered → دفعة COD + سداد، cancelled/returned → إلغاء إن لم تُحصّل، shipped → «مُرسلة»
+- ERP — الواجهة: FirebaseLogin يرتد لـ sso_next بعد الدخول (بفحص أصل صارم) + زر «متاجر Garfix» في TopBar (يُحقن STORES_BASE_URL من layout) + Mahhl أُضيف لـ .gitignore/eslint/tsconfig
+- Mahhl → Garfix Stores: إعادة براند كاملة (109 مواضع «محل شوب» → «متاجر جارفكس» + Mahhl Shop → Garfix Stores + manifest/SEO/README) وبذر محلي scripts/seed-local.ts (أدمن المؤسس نفسه + 8 منتجات بدراسة تسويقية + متجر garfix-demo تجريبي)
+- Mahhl — SSO SP: src/lib/garfix-sso.ts (استبدال الكود + صك توكن أدمن بنفس مخطط الموقع + تذاكر لمرة واحدة في SiteSetting تعمل على Vercel) + /api/auth/sso/login (state كوكي httpOnly) + callback (ربط بالبريد — إنشاء أدمن owner لدور ERP=admin فقط) + consume + زر «الدخول عبر حساب Garfix» + استهلاك sso_ticket في admin-login
+- Mahhl — مرسل webhooks: src/lib/webhooks.ts (توقيع + مهلة 5ث + إعادة واحدة) موصول في طلبات المتاجر (notifyErpOrderCreated) وتغيّر حالة الأدمن (order.status_changed)
+- شركة «منصة متاجر جارفكس» في ERP (gs_platform_v1 / code gstores / storesSlug garfix-demo) عبر scripts/seed-gstores-company.ts
+- التحقق E2E الكامل (curl + متصفح):
+  1) طلب COD حقيقي على /store/garfix-demo (فاطمة العلي، ساعة ذكية ×2 = 22.800) → فاتورة GS-ORD-MUD5S4SQ ظهرت في ERP فوراً بالعميل والبنود والملاحظات ✓
+  2) تحويل الطلب إلى delivered في لوحة المتاجر → دفعة 22.8 كاش COD سُجلت والفاتورة صارت Paid تلقائياً ✓
+  3) إعادة إرسال الحدثين مرتين (توقيع صحيح) → فاتورة واحدة ودفعة واحدة (idempotency مثبتة) ✓
+  4) SSO من جلسة قائمة: زر «متاجر Garfix» في ERP → تبويب جديد → لوحة تحكم المتاجر مباشرة بلا كلمة مرور ✓
+  5) SSO من الصفر: مسح الكوكيز → authorize → صفحة دخول ERP مع sso_next → دخول → ارتداد تلقائي → لوحة تحكم المتاجر ✓
+  6) رفض redirect_uri غير المسموح (400) ورفض توقيع خاطئ (401) ✓
+- الجودة: ERP lint 0 أخطاء + tsc 0 أخطاء · Mahhl lint 0 أخطاء + **بناء إنتاجي كامل ناجح** · لقطات: qa-p1-sso-stores-admin.png, qa-p1-stores-orders.png, qa-p1-erp-invoice-imported.png, qa-p1-garfix-demo-storefront.png
+
+Stage Summary:
+- المنظومة الثلاثية مترابطة الآن فعلياً: دخول واحد في ERP يفتح المتاجر بضغطة، وكل طلب COD في أي متجر يتحول فاتورة مدفوعة في ERP عند التسليم — بصفر تدخل بشري (المرحلة 1 مكتملة)
+- Mahhl صار رسمياً «Garfix Stores — متاجر جارفكس» (البراند كله + README) والبناء الإنتاجي يمر
+- الأساس جاهز للمرحلة 2: محرك الوكلاء فوق أدوات ERP (المتجر + الهوية + الفواتير كلها API جاهزة)

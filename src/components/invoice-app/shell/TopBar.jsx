@@ -11,7 +11,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Search, Languages, Sun, Moon, Bell, ChevronDown, LogOut, User as UserIcon,
-  ShieldCheck, AlertTriangle, CheckCircle2, Sparkles, Info, ArrowRight, ArrowLeft,
+  ShieldCheck, AlertTriangle, CheckCircle2, Sparkles, Info, ArrowRight, ArrowLeft, Store,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n-context";
 import { tr, appDir } from "@/lib/i18n-app";
@@ -82,6 +82,23 @@ export default function TopBar({
 
       {/* إضافات سياقية (زر لوحة AI) */}
       {extraActions}
+
+      {/* المرحلة 1 (تكامل Garfix Stores): قفزة واحدة إلى منصة المتاجر عبر SSO */}
+      {(() => {
+        const storesBase = (typeof window !== "undefined" &&
+          (window.__GARFIX_STORES_BASE__ || "")) || "";
+        if (!storesBase) return null;
+        return (
+          <button
+            className="gx-top-btn"
+            onClick={() => window.open(`${storesBase}/api/auth/sso/login?portal=admin`, "_blank", "noopener")}
+            title={tr("منصة متاجر Garfix — دخول موحد")}
+          >
+            <Store size={16} aria-hidden="true" />
+            <span className="gx-tb-label">{tr("متاجر Garfix")}</span>
+          </button>
+        );
+      })()}
 
       {/* اللغة */}
       <div ref={langRef} className="gx-tb-lang" style={{ position: "relative", flexShrink: 0 }}>
