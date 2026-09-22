@@ -1156,3 +1156,24 @@ Work Log:
 Stage Summary:
 - التكامل ثلاثي الأركان يعمل: (1) لوحة مؤسس garfix.io تجلب شركات ERP الحقيقية وتبني روابط مخصصة ?co=، (2) ERP يفتح الشركة المقصودة تلقائياً بعد الدخول أو يبدّلها في جلسة قائمة، (3) بطاقة ERP في dashboard العميل تفتح النظام الحقيقي
 - الافتراضيات محلية (localhost:3000) وقابلة للتغيير من لوحة المؤسس عند النشر على دومين حقيقي
+
+---
+Task ID: 6
+Agent: Main (Super Z)
+Task: إحياء التكامل بعد تطور الريموت (r27-r29 من جلسة موازية) + دفع المستودعين بـ PAT جديد
+
+Work Log:
+- اكتشاف: الريموت تقدّم بـ r27-r29 (hardening شامل + **هجرة القاعدة من SQLite إلى PostgreSQL 17** + جلسة موازية أعادت ضبط البنية فمحت مجلد garfix-io المحلي بضياع commit التكامل غير المدفوع)
+- git: reset إلى origin/main (r29) ثم cherry-pick لـ commit التكامل r26 — تعارض worklog.md فقط (حُل يدوياً)؛ كود App.jsx و public/route.ts دخل نضيفاً
+- إحياء PostgreSQL محلياً بلا root: تنزيل deb وإخراجه إلى /home/z/pg + initdb -k /tmp + تشغيل على 127.0.0.1:5432 (سكربت scripts/pg-start.sh) — مستخدم garfix/قاعدة garfix
+- prisma db push + بذر scripts/seed-demo-data.ts (شركات 4/عملاء 7/فواتير 14/مدفوعات 6/كتالوج 6/مشتريات 1)
+- تصحيح متغير البيئة القديم في الجلسة (DATABASE_URL كان يتجاوز .env)
+- إعادة تشغيل خادم dev بالـ PG: healthz 200 + /api/companies/public يعيد الشركات من PG + دخول الفاوندر kind=builtin يعمل
+- إعادة بناء garfix-io فوق commit الـ AI Landing الجديد (2707eb8) بإعادة تطبيق التعديلات الخمسة نفسها (منفذ 3001 + erpBase + بطاقة التكامل + منتقي الشركة + مفاتيح i18n)
+- تحقق متصفح كامل على البيئة الجديدة: لوحة مؤسس garfix-io تجلب الشركات الأربع (شرائح ?co=) ✓ · دخول /?co=boss → اختيار Boss Neolife تلقائياً وتنظيف الرابط ✓ (لقطة scripts/erp-deeplink-boss-pg.png)
+- الدفع بـ PAT الجديد: Garfix-space (3430497..df03d6e) ✓ و Garfix-io (2707eb8..3eebd74) ✓
+
+Stage Summary:
+- المستودعان متزامنان على GitHub بتكامل كامل فوق آخر نسخة (r29 + AI Landing)
+- PostgreSQL 17 يعمل محلياً بدون root (يشغل يدوياً عند الإقلاع عبر scripts/pg-start.sh)
+- درس مستفاد: أي مجلد عمل خارج المستودع الرئيسي (garfix-io) عرضة للضياع عند إعادة ضبط البيئة — يُفضَّل الدفع الفوري بعد كل جلسة عمل
