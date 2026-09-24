@@ -1,6 +1,6 @@
 /**
  * mini-service: keepalive — الحارس الرئيسي للبنية التحتية
- * يراقب كل 8 ثوانٍ: PostgreSQL (5432) • Valkey (6379) • pdf-service (3040) • job-worker (3041) • Next.js (3000)
+ * يراقب كل 8 ثوانٍ: PostgreSQL (5432) • Valkey (6379) • pdf-service (3040) • job-worker (3041) • Next.js (3000) • Garfix Stores (3001)
  * ويُعيد تشغيل أي خدمة متوقفة فوراً (spawn detached — تعيش حتى لو أُوقف الحارس لاحقاً).
  */
 import { spawn, execFile } from "node:child_process";
@@ -15,7 +15,10 @@ const PG_ENV = {
 };
 const VALKEY_BIN = "/home/z/my-project/infra/valkey/valkey-8.1.1/src/valkey-server";
 const VALKEY_CONF = "/home/z/my-project/infra/valkey/valkey.conf";
-const PROJECT = "/home/z/my-project";
+// جذر مشروع ERP — استُنسخ GitHub إلى Garfix-space (البيئة الحالية)؛
+// البنية التحتية (infra/db) تبقى في /home/z/my-project كما في الوصفة الأصلية.
+const PROJECT = "/home/z/my-project/Garfix-space";
+const STORES_PROJECT = "/home/z/my-project/Mahhl";
 const DATABASE_URL = "postgresql://garfix:garfix2024@127.0.0.1:5432/garfix?schema=public";
 
 function portOpen(port: number, host = "127.0.0.1"): Promise<boolean> {
@@ -86,6 +89,19 @@ async function ensureNextDev(): Promise<void> {
   });
 }
 
+/** المرحلة 2: منصة Garfix Stores (Mahhl) على 3001 — خادم dev الموازي للتطوير المتكامل */
+async function ensureStoresDev(): Promise<void> {
+  if (await portOpen(3001)) return;
+  if (!fs.existsSync(`${STORES_PROJECT}/package.json`)) return; // المستودع غير مستنسخ — تخطَّ
+  console.log("[keepalive] Garfix Stores (3001) متوقف — إعادة التشغيل…");
+  try { fs.rmSync(`${STORES_PROJECT}/.next`, { recursive: true, force: true }); } catch { /* تجاهل */ }
+  spawnDetached("bun", ["run", "dev"], {
+    cwd: STORES_PROJECT,
+    env: { ...process.env, DATABASE_URL: "postgresql://garfix:garfix2024@127.0.0.1:5432/mahhl?schema=public", PORT: "3001" },
+    log: `${STORES_PROJECT}/stores-dev.log`,
+  });
+}
+
 let ticks = 0;
 async function main(): Promise<void> {
   console.log(`[keepalive] الحارس الرئيسي يعمل (فحص كل 8 ثوانٍ)`);
@@ -97,6 +113,7 @@ async function main(): Promise<void> {
       await ensurePdfService().catch((e) => console.error("[keepalive] pdf:", e?.message ?? e));
       await ensureJobWorker().catch((e) => console.error("[keepalive] jobs:", e?.message ?? e));
       await ensureNextDev().catch((e) => console.error("[keepalive] next:", e?.message ?? e));
+      await ensureStoresDev().catch((e) => console.error("[keepalive] stores:", e?.message ?? e));
     } catch (e) {
       console.error("[keepalive] خطأ:", e instanceof Error ? e.message : e);
     }

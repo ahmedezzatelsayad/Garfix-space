@@ -12,7 +12,7 @@ import {
   LayoutDashboard, FileText, Users, CreditCard, BarChart3,
   Sparkles, Upload, ScanText, ShoppingCart, Printer, BellRing,
   Building2, Globe, ShieldCheck, Plug, Database, ChevronDown, Plus,
-  Pencil, Crown, HelpCircle, BookOpen, LifeBuoy, PanelLeftClose, PanelLeftOpen, X,
+  Pencil, Crown, HelpCircle, BookOpen, LifeBuoy, PanelLeftClose, PanelLeftOpen, X, Bot,
 } from "lucide-react";
 import { tr, companyName } from "@/lib/i18n-app";
 import { CURRENCIES } from "../currency";
@@ -32,7 +32,9 @@ const NAV_GROUPS = [
   {
     label: () => tr("الذكاء الاصطناعي"),
     items: [
-      { id: "chat", icon: Sparkles, label: () => tr("المساعد الذكي"), gold: true },
+      // المرحلة 2: وكيل جارفِكس — حلقة Think→Act→Observe بأدوات حقيقية
+      { id: "agent", icon: Bot, label: () => tr("الوكيل"), gold: true },
+      { id: "chat", icon: Sparkles, label: () => tr("المساعد الذكي") },
       { id: "bulk", icon: Upload, label: () => tr("الاستيراد الذكي"), perm: "bulk_input" },
       { id: "ai", icon: ScanText, label: () => tr("التحليل الذكي") },
     ],

@@ -36,6 +36,7 @@ interface CompanyProfile {
   logo: string | null;
   taxEnabled: boolean;
   defaultTaxRate: number | null;
+  storesSlug: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -60,6 +61,7 @@ function serializeCompany(c: {
   logo: string | null;
   taxEnabled: boolean;
   defaultTaxRate: number | null;
+  storesSlug: string | null;
   createdAt: Date;
   updatedAt: Date;
 }): CompanyProfile {
@@ -83,6 +85,8 @@ function serializeCompany(c: {
     logo: c.logo,
     taxEnabled: c.taxEnabled,
     defaultTaxRate: c.defaultTaxRate,
+    // المرحلة 2: معرف متجر Garfix Stores المرتبط (webhooks الطلبات → فواتير هذه الشركة)
+    storesSlug: c.storesSlug,
     createdAt: c.createdAt.toISOString(),
     updatedAt: c.updatedAt.toISOString(),
   };

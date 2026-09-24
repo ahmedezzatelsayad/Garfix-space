@@ -1220,3 +1220,37 @@ Stage Summary:
 - المنظومة الثلاثية مترابطة الآن فعلياً: دخول واحد في ERP يفتح المتاجر بضغطة، وكل طلب COD في أي متجر يتحول فاتورة مدفوعة في ERP عند التسليم — بصفر تدخل بشري (المرحلة 1 مكتملة)
 - Mahhl صار رسمياً «Garfix Stores — متاجر جارفكس» (البراند كله + README) والبناء الإنتاجي يمر
 - الأساس جاهز للمرحلة 2: محرك الوكلاء فوق أدوات ERP (المتجر + الهوية + الفواتير كلها API جاهزة)
+
+---
+Task ID: 9 (المرحلة 2 — Agent Engine)
+Agent: Main (Super Z)
+Task: بناء محرك الوكلاء داخل ERP — حلقة Think→Act→Observe حقيقية بأدوات فعلية + تدقيق كامل + حواجز أمنية + اللحظة الفاصلة العابرة للمستودعات (شركة + متجر بجملة واحدة)
+
+Work Log:
+- إحياء البيئة بعد تصفير الساندبوكس: PostgreSQL 17 من الـ debs إلى infra/pg (قاعدتا garfix وmahhl) + بذر ERP (site/demo/gstores) + Stores (seed-local) + Valkey قيد البناء من المصدر (النظام يعمل بكاش الذاكرة البديل والحارس keepalive سيشغّله عند جاهزيته)
+- المخطط: نموذج AgentAuditLog (@@map agent_audit_log) — يدوّن كل استدعاء أداة: الأداة/نوعها/الوسائط المعقّمة/النتيجة/المدة/المسؤول/الشركة/الوضع + كود الحجب (READONLY_MODE | AMOUNT_CAP | NOT_ADMIN | NO_SUCH_TOOL | INVALID_ARGS | STORES_UNREACHABLE) بفهارس على runId/userEmail/companySlug
+- الأدوات الثماني (src/lib/agent-tools.ts): search (بحث عام) / list_invoices / list_customers / list_payments / company_stats (قراءة) + create_company / create_store / update_invoice_status (كتابة) — كلها محصورة بنطاق الشركة (عزل المستأجرين) وبعملتها
+- المحرك (src/lib/agent-engine.ts): حلقة Think→Act→Observe حقيقية (حد AGENT_MAX_STEPS=8): النموذج يقرر (كتلة ```garfix-tool JSON) → runAgentTool ينفّذ بالحواجز والتدقيق → الملاحظة [TOOL_RESULT] تعود للنموذج → تكرار حتى الجواب النهائي. بثّ SSE بأحداث: meta/turn_start/thought/turn_end/tool_call/tool_result/confirmation_required/final/done/error — الواجهة ترى الحلقة مباشرة
+- الحواجز الأمنية: (1) قراءة فقط افتراضياً — الكتابة تُحجب وتتحول بطاقة تأكيد بمقصد لمرة واحدة (confirmToken في الكاش TTL 5 دقائق) وضغطة المستخدم تنفّذ الأفعال المصادَق عليها ثم يشرح الوكيل النتائج، أو وضع auto للمدير (2) سقف مالي AGENT_AMOUNT_CAP=5000 (إلغاء فاتورة 99,999 حُجب وثُبِت) (3) لا أدوات حذف إطلاقاً — whitelist مغلق (NO_SUCH_TOOL) (4) أدوات الإنشاء للمدير أو مشترك يملك الشركة (NOT_ADMIN)
+- مسارات API: POST /api/agent/run (SSE — جلسة + ملكية شركة + حد معدل الذكاء 30/5د) + GET /api/agent/audit (المدير يرى الكل، المستخدم تشغيلاته — مجهول 401)
+- لحظة الإبهار العابرة للمستودعات: create_store ينشئ/يحل الشركة ثم يستدعي POST /api/webhooks/erp/provision-store في Mahhl (HMAC بنفس سر المرحلة 1) ثم يربط Company.storesSlug — كل طلبات COD في المتجر الجديد تصبح فواتير الشركة تلقائياً عبر webhooks المرحلة 1
+- Mahhl: مسار provision-store موقّع timing-safe — ينشئ Affiliate (بحالة active بكلمة مرور عشوائية موثّقة في notes) + Storefront، idempotent بالمعرّف (نفس المالك يعيد نفس المتجر created:false / مالك آخر 409) + توقيع خاطئ 401
+- الواجهة: AgentConsole.jsx (تبويب «🤖 الوكيل» في SideNav مجموعة الذكاء + TABS) — بطاقات فكرة 💭/أداة 🔧/ملاحظة 👁 قابلة للفتح مع الوسائط والملخص، مفتاح الوضع 🔒/⚡، بطاقة تأكيد بضغطة زر، لوحة سجل التدقيق الحية، اقتراحات جاهزة تتصدرها «اعمل شركة تبيع ملابس ومتجر ليها» + تحريك نبض الوكيل + ترجمات إنجليزية للمفاتيح الجديدة (app-dict-en)
+- keepalive: أُضيف مراقبة Garfix Stores (3001) + تصحيح PROJECT إلى Garfix-space (كان يشير للجذر القديم قبل الاستنساخ)
+- تحسينات مصاحبة: companies API يعيد storesSlug الآن (رؤية الربط) + إعادة محاولة واحدة بتراجع عند 429 من المزوّد المدمج في ai-provider (كان يكسر حلقة الوكيل عند حد المعدل الخارجي)
+- اختبار E2E كامل (scripts/test-agent-engine.ts — كل الفحوصات PASS):
+  1) حلقة قراءة حية (list_invoices بأحداث think/tool_result/final كاملة ببيانات حقيقية TW-0005)
+  2) حاجز القراءة: create_company محجوب READONLY_MODE + بطاقة تأكيد + لا كتابة
+  3) مسار التأكيد: الضغطة نفّذت الشركة فعلاً + شرح النتائج
+  4) لحظة الإبهار في auto: شركة Threads + متجر threads-xxx في القاعدتين + storesSlug مربوط
+  5) سجل التدقيق: المحجوب والناجح مدوّنان + مجهول 401
+  6) الحاجز المالي: إلغاء 99,999 حُجب AMOUNT_CAP برسالة واضحة
+  7) provision-store: توقيع خاطئ 401
+- QA بالمتصفح (agent-browser): دخول المدير → اختيار توفير → تبويب الوكيل → وضع auto → «اعمل شركة تبيع ملابس ومتجر ليها» → بطاقة الأداة 🏬 create_store (succeeded • 116ms) ظهرت والنتيجة النهائية بسلامة — والقاعدتان تحملان الشركة والمتجر — لوحة التدقيق تعرض الاستدعاء. لقطات: qa-p2-agent-console-empty.png, qa-p2-agent-wow-moment.png, qa-p2-agent-audit-log.png
+- الجودة: ERP lint 0 أخطاء (تحذيران قديمان معروفان) + tsc 0 أخطاء · Mahhl lint/tsc نظيفان (أخطاء tsc القديمة كلها في examples/skills خارج النطاق)
+
+Stage Summary:
+- محرك الوكلاء يعمل فعلياً: يفكّر، يستدعي أدوات حقيقية فوق ERP، يقرأ النتائج، ويكمل حتى الإنجاز — والحلقة كلها مرئية مباشرة في الواجهة
+- الحواجز أثبتت نفسها E2E: قراءة فقط افتراضياً ببطاقة تأكيد بشرية، سقف مالي يحجب الأفعال الكبيرة، لا حذف إطلاقاً، وكل استدعاء (نجح/حُجب/فشل) مدوّن في agent_audit_log بمسؤوليته
+- اللحظة الفاصلة تعمل عبر المستودعين: جملة واحدة → شركة ERP + متجر Garfix Stores حقيقي مربوط بالـ webhooks — طلبات المتجر تتدفق فواتير تلقائياً
+- المستودعان مرفوعان إلى GitHub (Garfix-space: المرحلة 2 كاملة + Mahhl: مسار provision-store)

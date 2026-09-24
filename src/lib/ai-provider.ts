@@ -120,12 +120,28 @@ export async function chatComplete(messages: ChatMessage[], opts: CompleteOpts =
     }
   }
 
-  // المزوّد المدمج (z-ai-web-dev-sdk)
+  // المزوّد المدمج (z-ai-web-dev-sdk) — r31: إعادة محاولة واحدة بتراجع عند 429
+  // (حد المعدل الخارجي) بدل إخماد الاستدعاء كاملاً — المزوّد لا يبثّ فالبثّ
+  // يبدأ من هنا فقط بعد نجاح الاستدعاء أو استسلامه.
   const zai = await ZAI.create();
-  const completion = await zai.chat.completions.create({
-    messages,
-    thinking: { type: "disabled" },
-  });
+  let completion: Awaited<ReturnType<typeof zai.chat.completions.create>>;
+  try {
+    completion = await zai.chat.completions.create({
+      messages,
+      thinking: { type: "disabled" },
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (/429|too many/i.test(msg)) {
+      await new Promise((r) => setTimeout(r, 2500));
+      completion = await zai.chat.completions.create({
+        messages,
+        thinking: { type: "disabled" },
+      });
+    } else {
+      throw e;
+    }
+  }
   return {
     content: completion.choices[0]?.message?.content ?? "",
     model: "builtin",

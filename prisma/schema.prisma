@@ -330,6 +330,32 @@ model UsageCounter {
   @@map("usage_counters")
 }
 
+// ── المرحلة 2 (Agent Engine): سجل تدقيق الوكيل ──
+// كل استدعاء أداة من حلقة Think→Act→Observe يمر من هنا: الأداة ووسائطها
+// (معقّمة من البيانات الحساسة)، النتيجة، مدة التنفيذ، ومن حجبته الحواجز
+// الأمنية (blocked) ولماذا — مساءلة كاملة لكل ما لمسه الوكيل في النظام.
+model AgentAuditLog {
+  id          Int      @id @default(autoincrement())
+  runId       String // معرف التشغيلة (uuid) — خطوات الجلسة الواحدة مجمّعة
+  step        Int      @default(0) // رقم الخطوة داخل التشغيلة
+  tool        String // اسم الأداة المستدعاة
+  kind        String   @default("read") // read | write
+  args        String   @default("{}") // JSON معقّم
+  ok          Boolean  @default(false) // هل نجح التنفيذ فعلياً (المحجوب = false)
+  blocked     String? // كود الحاجز: READONLY_MODE | AMOUNT_CAP | NOT_ADMIN | NO_SUCH_TOOL | INVALID_ARGS | STORES_UNREACHABLE
+  result      String?  @default("{}") // ملخص النتيجة JSON
+  durationMs  Int      @default(0)
+  userEmail   String // من شغّل الوكيل (المسؤول عن التشغيلة)
+  companySlug String?
+  mode        String   @default("readonly") // readonly | auto | confirmed
+  createdAt   DateTime @default(now())
+
+  @@index([runId])
+  @@index([userEmail, createdAt])
+  @@index([companySlug, createdAt])
+  @@map("agent_audit_log")
+}
+
 // r17: طلبات ترقية الخطة من المشتركين — يعتمدها المؤسس أو يرفضها من لوحة الإدارة
 model PlanRequest {
   id        Int      @id @default(autoincrement())
