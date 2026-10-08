@@ -9,8 +9,8 @@ import { Toaster } from "@/components/ui/toaster";
  *  - JSON-LD منظّم: Organization + WebSite + SoftwareApplication (مؤسس أحمد عزت الصياد)
  *  - sitemap.xml (app/sitemap.ts) + robots.txt (app/robots.ts) ديناميكياً
  */
-const SITE_NAME = "الشركة القابضة المتحدة";
-const SITE_NAME_EN = "Garfix — United Holding Group";
+const SITE_NAME = "Garfix | جارفكس";
+const SITE_NAME_EN = "Garfix — AI Business OS";
 const SITE_DESC =
   "نظام إدارة الفواتير والحسابات المتعدد الشركات في الكويت — فواتير فورية، مدفوعات جزئية، تذكيرات واتساب، تقارير لحظية، إدخال مجمع بالذكاء الاصطناعي، ومساعد ذكي ينفّذ الإجراءات. مجاناً لأول 100 مشترك.";
 const FOUNDER = "أحمد عزت الصياد";

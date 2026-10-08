@@ -2,9 +2,11 @@
 
 /**
  * r24: PricingCard — باقة واحدة واضحة كما اقتضت الاستراتيجية:
- * $10 / شركة / شهرياً (تُحوَّل لعملة شريط التحكم بتفريب تقريبي)
+ * r32 (تدقيق 10/10): السعر صار من الخطة الحقيقية «الاحترافية» عبر /api/pricing
+ * (كان 10$ سعراً قديماً لا يوافق أي خطة فعلية — البداية 9$ والاحترافية 19$)
  * + شريط «مجاناً لأول 100 شركة» بعداد مقاعد حي من الخادم.
  */
+import { useEffect, useState } from "react";
 import { Check, Gift, Rocket } from "lucide-react";
 import { tr } from "@/lib/i18n-app";
 import { useI18n } from "@/lib/i18n-context";
@@ -12,12 +14,25 @@ import { fxFromUsd } from "./site-shared";
 
 export default function PricingCard({ currency = "USD", taxOn = true, seats = null, onGo }) {
   const { lang } = useI18n();
+  const [priceUsd, setPriceUsd] = useState(19);
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/pricing")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!alive || !d?.plans) return;
+        const pro = d.plans.find((p) => p.code === "pro");
+        if (pro?.priceUsd != null) setPriceUsd(Number(pro.priceUsd));
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   const features = [
     tr("فواتير غير محدودة مع PDF عربي كامل"),
-    tr("عملاء غير محدودون مع سجل 360°"),
+    tr("حتى 600 عميل بسجل 360°"),
     tr("مساعد ذكي جاهز — ينفذ بعد مراجعتك"),
-    tr("تعدد العملات والشركات"),
+    tr("3 شركات مع تعدد العملات"),
     tr("تحصيل وتذكيرات واتساب"),
     tr("إلغاء في أي وقت — بلا التزام"),
   ];
@@ -35,12 +50,12 @@ export default function PricingCard({ currency = "USD", taxOn = true, seats = nu
         }}
       >
         {/* شريط الباقة */}
-        <span className="s-chip" style={{ marginBottom: 16 }}>{tr("باقة واحدة واضحة")}</span>
+        <span className="s-chip" style={{ marginBottom: 16 }}>{tr("الاحترافية — الأكثر شعبية")}</span>
 
         {/* السعر */}
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
           <span className="s-num" style={{ fontSize: 46, fontWeight: 900, color: "#e5c558", fontFamily: "'Inter','Cairo',sans-serif", textShadow: "0 4px 26px rgba(201,162,39,.35)" }}>
-            {fxFromUsd(10, currency, lang)}
+            {fxFromUsd(priceUsd, currency, lang)}
           </span>
           <span style={{ color: "rgba(255,255,255,.6)", fontSize: 13.5, fontWeight: 700 }}>{tr("/ شركة / شهرياً")}</span>
         </div>

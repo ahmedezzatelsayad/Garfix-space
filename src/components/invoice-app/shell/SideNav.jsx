@@ -4,7 +4,8 @@
  *
  * - شعار GarfiX (G ذهبية) + منتقي الشركة (تبديل/إضافة/تعديل).
  * - مجموعات: MAIN / AI / OPERATIONS / ADMIN — عناصر بأيقونات lucide (بلا إيموجي).
- * - بطاقة الاشتراك (Business Plan — $10/شركة/شهرياً) + مساعدة/توثيق/دعم.
+ * - بطاقة الاشتراك الحقيقية من /api/subscription (r32) — الحسابات المدمجة
+ *   «وصول غير محدود» بلا سعر مُختلق، والمشترك باسم خطته وسعرها الفعلي.
  * - طي إلى أيقونات + تنقل بلوحة المفاتيح + رؤية حسب الصلاحيات + RTL/LTR كامل.
  */
 import { useEffect, useRef, useState } from "react";
@@ -68,6 +69,16 @@ export default function SideNav({
   const [coOpen, setCoOpen] = useState(false);
   const coRef = useRef(null);
   const navRef = useRef(null);
+  // r32: بطاقة الاشتراك الحقيقية — null = لم تُجلب بعد
+  const [subInfo, setSubInfo] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/subscription")
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (alive) setSubInfo(d || { accountType: "unknown" }); })
+      .catch(() => { if (alive) setSubInfo({ accountType: "unknown" }); });
+    return () => { alive = false; };
+  }, []);
 
   // إغلاق قائمة الشركة عند النقر خارجها
   useEffect(() => {
@@ -190,10 +201,29 @@ export default function SideNav({
           </div>
         ))}
 
-        {/* بطاقة الاشتراك */}
+        {/* بطاقة الاشتراك — البيانات الحقيقية من /api/subscription (r32) */}
         <div className="gx-sub-card">
-          <div className="gx-plan"><Crown size={14} color={GX_GOLD} /> {tr("باقة الأعمال")}</div>
-          <div className="gx-price gx-num">$10 <span>{tr("/ شركة / شهرياً")}</span></div>
+          <div className="gx-plan">
+            <Crown size={14} color={GX_GOLD} />{
+              subInfo == null
+                ? tr("الاشتراك")
+                : subInfo.accountType === "builtin"
+                  ? tr("حساب مؤسسي مدمج")
+                  : subInfo.accountType === "subscriber" && subInfo.plan
+                    ? (subInfo.plan.nameAr || subInfo.plan.code)
+                    : tr("الخطة المجانية")
+            }
+          </div>
+          <div className="gx-price gx-num">
+            {subInfo == null
+              ? "…"
+              : subInfo.accountType === "builtin"
+                ? tr("وصول غير محدود")
+                : subInfo.accountType === "subscriber" && subInfo.plan
+                  ? <>${Number(subInfo.plan.priceUsd || 0).toFixed(0)} <span>{tr("/ شركة / شهرياً")}</span></>
+                  : tr("مجاناً لأول 100 شركة")
+            }
+          </div>
           <button className="gx-sub-manage" onClick={() => { onManagePlan?.(); if (mobileOpen) onCloseMobile?.(); }}>
             {tr("إدارة الباقة")}
           </button>

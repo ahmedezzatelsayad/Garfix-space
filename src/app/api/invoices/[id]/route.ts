@@ -189,9 +189,10 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
           : partsChanged
             ? sub * (tRate / 100)
             : num(existing.taxAmount);
-    // الإجمالي يعاد حسابه من الأجزاء عند تغيّر أي جزء؛ total منفرداً (بلا تغيير
-    // أجزاء) يُحترم كما كان للحفاظ على سلوك التحديث الجزئي القديم.
-    const tot = partsChanged ? sub + tAmount + ship : total !== undefined ? num(total) : num(existing.total);
+    // r32 (تدقيق 10/10): الإجمالي يُحسب دائماً من الأجزاء (المصدر الوحيد للحقيقة)
+    // — كان total منفرداً (بلا أجزاء) يُخزَّن حرفياً فيكسر اتساق
+    // subtotal+taxAmount+shipping=total ويشوّه الإحالات والدفعات.
+    const tot = sub + tAmount + ship;
 
     const updates: Prisma.InvoiceUpdateInput = {};
 

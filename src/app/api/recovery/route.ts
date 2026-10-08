@@ -110,6 +110,16 @@ export async function POST(req: NextRequest) {
 
     // ————— استبدال ذرّي داخل معاملة واحدة —————
     await db.$transaction(async (tx) => {
+      // r32 (تدقيق 10/10): النسخ المحرّرة تحمل "__redacted__" مكان resend_config —
+      // نحفظ القيمة الحقيقية الحالية قبل المحو ونعيد وضعها أثناء الإدراج،
+      // كي لا تمسح الاستعادة مفتاح Resend المضبوط من لوحة المؤسس.
+      const SECRET_SETTING_KEYS = ["resend_config"];
+      const preservedBefore = await tx.setting.findMany({
+        where: { key: { in: SECRET_SETTING_KEYS } },
+        select: { key: true, value: true },
+      });
+      const preserved = new Map(preservedBefore.map((r) => [r.key, r.value]));
+
       // 1) محو البيانات الحالية بترتيب آمن للعلاقات (الأبناء قبل الآباء)
       const deleteOrder = [...INSERT_ORDER].reverse();
       for (const key of deleteOrder) {
@@ -119,7 +129,13 @@ export async function POST(req: NextRequest) {
 
       // 2) إعادة الإدراج بترتيب العلاقات
       for (const key of INSERT_ORDER) {
-        const rows = (data[key] ?? []) as Record<string, unknown>[];
+        let rows = (data[key] ?? []) as Record<string, unknown>[];
+        if (key === "settings" && rows.length) {
+          // صفوف محرّرة (__redacted__) → تُستبدل بالقيمة المحفوظة، وبلا قيمة محفوظة تُحذف
+          rows = rows
+            .filter((r) => !(r.value === "__redacted__" && SECRET_SETTING_KEYS.includes(String(r.key)) && !preserved.has(String(r.key))))
+            .map((r) => (SECRET_SETTING_KEYS.includes(String(r.key)) && preserved.has(String(r.key)) ? { ...r, value: preserved.get(String(r.key)) } : r));
+        }
         if (!rows.length) {
           restored[key] = 0;
           continue;

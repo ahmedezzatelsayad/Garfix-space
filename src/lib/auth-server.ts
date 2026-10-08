@@ -2,7 +2,7 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypt
 import fs from "node:fs";
 import path from "node:path";
 import { NextRequest, NextResponse } from "next/server";
-import { cacheGet, cacheSet, cacheDel } from "./cache";
+import { cacheGet, cacheSet, cacheDel, cacheIncr } from "./cache";
 
 /**
  * r13: أمان الخادم — جلسات موقّعة (httpOnly cookie) + تحقق موحّد من الصلاحيات.
@@ -48,8 +48,12 @@ interface ServerUser {
 // ── r28: إعدادات الجاهزية للإنتاج من متغيرات البيئة ──
 /** الحسابات التجريبية مفعّلة فقط عند DEMO_MODE=true (بيئة العرض الداخلية) */
 const DEMO_MODE = process.env.DEMO_MODE === "true";
-/** كلمة مرور المؤسس — عند النشر العلني اضبط GARFIX_MASTER_PASSWORD بقيمة سرية قوية */
-const MASTER_PASS = process.env.GARFIX_MASTER_PASSWORD || "admin123";
+/**
+ * r32 (تدقيق 10/10): كلمة مرور المؤسس بلا قيمة افتراضية — تفشل الدخول مغلقاً
+ * عندما لا تُضبط GARFIX_MASTER_PASSWORD (كان الافتراضي admin123 — خطر علني مباشر).
+ * التطوير/العرض: اضبطها في .env — الإنتاج: سر قوي إلزامي.
+ */
+const MASTER_PASS = process.env.GARFIX_MASTER_PASSWORD || "";
 /** r28: أضف COOKIE_SECURE=true عند النشر خلف HTTPS ليصبح كوكي الجلسة secure */
 export const COOKIE_SECURE = process.env.COOKIE_SECURE === "true";
 
@@ -70,7 +74,8 @@ const RESERVED_EMAILS = new Set([MASTER_EMAIL, ...DEMO_ACCOUNTS.map((a) => a.ema
 
 function buildUsers(): ServerUser[] {
   const defs: { email: string; pass: string; displayName: string; role: "admin" | "employee" }[] = [
-    { email: MASTER_EMAIL, pass: MASTER_PASS, displayName: "أحمد عزت الصياد", role: "admin" },
+    // r32: بلا كلمة مرور مضبوطة لا يُبنى حساب المؤسس أصلاً (فشل مغلق — لا sha256(""))
+    ...(MASTER_PASS ? [{ email: MASTER_EMAIL, pass: MASTER_PASS, displayName: "أحمد عزت الصياد", role: "admin" as const }] : []),
     ...(DEMO_MODE ? DEMO_ACCOUNTS : []),
   ];
   return defs.map(({ email, pass, displayName, role }) => ({ email, hash: sha256(pass), displayName, role }));
@@ -97,7 +102,14 @@ export function isReservedAccountEmail(email: string): boolean {
 // ── سر التوقيع: يُولَّد مرة ويُخزَّن في db/session-secret (خارج git) ──
 const SECRET_FILE = path.join(process.cwd(), "db", "session-secret");
 
+/**
+ * r32 (تدقيق 10/10): SESSION_SECRET من البيئة له الأولوية (يعمل مع النشر متعدد
+ * النسخ حيث الملف غير مشترك)، ثم ملف db/session-secret، ثم توليد جديد.
+ */
 function getSecret(): Buffer {
+  const envSecret = (process.env.SESSION_SECRET || "").trim();
+  if (/^[0-9a-f]{64,}$/i.test(envSecret)) return Buffer.from(envSecret, "hex");
+  if (envSecret.length >= 32) return Buffer.from(envSecret, "utf8");
   try {
     const hex = fs.readFileSync(SECRET_FILE, "utf8").trim();
     if (/^[0-9a-f]{64,}$/i.test(hex)) return Buffer.from(hex, "hex");
@@ -363,11 +375,12 @@ export async function actionRateLimited(scope: string, id: string, max: number, 
   return n >= max;
 }
 
-/** سجّل محاولة (كل استدعاء يزيد العدّاد ويجدّد النافذة) */
+/**
+ * r32 (تدقيق 10/10): تسجيل محاولة بذرّية INCR+EXPIRE — كان get-then-set
+ * يسمح بتجاوز الحد تحت تزامن خفيف (عدة طلبات تقرأ نفس العدد ثم تزيده).
+ */
 export async function noteActionFailure(scope: string, id: string, windowMs: number): Promise<void> {
-  const raw = await cacheGet(`rl:${scope}:${id}`);
-  const n = (raw ? parseInt(raw, 10) || 0 : 0) + 1;
-  await cacheSet(`rl:${scope}:${id}`, String(n), Math.ceil(windowMs / 1000));
+  await cacheIncr(`rl:${scope}:${id}`, Math.ceil(windowMs / 1000));
 }
 
 /** صفّر عدّاد نطاق معين (بعد نجاح مثلاً) */

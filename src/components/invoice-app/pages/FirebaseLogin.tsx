@@ -33,6 +33,20 @@ export default function FirebaseLogin() {
   const [name,     setName]     = useState("");
   const [phone,    setPhone]    = useState("");
   const [pass2,    setPass2]    = useState("");
+  // r32 (تدقيق 10/10): سعر باقة «الاحترافية» الحقيقية من /api/pricing — بدل 10$ الثابتة
+  const [proUsd,  setProUsd]   = useState(19);
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/pricing")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!alive || !d?.plans) return;
+        const pro = d.plans.find((p) => p.code === "pro");
+        if (pro?.priceUsd != null) setProUsd(Number(pro.priceUsd));
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
   const [err,      setErr]      = useState("");
   const [okMsg,    setOkMsg]    = useState("");
   const [loading,  setLoading]  = useState(false);
@@ -439,7 +453,7 @@ export default function FirebaseLogin() {
         <ShieldCheck size={12} aria-hidden="true" />
         <span>SECURE AUTHENTICATION · GarfiX — AI BUSINESS OS</span>
         <span className="s-num" style={{color:"rgba(229,197,88,.55)",fontWeight:700}}>
-          {fxFromUsd(10, cur, lang)} {tr("شهرياً لكل شركة — بعد أول 100 شركة مجاناً")}
+          {fxFromUsd(proUsd, cur, lang)} {tr("شهرياً لكل شركة — بعد أول 100 شركة مجاناً")}
         </span>
       </div>
     </div>

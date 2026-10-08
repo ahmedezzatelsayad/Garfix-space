@@ -121,14 +121,14 @@ export default function DashboardHome({
   /* ── المؤشرات ── */
   const kpi = useMemo(() => {
     const paidSum = list => list.reduce((s, i) => s + paidOf(i), 0);
-    const pendSum = list => list.filter(i => stOf(i) !== "paid" && stOf(i) !== "cancel")
-      .reduce((s, i) => s + (iT(i) - paidOf(i)), 0);
-    const overdueAll = invoices.filter(i => overdueDays(i) > 0);
+    // r32 (تدقيق 10/10): «قيد الانتظار» و«متأخر» حالتان حاليتان على كل الفواتير
+    // غير الملغاة (وليس ضمن المدى الزمني) — كان المعلق يُحسب داخل المدى والمتأخر
+    // على كل الفواتير فيظهر المتأخر أكبر من المعلق (مستحيل محاسبياً). الآن
+    // المتأخر ⊆ المعلق دائماً، والمدى الزمني يبقى لعدّ الفواتير والمدفوع.
+    const openAll = invoices.filter(i => stOf(i) !== "paid" && stOf(i) !== "cancel");
+    const pendSumAll = openAll.reduce((s, i) => s + (iT(i) - paidOf(i)), 0);
+    const overdueAll = invoices.filter(i => stOf(i) !== "cancel" && overdueDays(i) > 0);
     const overdueSum = overdueAll.reduce((s, i) => s + (iT(i) - paidOf(i)), 0);
-    const overduePrev = invoices.filter(i => {
-      if (i.status === "cancelled" || paidOf(i) >= iT(i) || !i.dueDate) return false;
-      return i.dueDate >= P.from && i.dueDate <= P.to;
-    }).reduce((s, i) => s + (iT(i) - paidOf(i)), 0);
 
     // سلاسل 14 يوماً للمخططات المصغرة
     const days14 = Array.from({ length: 14 }, (_, i) => {
@@ -160,19 +160,17 @@ export default function DashboardHome({
         onClick: () => { statusFilterSetter?.("paid"); onNavigate?.("list"); },
       },
       {
-        id: "pending", icon: Clock, label: tr("قيد الانتظار"), num: pendSum(inRange),
-        delta: pctDelta(pendSum(inRange), pendSum(inPrev)),
-        sub: tr("{0} فاتورة غير مكتملة", [inRange.filter(i => ["part", "pending"].includes(stOf(i))).length]), money: true, fmt,
+        id: "pending", icon: Clock, label: tr("قيد الانتظار"), num: pendSumAll,
+        sub: tr("{0} فاتورة غير مكتملة — كل الفترات", [openAll.length]), money: true, fmt,
         spark: sparkPend, color: "#B45309", bg: "rgba(245,158,11,.13)",
-        tooltip: tr("المتبقي من فواتير الفترة غير المسددة بالكامل"),
+        tooltip: tr("إجمالي المتبقي غير المحصّل من كل الفواتير غير الملغاة الآن — انقر لعرض المدفوعات"),
         onClick: () => onNavigate?.("payments"),
       },
       {
         id: "overdue", icon: AlertTriangle, label: tr("متأخر"), num: overdueSum,
-        delta: pctDelta(overdueSum, overduePrev),
-        sub: tr("{0} فاتورة تجاوزت الاستحقاق", [overdueAll.length]), money: true, fmt,
+        sub: tr("{0} فاتورة تجاوزت الاستحقاق — جزء من المعلق", [overdueAll.length]), money: true, fmt,
         spark: sparkOver, color: "#DC2626", bg: "rgba(239,68,68,.1)",
-        tooltip: tr("إجمالي المتبقي من الفواتير المتأخرة عن تاريخ الاستحقاق"),
+        tooltip: tr("المتبقي على الفواتير التي تجاوزت تاريخ الاستحقاق ولم تُلغَ — انقر لعرض التذكيرات"),
         onClick: () => onNavigate?.("reminders"),
       },
     ];

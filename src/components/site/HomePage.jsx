@@ -49,6 +49,22 @@ export default function HomePage({ stats, companies, content, authed, onEnterApp
     return () => { alive = false; };
   }, []);
 
+  // r32 (تدقيق 10/10): سعر باقة «الاحترافية» الحقيقية من /api/pricing — كانت
+  // البطاقة تعلن سعراً قديماً ثابتاً (10$) لا يوافق أي خطة فعلية.
+  const [proPriceUsd, setProPriceUsd] = useState(19);
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/pricing")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!alive || !d?.plans) return;
+        const pro = d.plans.find((p) => p.code === "pro");
+        if (pro?.priceUsd != null) setProPriceUsd(Number(pro.priceUsd));
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
   /* حالة شريط التحكم العالمي — تُغذّي الموكاب والتسعير وعرض الـAI */
   const [currency, setCurrency] = useState("KWD");
   const [taxOn, setTaxOn] = useState(true);
@@ -206,7 +222,7 @@ export default function HomePage({ stats, companies, content, authed, onEnterApp
       <section className="s-section">
         <SectionTitle
           title={tr("تسعير واحد واضح — بلا مفاجآت")}
-          sub={tr("ابدأ مجاناً لأول 100 شركة، ثم {0} شهرياً لكل شركة — بإلغاء في أي وقت", [fxFromUsd(10, currency, lang)])}
+          sub={tr("ابدأ مجاناً لأول 100 شركة، ثم {0} شهرياً لكل شركة — بإلغاء في أي وقت", [fxFromUsd(proPriceUsd, currency, lang)])}
         />
         <PricingCard currency={currency} taxOn={taxOn} seats={seats} onGo={goRegister} />
         <div style={{ textAlign: "center", marginTop: 18 }}>

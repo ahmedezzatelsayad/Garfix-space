@@ -13,9 +13,9 @@ import { LogoMark } from "@/components/site/site-shared";
  */
 
 const CONTENT_FIELDS = [
-  { key: "site_name", label: "اسم الموقع (العربي)", placeholder: "الشركة القابضة المتحدة", max: 80 },
-  { key: "site_name_en", label: "اسم الموقع (اللاتيني)", placeholder: "United Holding Group", max: 60 },
-  { key: "hero_badge", label: "شارة البطل", placeholder: "نظام إدارة الحسابات المتكامل", max: 80 },
+  { key: "site_name", label: "اسم الموقع (العربي)", placeholder: "Garfix | جارفكس", max: 80 },
+  { key: "site_name_en", label: "اسم الموقع (اللاتيني)", placeholder: "Garfix — AI Business OS", max: 60 },
+  { key: "hero_badge", label: "شارة البطل", placeholder: "Garfix — نظام تشغيل الأعمال بالذكاء الاصطناعي", max: 80 },
   { key: "hero_title", label: "عنوان الصفحة الرئيسية", placeholder: "إدارة مالية ذكية لكل شركاتك…", max: 120 },
   { key: "hero_sub", label: "النص التعريفي", placeholder: "من الفاتورة الأولى حتى آخر دينار…", max: 400, area: true, rows: 3 },
   { key: "founder_name", label: "اسم المؤسس", placeholder: "أحمد عزت الصياد", max: 80 },

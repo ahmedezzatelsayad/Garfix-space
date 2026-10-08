@@ -248,7 +248,7 @@ const labelOf = (id: string): string => DYN_LABELS[id] || COMPANY_LABELS[id] || 
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"14px"}}>
             <div>
               <div style={{color:"#fff",fontWeight:900,fontSize:"17px"}}>{tr("⚙️ لوحة إدارة النظام")}</div>
-              <div style={{color:"rgba(255,255,255,.5)",fontSize:"12px",marginTop:"2px"}}>{tr("الشركة القابضة المتحدة ذ.م.م")}</div>
+              <div style={{color:"rgba(255,255,255,.5)",fontSize:"12px",marginTop:"2px"}}>{tr("Garfix — نظام تشغيل الأعمال")}</div>
             </div>
             <div style={{display:"flex",gap:"8px",alignItems:"center"}}>
               {activeTab==="users"&&(

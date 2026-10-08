@@ -119,7 +119,7 @@ export function resetPasswordEmail(displayName: string, resetUrl: string, minute
       <a href="${resetUrl}" style="display:inline-block;background:linear-gradient(135deg,#c9a227,#9a7318);color:#fff;text-decoration:none;font-weight:800;font-size:15px;padding:14px 38px;border-radius:10px;box-shadow:0 6px 22px rgba(201,162,39,.4)">إعادة تعيين كلمة المرور ←</a>
       <p style="color:rgba(255,255,255,.35);font-size:11.5px;line-height:1.8;margin:26px 0 0">
         إذا لم تطلب أنت هذا التغيير فتجاهل هذه الرسالة وستبقى كلمة مرورك الحالية كما هي.<br>
-        © ${new Date().getFullYear()} الشركة القابضة المتحدة — الكويت
+        © ${new Date().getFullYear()} Garfix — الكويت 🇰🇼
       </p>
     </div>
   </div>

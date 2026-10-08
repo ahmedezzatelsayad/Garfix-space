@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "node:crypto";
 import { consumeSsoCode } from "@/lib/sso";
 
 export const dynamic = "force-dynamic";
@@ -7,17 +8,32 @@ export const dynamic = "force-dynamic";
  * POST /api/auth/sso/token — استبدال كود لمرة واحدة ببيانات المستخدم.
  *
  * يستدعى من خادم الخدمة الشريكة (Garfix Stores) فقط — server-to-server،
- * لا يحتاج CORS ولا كوكيز. الجسم: { code, redirect_uri }.
+ * لا يحتاج CORS ولا كوكيز. الجسم: { code, redirect_uri, client_secret? }.
+ *
+ * r32 (تدقيق 10/10): مصادقة عميل اختيارية — عند ضبط GARFIX_SSO_CLIENT_SECRET
+ * في بيئة الخادم يصبح client_secret إلزامياً في كل استبدال (وقاية من التقاط
+ * الكود من سجل المتصفح/الريفرر خلال صلاحية 120 ثانية). بلا ضبط يبقى السلوك
+ * متوافقاً رجعياً مع الشركاء القائمين، ويُنصح بضبط السر قبل النشر العلني.
  *
  * الاستجابة الناجحة: { ok: true, user: { sub, email, displayName, role } }
  * الكود يُستهلك فور أول استبدال (ناجح أو فاشل) — إعادة الإرسال تعطي 400.
  */
 export async function POST(req: NextRequest) {
-  let body: { code?: unknown; redirect_uri?: unknown };
+  let body: { code?: unknown; redirect_uri?: unknown; client_secret?: unknown };
   try {
-    body = (await req.json()) as { code?: unknown; redirect_uri?: unknown };
+    body = (await req.json()) as { code?: unknown; redirect_uri?: unknown; client_secret?: unknown };
   } catch {
     return NextResponse.json({ error: "جسم غير صالح" }, { status: 400 });
+  }
+
+  const requiredSecret = (process.env.GARFIX_SSO_CLIENT_SECRET || "").trim();
+  if (requiredSecret) {
+    const given = typeof body.client_secret === "string" ? body.client_secret : "";
+    const a = Buffer.from(given, "utf8");
+    const b = Buffer.from(requiredSecret, "utf8");
+    if (a.length !== b.length || !timingSafeEqual(a, b)) {
+      return NextResponse.json({ error: "client_secret مطلوب وغير صحيح" }, { status: 401 });
+    }
   }
 
   const code = typeof body.code === "string" ? body.code : "";

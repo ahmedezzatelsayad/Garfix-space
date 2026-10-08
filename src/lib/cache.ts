@@ -93,6 +93,31 @@ export async function cacheSet(key: string, value: string, ttlSec: number): Prom
   }
 }
 
+/**
+ * r32 (تدقيق 10/10): عدّاد ذرّي INCR+EXPIRE — يغلق سباق get-then-set في حدود
+ * المعدل (حدود الدخول/الذكاء الاصطناعي كانت قابلة للتجاوز بتزامن خفيف).
+ * يعيد العدد الجديد بعد الزيادة. سقوط آمن إلى الذاكرة المحلية.
+ */
+export async function cacheIncr(key: string, ttlSec: number): Promise<number> {
+  const k = PREFIX + key;
+  cacheStats.writes++;
+  if (cacheStats.valkeyConnected) {
+    try {
+      const v = await globalForCache.valkey!.incr(k);
+      if (v === 1) await globalForCache.valkey!.expire(k, ttlSec);
+      // مزامنة الذاكرة المحلية (تُستخدم إن سقطت الخدمة لاحقاً داخل نفس النافذة)
+      memSet(k, String(v), ttlSec);
+      return v;
+    } catch {
+      /* سقط إلى الذاكرة */
+    }
+  }
+  const cur = parseInt(memGet(k) || "0", 10) || 0;
+  const next = cur + 1;
+  memSet(k, String(next), ttlSec);
+  return next;
+}
+
 export async function cacheDel(key: string): Promise<void> {
   const k = PREFIX + key;
   mem.delete(k);

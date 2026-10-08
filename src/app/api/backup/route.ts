@@ -48,10 +48,18 @@ export async function GET(req: NextRequest) {
         productCatalog: catalog.map((r) => ({ ...r, createdAt: r.createdAt.toISOString(), updatedAt: r.updatedAt.toISOString() })),
         purchaseInvoices: purchases.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() })),
         reminderLogs: reminders.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() })),
-        settings: settings.map((r) => ({ ...r, updatedAt: r.updatedAt.toISOString(), createdAt: r.createdAt.toISOString() })),
+        // r32 (تدقيق 10/10): إعدادات النظام تُضم بلا أسرار — resend_config (مفتاح
+        // Resend API) كان يُصدَّر نصاً مكشوفاً في النسخة الاحتياطية.
+        settings: settings.map((r) => ({
+          ...r,
+          value: r.key === "resend_config" ? "__redacted__" : r.value,
+          updatedAt: r.updatedAt.toISOString(),
+          createdAt: r.createdAt.toISOString(),
+        })),
         aiConversations: conversations.map((r) => ({ ...r, createdAt: r.createdAt.toISOString(), updatedAt: r.updatedAt.toISOString() })),
         aiMessages: messages.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() })),
       },
+      redacted: ["settings.resend_config"],
     };
 
     const stamp = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 16);

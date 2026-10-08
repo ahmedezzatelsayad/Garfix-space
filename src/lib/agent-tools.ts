@@ -18,6 +18,25 @@ import { db } from "@/lib/db";
 import { num, invoiceTotal, invoicePaymentStatus, INVOICE_STATUSES } from "@/lib/serialize";
 import { invalidateInvoices, invalidateClients, cacheDelPattern } from "@/lib/cache";
 import { currencyOf, fmtMoneyFor } from "@/lib/currency-shared";
+import { companyMatchKeys } from "@/lib/company-access";
+
+/**
+ * r32 (تدقيق 10/10): معرّفات عملاء الشركة بكل صيغ تخزين Client.company
+ * (slug/code/name/nameAr بأحرف صغيرة + غير حساس للحالة) — كانت الأدوات
+ * تطابق slug فقط بينما القاعدة تخزّن أسماء/أكواد، فكان الوكيل يرى صفر
+ * عملاء بينما التطبيق يرى الحقيقة عبر companyMatchKeys نفسها.
+ * null = مدير عام بلا قيد، [] = لا عملاء في النطاق.
+ */
+async function clientIdsForCompany(companySlug: string | null): Promise<number[] | null> {
+  if (!companySlug) return null;
+  const keys = await companyMatchKeys([companySlug]);
+  if (!keys.size) return [];
+  const rows = await db.client.findMany({
+    where: { company: { in: [...keys], mode: "insensitive" } },
+    select: { id: true },
+  });
+  return rows.map((r) => Number(r.id));
+}
 
 /* ————— الأنواع ————— */
 
@@ -109,14 +128,18 @@ const toolSearch: AgentTool = {
           })
         : Promise.resolve([]),
       type === "all" || type === "clients"
-        ? db.client.findMany({
-            where: {
-              ...(ctx.companySlug ? { company: ctx.companySlug } : {}),
-              OR: [{ name: like }, { phone: { contains: q } }, { email: like }],
-            },
-            orderBy: { createdAt: "desc" },
-            take: 8,
-          })
+        ? clientIdsForCompany(ctx.companySlug).then((ids) =>
+            ids && ids.length === 0
+              ? []
+              : db.client.findMany({
+                  where: {
+                    ...(ids ? { id: { in: ids } } : {}),
+                    OR: [{ name: like }, { phone: { contains: q } }, { email: like }],
+                  },
+                  orderBy: { createdAt: "desc" },
+                  take: 8,
+                }),
+          )
         : Promise.resolve([]),
       type === "all" || type === "catalog"
         ? db.productCatalog.findMany({
@@ -207,11 +230,15 @@ const toolListCustomers: AgentTool = {
   argsHint: '{"limit": 15}',
   exec: async (args, ctx) => {
     const limit = posInt(args.limit, 20, 15);
-    const clients = await db.client.findMany({
-      where: ctx.companySlug ? { company: ctx.companySlug } : {},
-      orderBy: { createdAt: "desc" },
-      take: 100,
-    });
+    // r32: مطابقة كل صيغ company (slug/code/name/nameAr) — كما في API الرئيسي
+    const ids = await clientIdsForCompany(ctx.companySlug);
+    const clients = ids && ids.length === 0
+      ? []
+      : await db.client.findMany({
+          where: ids ? { id: { in: ids } } : {},
+          orderBy: { createdAt: "desc" },
+          take: 100,
+        });
     if (!clients.length) return { ok: true, summary: "لا يوجد عملاء في هذا النطاق." };
 
     const invoices = await db.invoice.findMany({
@@ -280,12 +307,16 @@ const toolCompanyStats: AgentTool = {
   argsHint: "{}",
   exec: async (_args, ctx) => {
     const where = ctx.companySlug ? { companySlug: ctx.companySlug } : {};
-    const [invoices, clientsCount, paymentsCount, catalogCount] = await Promise.all([
+    // r32: عدّ العملاء بمطابقة كل صيغ company — كانت المطابقة التامة بـ slug ترجع صفراً
+    const clientIds = await clientIdsForCompany(ctx.companySlug);
+    const [invoices, paymentsCount, catalogCount] = await Promise.all([
       db.invoice.findMany({ where, select: { subtotal: true, taxAmount: true, shipping: true, paid: true, status: true } }),
-      db.client.count({ where: ctx.companySlug ? { company: ctx.companySlug } : {} }),
       db.payment.count({ where: ctx.companySlug ? { invoice: { companySlug: ctx.companySlug } } : {} }),
       db.productCatalog.count({ where }),
     ]);
+    const clientsCount = clientIds === null
+      ? await db.client.count()
+      : clientIds.length;
 
     let revenue = 0;
     let outstanding = 0;

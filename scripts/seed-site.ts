@@ -8,9 +8,9 @@ import { PrismaClient } from "@prisma/client";
 const db = new PrismaClient();
 
 const CONTENT: Record<string, string> = {
-  site_name: "الشركة القابضة المتحدة",
-  site_name_en: "United Holding Group",
-  hero_badge: "نظام إدارة الحسابات المتكامل",
+  site_name: "Garfix | جارفكس",
+  site_name_en: "Garfix — AI Business OS",
+  hero_badge: "Garfix — نظام تشغيل الأعمال بالذكاء الاصطناعي",
   hero_title: "إدارة مالية ذكية لكل شركاتك، في مكان واحد",
   hero_sub:
     "من الفاتورة الأولى حتى آخر دينار محصَّل: فواتير فورية، مدفوعات جزئية، تذكيرات واتساب، تقارير لحظية، ومساعد ذكي يقرأ بياناتك ويجيبك — بعملة كل شركة وبالعربية الكاملة.",
