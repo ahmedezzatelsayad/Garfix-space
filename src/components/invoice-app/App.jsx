@@ -95,40 +95,8 @@ const REGION_GROUPS = [
 ];
 
 // ─── Companies Config ─────────────────────────────────────────────
-const COMPANIES = {
-tawfeer: {
-id: "tawfeer", name: "Tawfeer Online Shop", nameAr: "توفير أونلاين شوب",
-logo: "🛒", phone: "+96598737207", email: "Info@tawfeeronline.shop",
-address: "Kuwait City - Hawally 10078", city: "Hawalli", sellerRef: "Tawfeer",
-manager: "Aya Sayed", managerPhone: "+96598737207", color: "#1e3a5f", accent: "#2563eb",
-bg: "linear-gradient(135deg,#0f1f3d 0%,#1e3a5f 50%,#0f2444 100%)", cardBg: "#e8f0fe",
-emoji: "🛒", sk: "tw_inv_tawfeer_v1",
-},
-mahhal: {
-id: "mahhal", name: "Mahhal Online Store", nameAr: "محلكم أونلاين ستور",
-logo: "🏪", phone: "+96597300252", email: "Info@mahhalcom.store",
-address: "Kuwait City - Hawally 10078", city: "Hawalli", sellerRef: "Mahhal",
-manager: "Admin", managerPhone: "+96597300252", color: "#b8860b", accent: "#d4a017",
-bg: "linear-gradient(135deg,#1a1200 0%,#3d2e00 50%,#1a1200 100%)", cardBg: "#fffbeb",
-emoji: "🏪", sk: "tw_inv_mahhal_v1",
-},
-boss: {
-id: "boss", name: "Boss Neolife", nameAr: "بوص نيولايف",
-logo: "⚡", phone: "+96598737202", email: "Manager@bosslifestyle.store",
-address: "Kuwait City 12003", city: "Hawalli", sellerRef: "Germany Tachnlogoy",
-manager: "Salla shop", managerPhone: "+96598737202", color: "#cc0000", accent: "#ff2222",
-bg: "linear-gradient(135deg,#1a0000 0%,#3d0000 50%,#1a0000 100%)", cardBg: "#fff1f1",
-emoji: "⚡", sk: "tw_inv_boss_v1",
-},
-laqta: {
-id: "laqta", name: "Laqta Online Store", nameAr: "لقطة أونلاين",
-logo: "♾️", phone: "+96567005397", email: "info@laqtaonline.store",
-address: "kuwait city Kuwait City", city: "Hawalli", sellerRef: "Laqta",
-manager: "Admin", managerPhone: "+96567005397", color: "#7c3aed", accent: "#a855f7",
-bg: "linear-gradient(135deg,#1a0040 0%,#3b0080 50%,#1a0040 100%)", cardBg: "#f5f3ff",
-emoji: "♾️", sk: "tw_inv_laqta_v1",
-},
-};
+// r33: أزيلت مصفوفة الشركات الأربع hardcode (توفير/محلكم/بوص/لقطة) — الشركات
+// الآن تُحمّل حصراً من قاعدة البيانات عبر /api/companies (COMPANIES_MERGED أدناه).
 
 // ─── Utils ────────────────────────────────────────────────────────
 const toW  = s => String(s||"").replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d));
@@ -962,9 +930,9 @@ setTimeout(()=>downloadCSV(toCSV(fullHeaders, fullRows), `Customers_${today()}.c
 function CompanySelector({ onSelect, companies, onAdd, onEdit }) {
 const { profile, isAdmin } = useAuth();
 const { dark, toggle } = useTheme();
-// r16: السقوط للشركات الافتراضية للمدير فقط — المشترك بلا شركات يُوجّه لإنشاء شركته
+// r16: المشترك بلا شركات يُوجّه لإنشاء شركته — لا سقوط لقائمة ثابتة أبداً
 const isSubscriber = profile?.role === "subscriber";
-const cols = companies && companies.length > 0 ? companies : (isAdmin ? Object.values(COMPANIES) : []);
+const cols = companies || [];
 const gridCols = cols.length === 1 ? "repeat(1,1fr)" : cols.length === 2 ? "repeat(2,1fr)" : "repeat(2,1fr)";
 const canAdd = isAdmin || isSubscriber; // r16: المشترك ينشئ شركته الخاصة
 return (
@@ -2419,47 +2387,21 @@ const emptyForm=()=>({clientName:"",clientPhone:"",clientAddress:"",items:[{name
 const [form,setForm]=useState(emptyForm());
 
 // Filter available companies based on user permissions
-// r12: يُدمج سجل الخادم فوق الإعدادات المحلية — المدير يرى كل الشركات (بما فيها المضافة حديثاً)،
-// والموظف يرى فقط ما في قائمته. حقول DB غير الفارغة تتفوق على الافتراضيات hard-coded.
-// r29 (F2): useMemo — كان الـ IIFE يُنتج كائنات مدمجة جديدة كل رندر، فتتغير هوية
-// `company` المُستنتجة لكل مستخدم ذي شركة واحدة بعد كل commit ← تأثيرات الجلب
-// (refreshInvoices/refreshClients) تعيد التنفيذ بلا نهاية ← عاصفة GET دائمة.
+// r33: الشركات من قاعدة البيانات حصراً — كان الـ useMemo يدمج 4 شركات hardcode
+// فوق سجل الخادم؛ الآن كل شركة تأتي من /api/companies بكل حقولها.
+// r29 (F2): useMemo — هوية كائنات مستقرة حتى لا تُعاد الجلب بلا نهاية.
 const COMPANIES_MERGED = useMemo(() => {
   const merged = {};
-  for (const [k, co] of Object.entries(COMPANIES)) merged[k] = co;
   for (const row of dbCompanies || []) {
-    const base = Object.values(COMPANIES).find(c => c.sk === row.slug);
-    if (base) {
-      merged[base.id] = {
-        ...base,
-        ...(row.name && { name: row.name }),
-        ...(row.nameAr && { nameAr: row.nameAr }),
-        ...(row.phone && { phone: row.phone }),
-        ...(row.email && { email: row.email }),
-        ...(row.address && { address: row.address }),
-        ...(row.city && { city: row.city }),
-        ...(row.sellerRef && { sellerRef: row.sellerRef }),
-        ...(row.manager && { manager: row.manager }),
-        ...(row.managerPhone && { managerPhone: row.managerPhone }),
-        ...(row.color && { color: row.color }),
-        ...(row.accent && { accent: row.accent }),
-        ...(row.cardBg && { cardBg: row.cardBg }),
-        ...(row.emoji && { emoji: row.emoji, logo: row.emoji }),
-        currency: row.currency || "KWD",
-        dbRow: row,
-      };
-    } else {
-      // شركة مضافة كلياً من الواجهة — بلا افتراضيات محلية
-      merged[row.code || row.slug] = {
-        id: row.code || row.slug, sk: row.slug, name: row.name, nameAr: row.nameAr || row.name,
-        logo: row.emoji || "🏢", phone: row.phone || "", email: row.email || "", address: row.address || "",
-        city: row.city || "", sellerRef: row.sellerRef || "", manager: row.manager || "", managerPhone: row.managerPhone || "",
-        color: row.color || "#334155", accent: row.accent || "#64748b",
-        bg: `linear-gradient(135deg, ${(row.color || "#334155")} 0%, #0f172a 100%)`,
-        cardBg: row.cardBg || "#f1f5f9", emoji: row.emoji || "🏢",
-        currency: row.currency || "KWD", dbRow: row,
-      };
-    }
+    merged[row.code || row.slug] = {
+      id: row.code || row.slug, sk: row.slug, name: row.name, nameAr: row.nameAr || row.name,
+      logo: row.emoji || "🏢", phone: row.phone || "", email: row.email || "", address: row.address || "",
+      city: row.city || "", sellerRef: row.sellerRef || "", manager: row.manager || "", managerPhone: row.managerPhone || "",
+      color: row.color || "#334155", accent: row.accent || "#64748b",
+      bg: `linear-gradient(135deg, ${(row.color || "#334155")} 0%, #0f172a 100%)`,
+      cardBg: row.cardBg || "#f1f5f9", emoji: row.emoji || "🏢",
+      currency: row.currency || "KWD", dbRow: row,
+    };
   }
   return merged;
 }, [dbCompanies]);

@@ -1,14 +1,5 @@
 export const MASTER_EMAIL = "ahmedezzatelsayad@gmail.com";
 
-const CREDENTIALS = {
-  [MASTER_EMAIL]:       "admin123",
-  "ayman@manager.com":  "ayman123",
-  "info@tawfeer.com":   "tawfeer123",
-  "info@laqta.com":     "laqta123",
-  "info@mahhl.com":     "mahhal123",
-  "info@boss.com":      "boss123",
-};
-
 const LISTENERS = new Set();
 const SK = "__inv_auth_user__";
 
@@ -24,13 +15,13 @@ function notify(u) {
 }
 
 /**
- * r16: الدخول صار «خادم أولاً» — يقبل المشتركين المسجّلين (AppUser في PostgreSQL)
- * بجانب الحسابات المدمجة. عند غياب الخادم يسقط للحسابات المحلية (تجربة دون اتصال).
+ * الدخول خادمياً بالكامل (PostgreSQL) — لا حسابات مدمجة في المتصفح.
+ * كان هنا مصفوفة CREDENTIALS بحسابات تجريبية hardcode (admin123 وغيرها) —
+ * أزيلت نهائياً: فشل الخادم = فشل الدخول (لا باب خلفي في الواجهة).
  */
 export async function loginUser(email, password) {
   const e = (email || "").trim().toLowerCase();
 
-  // 1) الخادم (المصدر الموثوق — يشمل المشتركين المسجّلين)
   try {
     const res = await fetch("/api/auth/login", {
       method: "POST",
@@ -45,38 +36,25 @@ export async function loginUser(email, password) {
         email: e,
         displayName: u.displayName || e.split("@")[0],
         role: u.role,                    // "subscriber" للمشتركين المسجّلين
-        companies: u.companies || [],    // slugs شركات المشترك
+        companies: u.companies || [],    // slugs شركات المستخدم
+        permissions: u.permissions || {}, // r33: الصلاحيات التفصيلية من الخادم
         plan: u.plan,
       };
       setStored(user);
       notify(user);
       return user;
     }
-    if (res.status === 401 || res.status === 429) {
-      const err = new Error(res.status === 429 ? "too many" : "wrong");
-      err.code = res.status === 429 ? "auth/too-many-requests" : "auth/invalid-credential";
-      const data = await res.json().catch(() => ({}));
-      if (data.error) err.serverMessage = data.error;
-      throw err;
-    }
-    // 400/500 وغيرها → سقوط للحسابات المحلية (الخادم قد يكون مُعطَّلاً جزئياً)
+    const data = await res.json().catch(() => ({}));
+    const err = new Error(data.error || `HTTP ${res.status}`);
+    err.code = res.status === 429 ? "auth/too-many-requests" : "auth/invalid-credential";
+    if (data.error) err.serverMessage = data.error;
+    throw err;
   } catch (netErr) {
     if (netErr && netErr.code) throw netErr; // خطأ صريح من الخادم (401/429)
-    // خطأ شبكة → سقوط محلي
+    const err = new Error("تعذّر الاتصال بالخادم — تحقق من الإنترنت ثم أعد المحاولة");
+    err.code = "auth/network-request-failed";
+    throw err;
   }
-
-  // 2) الحسابات المحلية المدمجة (دون اتصال / فشل شبكة فقط)
-  const expected = CREDENTIALS[e];
-  if (!expected) {
-    const err = new Error("user not found"); err.code = "auth/user-not-found"; throw err;
-  }
-  if (password !== expected) {
-    const err = new Error("wrong password"); err.code = "auth/wrong-password"; throw err;
-  }
-  const user = { uid: btoa(e), email: e, displayName: e.split("@")[0] };
-  setStored(user);
-  notify(user);
-  return user;
 }
 
 /** r16: التسجيل الذاتي — «مجاناً لأول 100 مشترك» (تسجيل + دخول بضغطة واحدة) */

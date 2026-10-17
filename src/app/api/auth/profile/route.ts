@@ -21,6 +21,13 @@ export async function GET(req: NextRequest) {
     }
     let companies: string[] = [];
     try { companies = JSON.parse(appUser.companies) as string[]; } catch { /* [] */ }
+    let permissions: Record<string, number> = {};
+    try {
+      const raw = JSON.parse(appUser.permissions || "{}") as Record<string, unknown>;
+      if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+        for (const [k, v] of Object.entries(raw)) permissions[k] = v ? 1 : 0;
+      }
+    } catch { /* {} */ }
     return NextResponse.json({
       profile: {
         email: appUser.email,
@@ -29,6 +36,7 @@ export async function GET(req: NextRequest) {
         plan: appUser.plan,
         phone: appUser.phone,
         companies,
+        permissions,
       },
     });
   } catch (err) {

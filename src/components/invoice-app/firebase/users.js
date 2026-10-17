@@ -1,68 +1,97 @@
 import { MASTER_EMAIL } from "./auth";
 
-export const ALL_COMPANIES = ["tawfeer", "mahhal", "boss", "laqta"];
+/**
+ * إدارة المستخدمين عبر الخادم (قاعدة البيانات) — بديل localStorage الوهمي.
+ * كان هذا الملف يحتفظ بـ 6 حسابات hardcode + تخزين متصفحي، فما كان أي حذف
+ * يُطبَّق فعلياً. الآن كل العمليات تمر على /api/admin/users (app_users).
+ */
 
-const EMPLOYEE_PERMS = {
-  bulk_input:1, create_invoice:1, print_invoice:1, view_customers:1,
-  edit_invoice:1, edit_customer:1, delete_invoice:1, delete_customer:1,
-  export_data:0, reports_access:0, settings_access:0, finance_access:0,
-  employee_management:0,
-};
+// ————— الملف الشخصي للجلسة الحالية —————
 
-const SEED_PROFILES = [
-  { uid: btoa("info@tawfeer.com"),  email:"info@tawfeer.com",  displayName:"توفير أونلاين",   companies:["tawfeer"],                          role:"employee", permissions:EMPLOYEE_PERMS },
-  { uid: btoa("info@laqta.com"),    email:"info@laqta.com",    displayName:"لقطة",             companies:["laqta"],                            role:"employee", permissions:EMPLOYEE_PERMS },
-  { uid: btoa("info@mahhl.com"),    email:"info@mahhl.com",    displayName:"محلكم أونلاين",    companies:["mahhal"],                           role:"employee", permissions:EMPLOYEE_PERMS },
-  { uid: btoa("info@boss.com"),     email:"info@boss.com",     displayName:"بوص نيولايف",      companies:["boss"],                             role:"employee", permissions:EMPLOYEE_PERMS },
-  { uid: btoa("ayman@manager.com"), email:"ayman@manager.com", displayName:"أيمن - مدير",      companies:["tawfeer","mahhal","boss","laqta"],   role:"admin",    permissions:{} },
-  { uid: btoa(MASTER_EMAIL),        email:MASTER_EMAIL,         displayName:"أحمد عزت الصياد",   companies:ALL_COMPANIES,                        role:"admin",    permissions:{} },
-];
-
-const SK_EXTRA = "__inv_extra_users__";
-
-function getExtra() {
-  try { return JSON.parse(localStorage.getItem(SK_EXTRA)) || []; } catch { return []; }
-}
-function setExtra(arr) {
-  localStorage.setItem(SK_EXTRA, JSON.stringify(arr));
-}
-
-function allProfiles() {
-  return [...SEED_PROFILES, ...getExtra()];
+/** الملف الشخصي للمستخدم الحالي من الخادم (app_users) — null للحساب المدمج (المؤسس) */
+export async function getUserProfile() {
+  try {
+    const res = await fetch("/api/auth/profile");
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.profile) return null;
+    const p = data.profile;
+    let permissions = {};
+    try {
+      // /api/auth/profile يُعيد permissions اختيارياً — احتياطاً نقرأه إن وُجد
+      permissions = p.permissions && typeof p.permissions === "object" ? p.permissions : {};
+    } catch { permissions = {}; }
+    return {
+      uid: p.email,
+      email: p.email,
+      displayName: p.displayName,
+      companies: Array.isArray(p.companies) ? p.companies : [],
+      role: p.role || "subscriber",
+      permissions,
+    };
+  } catch {
+    return null;
+  }
 }
 
 export function isMasterAdmin(email) {
   return email === MASTER_EMAIL;
 }
 
-export async function getUserProfile(uid) {
-  return allProfiles().find(p => p.uid === uid) || null;
-}
+// ————— إدارة المستخدمين (لوحة الإدارة — جلسة مدير) —————
 
 export async function getAllUsers() {
-  return allProfiles();
+  const res = await fetch("/api/admin/users");
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    const err = new Error(data.error || `HTTP ${res.status}`);
+    if (res.status === 401) err.code = "permission-denied";
+    else if (res.status === 403) err.code = "permission-denied";
+    throw err;
+  }
+  const data = await res.json();
+  return Array.isArray(data.users) ? data.users : [];
 }
 
+/** إنشاء موظف — عبر الخادم (scrypt في قاعدة البيانات) */
 export async function createUser({ email, password, displayName, companies, role, permissions }) {
-  const uid = btoa((email || "").trim().toLowerCase());
-  const extra = getExtra();
-  if (allProfiles().find(p => p.uid === uid)) throw new Error("المستخدم موجود مسبقاً");
-  const profile = { uid, email, displayName: displayName || email, companies: companies || [], role: role || "viewer", permissions: permissions || {} };
-  extra.push(profile);
-  setExtra(extra);
-  return uid;
+  const res = await fetch("/api/admin/users", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password, displayName, companies, role, permissions }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.error || `HTTP ${res.status}`);
+    err.code = data.code || `create/${res.status}`;
+    throw err;
+  }
+  return data.user;
 }
 
 export async function updateUserProfile(uid, data) {
-  const extra = getExtra();
-  const idx = extra.findIndex(p => p.uid === uid);
-  if (idx >= 0) { extra[idx] = { ...extra[idx], ...data }; setExtra(extra); }
+  const res = await fetch(`/api/admin/users/${encodeURIComponent(uid)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(body.error || `HTTP ${res.status}`);
+    err.code = body.code || `update/${res.status}`;
+    throw err;
+  }
+  return body.user;
 }
 
+/** حذف حقيقي من قاعدة البيانات — كان يعمل على localStorage فقط فلا شيء يُحذف فعلياً */
 export async function deleteUserRecord(uid) {
-  setExtra(getExtra().filter(p => p.uid !== uid));
-}
-
-export async function seedUserProfiles() {
-  return SEED_PROFILES.map(p => ({ email: p.email, ok: true }));
+  const res = await fetch(`/api/admin/users/${encodeURIComponent(uid)}`, { method: "DELETE" });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(body.error || `HTTP ${res.status}`);
+    err.code = body.code || `delete/${res.status}`;
+    throw err;
+  }
+  return true;
 }

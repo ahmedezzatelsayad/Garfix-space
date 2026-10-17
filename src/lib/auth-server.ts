@@ -7,22 +7,12 @@ import { cacheGet, cacheSet, cacheDel, cacheIncr } from "./cache";
 /**
  * r13: أمان الخادم — جلسات موقّعة (httpOnly cookie) + تحقق موحّد من الصلاحيات.
  *
- * لماذا هذا الملف؟
- * - التوثيق الأصلي محلي بالكامل (localStorage في firebase/auth.js) — أي زائر يمكنه
- *   نظرياً ضرب مسارات الإدارة مباشرة. هذه الطبقة تجعل العمليات الإدارية الخطيرة
- *   (النسخ الاحتياطي، الاستعادة، إعداد DeepSeek، إدارة الشركات، دمج العملاء،
- *   إدارة محتوى الموقع) تتطلب جلسة مدير صالحة موقّعة بـ HMAC-SHA256.
- * - كلمات المرور تُخزَّن هنا كبصمات SHA-256 (وليست نصاً صريحاً) — نفس مصفوفة
- *   الحسابات التجريبية الستة المعروفة في الواجهة.
- *
- * r28 (جاهزية الإنتاج):
- * - الحسابات التجريبية الخمسة تُبنى فقط عند DEMO_MODE=true (افتراضياً معطّلة).
- * - كلمة مرور المؤسس الرئيسية قابلة للتجاوز من GARFIX_MASTER_PASSWORD (غيّرها عند النشر).
+ * - العمليات الإدارية الخطيرة تتطلب جلسة مدير صالحة موقّعة بـ HMAC-SHA256.
+ * - r33: أزيلت الحسابات التجريبية الخمسة نهائياً (كانت خلف DEMO_MODE) — لا بيانات
+ *   تجريبية في الكود ولا في القاعدة؛ حساب المؤسس الوحيد يأتي من GARFIX_MASTER_PASSWORD.
  * - COOKIE_SECURE=true يجعل كوكيز الجلسة secure (فعّلها خلف HTTPS فقط).
  * - تحديد معدل الدخول عبر Valkey (طبقة الكاش) بدل الذاكرة — يصمد أمام إعادة التشغيل
  *   ويُشارَك بين العمليات، مع سقوط آمن للذاكرة عند غياب Valkey.
- *
- * الخدمة العامة الكاملة (NextAuth) ما زالت خارطة الطريق — هذه طبقة دفاع عملية.
  */
 
 export const COOKIE_NAME = "garfix_sess";
@@ -46,8 +36,6 @@ interface ServerUser {
 }
 
 // ── r28: إعدادات الجاهزية للإنتاج من متغيرات البيئة ──
-/** الحسابات التجريبية مفعّلة فقط عند DEMO_MODE=true (بيئة العرض الداخلية) */
-const DEMO_MODE = process.env.DEMO_MODE === "true";
 /**
  * r32 (تدقيق 10/10): كلمة مرور المؤسس بلا قيمة افتراضية — تفشل الدخول مغلقاً
  * عندما لا تُضبط GARFIX_MASTER_PASSWORD (كان الافتراضي admin123 — خطر علني مباشر).
@@ -59,42 +47,22 @@ export const COOKIE_SECURE = process.env.COOKIE_SECURE === "true";
 
 const MASTER_EMAIL = "ahmedezzatelsayad@gmail.com";
 
-/** الحسابات التجريبية الخمسة (موظفو العرض) — تُبنى فقط في DEMO_MODE */
-const DEMO_ACCOUNTS: { email: string; pass: string; displayName: string; role: "admin" | "employee" }[] = [
-  { email: "ayman@manager.com", pass: "ayman123", displayName: "أيمن - مدير", role: "admin" },
-  { email: "info@tawfeer.com", pass: "tawfeer123", displayName: "توفير أونلاين", role: "employee" },
-  { email: "info@laqta.com", pass: "laqta123", displayName: "لقطة", role: "employee" },
-  { email: "info@mahhl.com", pass: "mahhal123", displayName: "محلكم أونلاين", role: "employee" },
-  { email: "info@boss.com", pass: "boss123", displayName: "بوص نيولايف", role: "employee" },
-];
-
-// بريدات محجوزة دوماً (المؤسس + التجريبية) — حتى لو عطّلنا DEMO_MODE يظل التسجيل بها
-// ممنوعاً لئلا يستحوذ أحد على بريد حساب تجريبي ثم يفعّله المؤسس لاحقاً فيجد حساباً دخيلاً.
-const RESERVED_EMAILS = new Set([MASTER_EMAIL, ...DEMO_ACCOUNTS.map((a) => a.email)]);
+// بريد المؤسس محجوز دوماً — لا يمكن التسجيل الذاتي به (منع انتحال المدير)
+const RESERVED_EMAILS = new Set([MASTER_EMAIL]);
 
 function buildUsers(): ServerUser[] {
-  const defs: { email: string; pass: string; displayName: string; role: "admin" | "employee" }[] = [
-    // r32: بلا كلمة مرور مضبوطة لا يُبنى حساب المؤسس أصلاً (فشل مغلق — لا sha256(""))
-    ...(MASTER_PASS ? [{ email: MASTER_EMAIL, pass: MASTER_PASS, displayName: "أحمد عزت الصياد", role: "admin" as const }] : []),
-    ...(DEMO_MODE ? DEMO_ACCOUNTS : []),
-  ];
+  // r33: حساب المؤسس الوحيد المدمج — بلا كلمة مرور مضبوطة لا يُبنى (فشل مغلق)
+  const defs = MASTER_PASS
+    ? [{ email: MASTER_EMAIL, pass: MASTER_PASS, displayName: "أحمد عزت الصياد", role: "admin" as const }]
+    : [];
   return defs.map(({ email, pass, displayName, role }) => ({ email, hash: sha256(pass), displayName, role }));
 }
 
 const SERVER_USERS = buildUsers();
 
-// ── r29 (29-fix-api): خرائط موظفي العرض → شركاتهم ──
-// أكواد الشركة (تُحل إلى slugs من جدول Company عند الفحص) — تطابق SEED_PROFILES
-// في الواجهة (firebase/users.js): الموظف يرى شركته فقط، وأيمن يرى الكل (لكنه admin أصلاً).
-const DEMO_ACCOUNT_COMPANIES: Record<string, string[]> = {
-  "ayman@manager.com": ["tawfeer", "mahhal", "boss", "laqta"],
-  "info@tawfeer.com": ["tawfeer"],
-  "info@laqta.com": ["laqta"],
-  "info@mahhl.com": ["mahhal"],
-  "info@boss.com": ["boss"],
-};
-
-/** r16: بريدات الحسابات المدمجة — محجوزة: لا يجوز التسجيل بها (منع انتحال المدير/الموظفين) */
+/**
+ * r16: بريد المؤسس المدمج — محجوز: لا يجوز التسجيل به (منع انتحال المدير)
+ */
 export function isReservedAccountEmail(email: string): boolean {
   return RESERVED_EMAILS.has((email || "").trim().toLowerCase());
 }
@@ -271,9 +239,8 @@ export function requireSession(req: NextRequest): NextResponse | null {
 const scopeCache = new Map<string, { all: boolean; slugs: string[]; exp: number }>();
 
 /**
- * نطاق الجلسة: مدير عام → كل الشركات؛ مشترك مسجّل (AppUser) → شركاته (slugs)؛
- * موظف عرض → شركاته (أكواد تُحل إلى slugs من DB). أي بريد آخر → نطاق فارغ.
- * يعيد null بلا جلسة صالحة.
+ * نطاق الجلسة: مدير عام → كل الشركات؛ أي مستخدم آخر (موظف/مشترك) → شركاته
+ * من app_users (slugs). أي بريد آخر → نطاق فارغ. يعيد null بلا جلسة صالحة.
  */
 export async function getSessionScope(req: NextRequest): Promise<SessionScope | null> {
   const sess = getSession(req);
@@ -297,15 +264,6 @@ export async function getSessionScope(req: NextRequest): Promise<SessionScope | 
           .filter(Boolean);
       } catch {
         slugs = [];
-      }
-    } else {
-      const codes = DEMO_ACCOUNT_COMPANIES[email];
-      if (codes?.length) {
-        const rows = await db.company.findMany({
-          where: { code: { in: codes } },
-          select: { slug: true },
-        });
-        slugs = rows.map((r) => r.slug);
       }
     }
   } catch {

@@ -270,9 +270,11 @@ model AppUser {
   passwordHash  String
   displayName   String
   phone         String?
-  role          String    @default("subscriber") // subscriber (لا صلاحيات إدارية خادمياً)
+  role          String    @default("subscriber") // subscriber | viewer | employee | editor
   plan          String    @default("free_early") // كود الخطة من subscription_plans (r17)
   companies     String    @default("[]")
+  // صلاحيات الموظف التفصيلية (JSON) — تُدار من لوحة إدارة النظام (تبويب المستخدمون)
+  permissions   String    @default("{}")
   countryCode   String? // r17: بلد التسجيل حسب الـ IP (KW/SA/EG/…) — r18: قابل للتغيير من «حسابي»
   lang          String? // r18: لغة الواجهة المفضلة (ar/en/fr/… من سجل اللغات)
   planUpdatedAt DateTime? // r17: آخر مرة غيّر المؤسس/المشترك خطته

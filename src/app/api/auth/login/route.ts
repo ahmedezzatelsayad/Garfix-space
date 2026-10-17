@@ -49,11 +49,20 @@ export async function POST(req: NextRequest) {
       if (appUser && verifyPassword(password, appUser.passwordHash)) {
         let companies: string[] = [];
         try { companies = JSON.parse(appUser.companies) as string[]; } catch { /* [] */ }
+        // r33: الصلاحيات التفصيلية تصل مع الدخول لتبنيها الواجهة مباشرة
+        let permissions: Record<string, number> = {};
+        try {
+          const raw = JSON.parse(appUser.permissions || "{}") as Record<string, unknown>;
+          if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+            for (const [k, v] of Object.entries(raw)) permissions[k] = v ? 1 : 0;
+          }
+        } catch { /* {} */ }
         user = {
           email: appUser.email,
           displayName: appUser.displayName,
           role: "subscriber",
           companies,
+          permissions,
           kind: "registered",
         };
       }
@@ -76,6 +85,7 @@ export async function POST(req: NextRequest) {
         displayName: user.displayName,
         role: user.role,
         companies: user.companies || [],
+        permissions: (user as { permissions?: Record<string, number> }).permissions || {},
         kind: user.kind || "builtin",
       },
     });

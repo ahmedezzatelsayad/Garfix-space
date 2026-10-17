@@ -1,5 +1,5 @@
 /**
- * المرحلة 2 (Agent Engine): صندوق أدوات الوكيل — 8 أدوات حقيقية فوق بيانات ERP.
+ * المرحلة 2 (Agent Engine): صندوق أدوات الوكيل — 9 أدوات حقيقية فوق بيانات ERP.
  *
  * التصميم:
  *  - كل أداة تُعلن عن نوعها: read (آمنة) أو write (تلمس قاعدة البيانات).
@@ -9,13 +9,13 @@
  *      1. READONLY_MODE — وضع القراءة الافتراضي يحجب أدوات الكتابة حتى
  *         يؤكد المستخدم (بطاقة تأكيد) أو يشغّل وضع «تنفيذ تلقائي».
  *      2. AMOUNT_CAP — سقف مالي (AGENT_AMOUNT_CAP، افتراضي 5000) لأي
- *         عملية ذات أثر مالي (إلغاء فاتورة بمبلغ كبير…).
+ *         عملية ذات أثر مالي (إنشاء/إلغاء فاتورة بمبلغ كبير…).
  *      3. NOT_ADMIN — إنشاء الشركة/المتجر يتطلب مديراً أو مشتركاً يملك الشركة.
  *  - كل استدعاء — نجح أو حُجب — يُدوَّن في agent_audit_log (المساءلة الكاملة).
  */
 import { createHmac } from "node:crypto";
 import { db } from "@/lib/db";
-import { num, invoiceTotal, invoicePaymentStatus, INVOICE_STATUSES } from "@/lib/serialize";
+import { num, invoiceTotal, invoicePaymentStatus, INVOICE_STATUSES, todayISODate, ISO_DATE_RE } from "@/lib/serialize";
 import { invalidateInvoices, invalidateClients, cacheDelPattern } from "@/lib/cache";
 import { currencyOf, fmtMoneyFor } from "@/lib/currency-shared";
 import { companyMatchKeys } from "@/lib/company-access";
@@ -453,7 +453,214 @@ const toolCreateCompany: AgentTool = {
   },
 };
 
-/* ————— 7) create_store — إنشاء متجر Garfix Stores (write — اللحظة الفاصلة) ————— */
+/* ————— 7) create_invoice — إنشاء فاتورة (write + حاجز السقف المالي) ————— */
+
+interface AgentInvoiceItem {
+  name: string;
+  desc?: string;
+  qty: number;
+  price: number;
+}
+
+/** تطهير بنود الفاتورة القادمة من النموذج — بند صالح فقط يمر (لا استثناءات) */
+function parseInvoiceItems(raw: unknown): { items: AgentInvoiceItem[]; invalid: number } {
+  const items: AgentInvoiceItem[] = [];
+  let invalid = 0;
+  if (!Array.isArray(raw)) return { items, invalid: raw == null ? 0 : 1 };
+  for (const it of raw.slice(0, 100)) {
+    if (!it || typeof it !== "object" || Array.isArray(it)) { invalid++; continue; }
+    const rec = it as Record<string, unknown>;
+    const name = typeof rec.name === "string" ? rec.name.trim().slice(0, 300) : "";
+    if (!name) { invalid++; continue; }
+    const qty = typeof rec.qty === "number" ? rec.qty : parseFloat(String(rec.qty ?? "1"));
+    const price = typeof rec.price === "number" ? rec.price : parseFloat(String(rec.price ?? "0"));
+    if (!Number.isFinite(qty) || qty <= 0 || !Number.isFinite(price) || price < 0) { invalid++; continue; }
+    items.push({
+      name,
+      desc: typeof rec.desc === "string" && rec.desc.trim() ? rec.desc.trim().slice(0, 300) : undefined,
+      qty: Math.min(qty, 100000),
+      price: Math.min(price, 1000000),
+    });
+  }
+  return { items, invalid };
+}
+
+/** رقم فاتورة تلقائي متفرّد داخل الشركة — INV{timestamp36} ثم لاحقة تصاعدية عند التصادم */
+async function nextInvoiceNumber(companySlug: string | null): Promise<string> {
+  const base = `INV${Date.now().toString(36).toUpperCase()}`;
+  let candidate = base;
+  for (let i = 1; i <= 20; i++) {
+    const dup = await db.invoice.findFirst({
+      where: { invoiceNumber: candidate, ...(companySlug ? { companySlug } : {}) },
+      select: { id: true },
+    });
+    if (!dup) return candidate;
+    candidate = `${base}-${i}`;
+  }
+  return `INV${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 1e6)}`;
+}
+
+const toolCreateInvoice: AgentTool = {
+  name: "create_invoice",
+  kind: "write",
+  desc:
+    "تسجيل فاتورة جديدة للشركة الحالية — الأداة الأهم للعمل اليومي. الوسائط: clientName (مطلوب)، " +
+    "items مصفوفة [{name, qty, price}] (مطلوب)، clientPhone/clientAddress اختيارية، " +
+    "issueDate/dueDate بصيغة YYYY-MM-DD (الافتراضي: اليوم/بعد 30 يوماً)، shipping (0 افتراضياً)، " +
+    "paid المبلغ المدفوع مقدماً (0 افتراضياً)، notes. الضريبة تُحتسب تلقائياً من إعدادات الشركة إن كانت مفعّلة. " +
+    "رقم الفاتورة يُولَّد تلقائياً إن لم تمرّره. العملة: عملة الشركة.",
+  argsHint:
+    '{"clientName": "سالم الأحمد", "clientPhone": "95512345", "items": [{"name": "شاحن ايفون", "qty": 2, "price": 3.5}], "shipping": 1.0, "paid": 0, "dueDate": "2026-11-16", "notes": "طلب واتساب"}',
+  exec: async (args, ctx) => {
+    if (!ctx.companySlug) {
+      return {
+        ok: false,
+        summary: "لا توجد شركة فعّالة — حدّد الشركة أولاً (افتح الوكيل من داخل شركة) ثم أنشئ الفاتورة.",
+        blocked: "INVALID_ARGS",
+      };
+    }
+
+    const company = await db.company.findUnique({ where: { slug: ctx.companySlug } });
+    if (!company) {
+      return { ok: false, summary: `الشركة «${ctx.companySlug}» غير موجودة`, blocked: "INVALID_ARGS" };
+    }
+
+    const clientName = str(args.clientName, 500) || str(args.name, 500);
+    if (!clientName) {
+      return { ok: false, summary: "اسم العميل مطلوب (clientName)", blocked: "INVALID_ARGS" };
+    }
+
+    const { items, invalid } = parseInvoiceItems(args.items);
+    if (!items.length) {
+      return {
+        ok: false,
+        summary:
+          "بنود الفاتورة مطلوبة (items): مصفوفة [{name, qty, price}] بكمية وسعر صحيحين" +
+          (invalid ? ` — رُفض ${invalid} بند غير صالح` : "") + ".",
+        blocked: "INVALID_ARGS",
+      };
+    }
+
+    // المبالغ والتحقق — نفس معادلة /api/invoices (الإجمالي يُشتق دائماً من الأجزاء)
+    const subtotal = +items.reduce((s, it) => s + it.qty * it.price, 0).toFixed(3);
+    const shipping = args.shipping === undefined ? 0 : num(args.shipping);
+    if (!Number.isFinite(shipping) || shipping < 0) {
+      return { ok: false, summary: "التوصيل يجب أن يكون رقماً غير سالب", blocked: "INVALID_ARGS" };
+    }
+
+    // الضريبة من إعدادات الشركة (الوكيل لا يحدد النسبة يدوياً — قرار مالي بشري)
+    const taxRate = company.taxEnabled && company.defaultTaxRate != null ? num(company.defaultTaxRate) : 0;
+    const taxAmount = taxRate > 0 ? +(subtotal * (taxRate / 100)).toFixed(3) : 0;
+    const total = +(subtotal + taxAmount + shipping).toFixed(3);
+
+    // حاجز السقف المالي — إنشاء فاتورة التزام نقدي على العميل
+    if (total > AGENT_AMOUNT_CAP) {
+      return {
+        ok: false,
+        summary:
+          `حاجز السقف المالي: إجمالي الفاتورة ${fmtMoneyFor(total, ctx.currency)} يتجاوز سقف الوكيل ` +
+          `(${fmtMoneyFor(AGENT_AMOUNT_CAP, ctx.currency)}) — فواتير بهذا المبلغ تُنشأ يدوياً من الواجهة.`,
+        blocked: "AMOUNT_CAP",
+      };
+    }
+
+    const paid = args.paid === undefined ? 0 : num(args.paid);
+    if (!Number.isFinite(paid) || paid < 0) {
+      return { ok: false, summary: "المدفوع يجب أن يكون رقماً غير سالب", blocked: "INVALID_ARGS" };
+    }
+    if (paid > total + 1e-9) {
+      return {
+        ok: false,
+        summary: `المدفوع (${fmtMoneyFor(paid, ctx.currency)}) أكبر من الإجمالي (${fmtMoneyFor(total, ctx.currency)}) — صحّح المبلغ.`,
+        blocked: "INVALID_ARGS",
+      };
+    }
+
+    const issueDate = str(args.issueDate, 10) || todayISODate();
+    const dueDate = str(args.dueDate, 10) || todayISODate();
+    if (!ISO_DATE_RE.test(issueDate) || !ISO_DATE_RE.test(dueDate)) {
+      return { ok: false, summary: "التواريخ يجب أن تكون بصيغة YYYY-MM-DD (issueDate/dueDate)", blocked: "INVALID_ARGS" };
+    }
+
+    // حالة الفاتورة: مدفوعة كاملة → paid، عليها دفعات → issued، غير مدفوعة → issued (صادرة) أو draft
+    const requestedStatus = str(args.status, 20).toLowerCase() || (paid > 0 ? "issued" : "issued");
+    if (requestedStatus !== "draft" && requestedStatus !== "issued") {
+      return {
+        ok: false,
+        summary: `الوكيل ينشئ الفواتير بحالة draft أو issued فقط — استخدم update_invoice_status لاحقاً (الطلب: ${requestedStatus}).`,
+        blocked: "INVALID_ARGS",
+      };
+    }
+    const status = paid > 0 && paid + 1e-9 >= total ? "issued" : requestedStatus;
+
+    // رقم الفاتورة: ممرَّر (تحقق تفرّد) أو مولَّد تلقائياً
+    let invoiceNumber = str(args.invoiceNumber, 60);
+    if (invoiceNumber) {
+      const dup = await db.invoice.findFirst({
+        where: { invoiceNumber, companySlug: ctx.companySlug },
+        select: { id: true },
+      });
+      if (dup) {
+        return {
+          ok: false,
+          summary: `رقم الفاتورة «${invoiceNumber}» مستخدم مسبقاً في هذه الشركة — اتركه فارغاً ليُولَّد تلقائياً.`,
+          blocked: "INVALID_ARGS",
+        };
+      }
+    } else {
+      invoiceNumber = await nextInvoiceNumber(ctx.companySlug);
+    }
+
+    const created = await db.invoice.create({
+      data: {
+        invoiceNumber,
+        companySlug: ctx.companySlug,
+        clientName,
+        clientEmail: str(args.clientEmail, 320) || null,
+        clientPhone: str(args.clientPhone, 40) || null,
+        clientAddress: str(args.clientAddress, 500) || null,
+        issueDate,
+        dueDate,
+        status,
+        lineItems: JSON.stringify(items),
+        subtotal,
+        taxRate,
+        taxAmount,
+        total,
+        shipping,
+        paid,
+        notes: str(args.notes, 5000) || null,
+        source: "agent",
+      },
+    });
+
+    await invalidateInvoices(ctx.companySlug);
+
+    const remaining = Math.max(0, +(total - paid).toFixed(3));
+    return {
+      ok: true,
+      summary:
+        `✅ سُجّلت الفاتورة «${created.invoiceNumber}» للعميل «${clientName}» في «${company.name}»:\n` +
+        `- البنود: ${items.map((it) => `${it.name} ×${it.qty}`).join("، ")}\n` +
+        `- المجموع ${fmtMoneyFor(subtotal, ctx.currency)}` +
+        (taxAmount ? ` + ضريبة ${fmtMoneyFor(taxAmount, ctx.currency)} (${taxRate}%)` : "") +
+        (shipping ? ` + توصيل ${fmtMoneyFor(shipping, ctx.currency)}` : "") +
+        ` = الإجمالي ${fmtMoneyFor(total, ctx.currency)}\n` +
+        `- المدفوع: ${fmtMoneyFor(paid, ctx.currency)}${remaining ? ` | المتبقي: ${fmtMoneyFor(remaining, ctx.currency)}` : " | مسددة بالكامل"}\n` +
+        `- الحالة: ${status === "issued" ? "صادرة" : "مسودة"} | الاستحقاق: ${dueDate}`,
+      data: {
+        invoiceNumber: created.invoiceNumber,
+        total,
+        paid,
+        remaining,
+        status,
+        skippedItems: invalid,
+      },
+    };
+  },
+};
+
+/* ————— 8) create_store — إنشاء متجر Garfix Stores (write — اللحظة الفاصلة) ————— */
 
 export interface StoreProvisionResult {
   ok: boolean;
@@ -702,6 +909,7 @@ export const AGENT_TOOLS: AgentTool[] = [
   toolListPayments,
   toolCompanyStats,
   toolCreateCompany,
+  toolCreateInvoice,
   toolCreateStore,
   toolUpdateStatus,
 ];
@@ -751,7 +959,7 @@ export async function runAgentTool(
   const t0 = Date.now();
   const safeArgs = args && typeof args === "object" && !Array.isArray(args) ? args : {};
 
-  // 1. whitelist مغلق — أي اسم خارج الأدوات الثمانية محجوب (لا حذف، لا مفاجآت)
+  // 1. whitelist مغلق — أي اسم خارج الأدوات التسعة محجوب (لا حذف، لا مفاجآت)
   const tool = AGENT_TOOLS.find((t) => t.name === name);
   if (!tool) {
     const rec: ToolRunRecord = {
@@ -873,7 +1081,7 @@ export function agentToolsPrompt(mode: "readonly" | "auto" | "confirmed"): strin
     (t) => `- ${t.name} (${t.kind === "read" ? "قراءة" : "كتابة"}): ${t.desc}\n  الوسائط: ${t.argsHint}`,
   ).join("\n");
   return [
-    "— أدواتك التنفيذية الحقيقية (ثمانية فقط — لا شيء خارجها):",
+    "— أدواتك التنفيذية الحقيقية (تسعة فقط — لا شيء خارجها):",
     toolLines,
     "",
     "— بروتوكول استدعاء الأداة (صارم):",
@@ -887,13 +1095,14 @@ export function agentToolsPrompt(mode: "readonly" | "auto" | "confirmed"): strin
     `1. الوضع الحالي: ${mode === "auto" ? "⚡ تنفيذ تلقائي — أدوات الكتابة تُنفَّذ مباشرة (ضمن الحواجز)." : "🔒 قراءة فقط"}.`,
     mode === "auto"
       ? "أدوات الكتابة تُنفَّذ مباشرة ضمن الحواجز — لا حاجة لتأكيد إضافي."
-      : "قاعدة صارمة في وضع القراءة: إذا طلب المستخدم عملية كتابة (شركة/متجر/تحديث حالة) فأصدِر استدعاء الأداة كالمعتاد ولا ترفض طلبه نصياً — النظام سيحجبها تلقائياً (CONFIRMATION_REQUIRED) وسيعرض للمستخدم بطاقة تأكيد بضغطة زر. بعد استلام نتيجة الحجب، أخبر المستخدم بملخص ما ستنفّذه وأن عليه الضغط على زر التأكيد.",
+      : "قاعدة صارمة في وضع القراءة: إذا طلب المستخدم عملية كتابة (فاتورة/شركة/متجر/تحديث حالة) فأصدِر استدعاء الأداة كالمعتاد ولا ترفض طلبه نصياً — النظام سيحجبها تلقائياً (CONFIRMATION_REQUIRED) وسيعرض للمستخدم بطاقة تأكيد بضغطة زر. بعد استلام نتيجة الحجب، أخبر المستخدم بملخص ما ستنفّذه وأن عليه الضغط على زر التأكيد.",
     `2. لا توجد عمليات حذف في نظامك إطلاقاً — إن طلب المستخدم حذفاً فاشرح أن الحذف غير متاح للوكيل ويحتاج تدخلاً بشرياً مباشراً.`,
     `3. السقف المالي لأي أثر نقدي (مثل إلغاء فاتورة) هو ${fmtMoneyFor(AGENT_AMOUNT_CAP, "KWD")} — ما يتجاوزه يُحجب تلقائياً.`,
     "4. لا تخترع أرقاماً أبداً — استفسر بالأدوات أولاً ثم أجب من [TOOL_RESULT].",
     "5. للمهام المركّبة (مثل: شركة + متجر): خطّط، نفّذ أداة أولاً، لاحظ النتيجة، ثم أكمل — حلقة Think→Act→Observe حقيقية.",
     "",
     "— أمثلة:",
+    'طلب «سجّل فاتورة لعميل سالم بشاحنين وسماعة» → استدعِ create_invoice بـ items كاملة [{name, qty, price}] — الرقم يُولّد تلقائياً.',
     'طلب «اعمل شركة تبيع ملابس ومتجر ليها» → استدعِ create_store بـ {"companyName": "...", "nameAr": "...", "storeSlug": "..." ...} — الأداة تنشئ الشركة والمتجر معاً.',
     'طلب «شو صار على فاتورة INV1005؟» → استدعِ search أو list_invoices ثم أجب من النتيجة.',
   ].join("\n");

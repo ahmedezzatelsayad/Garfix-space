@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { getAllUsers, updateUserProfile, deleteUserRecord, ALL_COMPANIES, seedUserProfiles } from "../firebase/users";
+import { getAllUsers, updateUserProfile, deleteUserRecord } from "../firebase/users";
 import { useAuth } from "../context/AuthContext";
 import CreateUserModal, { PERM_LIST, EMPLOYEE_DEFAULTS } from "../components/CreateUserModal";
 import ResendPanel from "../components/ResendPanel";
 import SubscriptionsPanel from "../components/SubscriptionsPanel";
-import { MASTER_EMAIL } from "../firebase/auth";
 import { tr, appDir } from "@/lib/i18n-app";
 
 interface UserRecord {
@@ -23,20 +22,6 @@ interface EditingUser extends UserRecord {
   role: string;
   permissions: Record<string, number>;
 }
-
-const COMPANY_LABELS: Record<string, string> = {
-  tawfeer: "توفير 🛒",
-  mahhal:  "محلكم 🏪",
-  boss:    "بوص ⚡",
-  laqta:   "لقطة ♾️",
-};
-
-const COMPANIES_INFO = [
-  { id:"tawfeer", name:"توفير أونلاين شوب",  color:"#1e3a5f", emoji:"🛒" },
-  { id:"mahhal",  name:"محلكم أونلاين ستور", color:"#b8860b", emoji:"🏪" },
-  { id:"boss",    name:"بوص نيولايف",         color:"#cc0000", emoji:"⚡" },
-  { id:"laqta",   name:"لقطة أونلاين",        color:"var(--ia-vio-tx)", emoji:"♾️" },
-];
 
 const ROLE_LABELS: Record<string, { label: string; color: string; bg: string }> = {
   viewer:   { label:"عرض فقط",      color:"var(--ia-warn-tx)", bg:"var(--ia-warn-bg)" },
@@ -63,11 +48,15 @@ interface AdminDashboardProps {
 export default function AdminDashboard({ onClose, companies }: AdminDashboardProps) {
   const { user } = useAuth();
 
-// r12: قائمة شركات ديناميكية — تأتي من الخادم (تدعم الشركات المضافة حديثاً) مع الرجوع للافتراضيات
-const COMPANY_IDS: string[] = (companies && companies.length ? companies.map(c => c.id) : ALL_COMPANIES);
+// r33: شركات ديناميكية بالكامل من الخادم — لا افتراضيات hardcode
+const COMPANY_IDS: string[] = (companies && companies.length ? companies.map(c => c.id) : []);
 const DYN_LABELS: Record<string, string> = {};
 (companies && companies.length ? companies : []).forEach(c => { DYN_LABELS[c.id] = `${c.nameAr} ${c.emoji || "🏢"}`; });
-const labelOf = (id: string): string => DYN_LABELS[id] || COMPANY_LABELS[id] || id;
+const labelOf = (id: string): string => DYN_LABELS[id] || id;
+// r33: معلومات الشركات للوحة الشعارات — ديناميكية من الخادم بالكامل
+const COMPANIES_DYN: Array<{ id: string; name: string; color: string; emoji: string }> = (companies && companies.length ? companies : []).map(c => ({
+  id: c.id, name: c.nameAr || c.id, color: c.color || "#334155", emoji: c.emoji || "🏢",
+}));
   const [users,        setUsers]        = useState<UserRecord[]>([]);
   const [loading,      setLoading]      = useState(true);
   const [showCreate,   setShowCreate]   = useState(false);
@@ -76,8 +65,6 @@ const labelOf = (id: string): string => DYN_LABELS[id] || COMPANY_LABELS[id] || 
   const [saving,       setSaving]       = useState(false);
   const [toast,        setToast]        = useState<{ msg: string; type: string } | null>(null);
   const [activeTab,    setActiveTab]    = useState("users");
-  const [seeding,      setSeeding]      = useState(false);
-  const [seedDone,     setSeedDone]     = useState(false);
   const [logos,        setLogos]        = useState<Record<string, string>>({});
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -129,30 +116,12 @@ const labelOf = (id: string): string => DYN_LABELS[id] || COMPANY_LABELS[id] || 
 
   useEffect(() => {
     const stored: Record<string, string> = {};
-    COMPANIES_INFO.forEach(c => { const v = getStoredLogo(c.id); if (v) stored[c.id] = v; });
+    COMPANIES_DYN.forEach(c => { const v = getStoredLogo(c.id); if (v) stored[c.id] = v; });
     setLogos(stored);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companies && companies.length, companies && companies[0]?.id]);
 
   const toast_ = (msg: string, type = "ok") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3500); };
-
-  const handleSeed = async () => {
-    if (seeding || seedDone) return;
-    setSeeding(true);
-    try {
-      const results = await seedUserProfiles();
-      const failed = results.filter((r: any) => !r.ok);
-      if (failed.length === 0) {
-        toast_(tr("✅ تم إنشاء بيانات المستخدمين الـ 5 بنجاح"));
-        setSeedDone(true);
-        await loadUsers();
-      } else {
-        toast_(tr("❌ فشل {0} من 5 — {1}",[failed.length,failed.map((r: any)=>r.email).join(", ")]), "err");
-      }
-    } catch (e: any) {
-      toast_(tr("❌ خطأ: ") + e.message, "err");
-    }
-    setSeeding(false);
-  };
 
   const handleSaveEdit = async () => {
     if (!editingUser) return;
@@ -176,11 +145,11 @@ const labelOf = (id: string): string => DYN_LABELS[id] || COMPANY_LABELS[id] || 
   const handleDelete = async (uid: string) => {
     try {
       await deleteUserRecord(uid);
-      toast_(tr("🗑️ تم حذف المستخدم"), "warn");
+      toast_(tr("🗑️ تم حذف المستخدم نهائياً من قاعدة البيانات"), "warn");
       setDelConfirm(null);
       await loadUsers();
-    } catch (_) {
-      toast_(tr("❌ حدث خطأ أثناء الحذف"), "err");
+    } catch (e: any) {
+      toast_(tr("❌ فشل الحذف: ") + (e?.message || tr("حدث خطأ أثناء الحذف")), "err");
     }
   };
 
@@ -253,15 +222,6 @@ const labelOf = (id: string): string => DYN_LABELS[id] || COMPANY_LABELS[id] || 
             <div style={{display:"flex",gap:"8px",alignItems:"center"}}>
               {activeTab==="users"&&(
                 <button onClick={()=>setShowCreate(true)} style={{background:"#2563eb",border:"none",borderRadius:"8px",padding:"8px 16px",color:"#fff",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>{tr("➕ موظف جديد")}</button>
-              )}
-              {user?.email===MASTER_EMAIL&&activeTab==="users"&&!seedDone&&(
-                <button onClick={handleSeed} disabled={seeding} style={{
-                  background:seeding?"#374151":"#7c3aed",border:"none",borderRadius:"8px",
-                  padding:"8px 14px",color:"#fff",fontFamily:"inherit",fontSize:"12px",
-                  fontWeight:700,cursor:seeding?"not-allowed":"pointer",opacity:seeding?.7:1,
-                }}>
-                  {seeding?tr("⏳ جارٍ الإنشاء..."):tr("🚀 تفعيل الحسابات الـ5")}
-                </button>
               )}
               <button onClick={onClose} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",borderRadius:"8px",padding:"8px 14px",color:"#fff",fontFamily:"inherit",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>{tr("✕ إغلاق")}</button>
             </div>
@@ -426,7 +386,7 @@ const labelOf = (id: string): string => DYN_LABELS[id] || COMPANY_LABELS[id] || 
                 {tr("💡 ارفع شعار لكل شركة — سيظهر في الفواتير عند الطباعة والمعاينة. الحجم الأقصى 2MB.")}
               </div>
               <div style={{display:"grid",gap:"12px"}}>
-                {COMPANIES_INFO.map(c=>(
+                {COMPANIES_DYN.map(c=>(
                   <div key={c.id} style={{background:"var(--ia-card)",borderRadius:"14px",padding:"18px 20px",border:"1px solid var(--ia-border)",display:"flex",alignItems:"center",gap:"18px",boxShadow:"0 1px 3px rgba(0,0,0,.05)"}}>
                     <div style={{width:"80px",height:"80px",borderRadius:"12px",overflow:"hidden",border:`2px solid ${c.color}33`,background:"var(--ia-row-alt)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
                       {logos[c.id]

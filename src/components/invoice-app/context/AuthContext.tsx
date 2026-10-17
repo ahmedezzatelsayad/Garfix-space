@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { logoutUser, onAuthChange } from "../firebase/auth";
-import { getUserProfile, isMasterAdmin, ALL_COMPANIES } from "../firebase/users";
+import { getUserProfile, isMasterAdmin } from "../firebase/users";
 import { tr } from "@/lib/i18n-app";
 
 // Local replacement for firebase/auth User type (fake local auth in firebase/auth.js)
@@ -97,41 +97,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
           setUser(firebaseUser);
           if (isMasterAdmin(firebaseUser.email ?? "")) {
+            // المؤسس مدير عام — شركاته تُحمّل ديناميكياً من الخادم (لا قائمة ثابتة)
             setProfile({
               uid: firebaseUser.uid,
               email: firebaseUser.email ?? "",
               displayName: firebaseUser.displayName || tr("أحمد عزت الصياد"),
-              companies: ALL_COMPANIES,
+              companies: [],
               role: "admin",
             });
           } else {
-            const prof = await getUserProfile(firebaseUser.uid);
+            // ملف المستخدم من الخادم مباشرة (app_users: مشترك أو موظف أنشأه المدير)
+            const prof = await getUserProfile();
             if (prof) {
               setProfile(prof as import("./AuthContext").UserProfile | null);
             } else if (firebaseUser.role) {
-              // r16: مشترك مسجّل ذاتياً — ملفه من الخادم مباشرة (DB AppUser)
-              try {
-                const res = await fetch("/api/auth/profile");
-                if (res.ok) {
-                  const data = await res.json();
-                  if (data.profile) {
-                    setProfile({
-                      uid: firebaseUser.uid,
-                      email: data.profile.email,
-                      displayName: data.profile.displayName || firebaseUser.displayName || tr("مشترك"),
-                      companies: Array.isArray(data.profile.companies) ? data.profile.companies : [],
-                      role: "subscriber",
-                    });
-                    return;
-                  }
-                }
-              } catch { /* الخادم غير متاح — سقط محلي */ }
               setProfile({
                 uid: firebaseUser.uid,
                 email: firebaseUser.email ?? "",
                 displayName: firebaseUser.displayName || tr("مشترك"),
                 companies: Array.isArray(firebaseUser.companies) ? firebaseUser.companies : [],
-                role: "subscriber",
+                role: firebaseUser.role,
               });
             } else {
               setProfile(null);
@@ -157,7 +142,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isAdmin = profile?.role === "admin" || isMasterAdmin(user?.email || "");
   const perms   = resolvePerms(profile, isMasterAdmin(user?.email || ""));
   const canEdit = !!perms.edit_invoice;
-  const allowedCompanies = profile?.companies || [];
+  // المؤسس المدير يرى الكل — قائمة فارغة تعني «بلا قيد» له
+  const allowedCompanies = profile?.role === "admin" ? [] : (profile?.companies || []);
 
   return (
     <AuthContext.Provider value={{ user, profile, loading, isAdmin, canEdit, allowedCompanies, perms }}>

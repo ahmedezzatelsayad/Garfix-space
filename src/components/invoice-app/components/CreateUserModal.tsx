@@ -1,18 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { createUser, ALL_COMPANIES } from "../firebase/users";
+import { createUser } from "../firebase/users";
 import { tr, appDir } from "@/lib/i18n-app";
 
-// r12: قائمة شركات ديناميكية من الخادم (fallback للافتراضيات الثابتة)
-
-
-const COMPANY_LABELS: Record<string, string> = {
-  tawfeer: "توفير أونلاين شوب 🛒",
-  mahhal:  "محلكم أونلاين ستور 🏪",
-  boss:    "بوص نيولايف ⚡",
-  laqta:   "لقطة أونلاين ♾️",
-};
+// r33: الشركات ديناميكية بالكامل من الخادم (خاصية companies إلزامية عملياً)
 
 export const PERM_LIST: Array<{ key: string; label: string; icon: string; group: string }> = [
   { key:"create_invoice",  label:"إنشاء فواتير",   icon:"➕", group:"فواتير" },
@@ -51,11 +43,11 @@ interface CreateUserModalProps {
 }
 
 export default function CreateUserModal({ onClose, onCreated, companies }: CreateUserModalProps) {
-  // r12: شركات الخادم إن وُجدت، وإلا الافتراضية
-  const COMPANY_IDS: string[] = companies && companies.length ? companies.map(c => c.id) : ALL_COMPANIES;
+  // r33: شركات الخادم فقط — لا افتراضيات ثابتة
+  const COMPANY_IDS: string[] = companies && companies.length ? companies.map(c => c.id) : [];
   const DYN_LABELS: Record<string, string> = {};
   (companies || []).forEach(c => { DYN_LABELS[c.id] = `${c.nameAr} ${c.emoji || "🏢"}`; });
-  const labelOf = (id: string): string => DYN_LABELS[id] || COMPANY_LABELS[id] || id;
+  const labelOf = (id: string): string => DYN_LABELS[id] || id;
   const [form, setForm] = useState({
     displayName:"", email:"", password:"",
     companies:[] as string[], role:"employee",
@@ -80,6 +72,7 @@ export default function CreateUserModal({ onClose, onCreated, companies }: Creat
     if (form.password.length < 6) { setErr(tr("كلمة المرور يجب أن تكون 6 أحرف على الأقل")); return; }
     setLoading(true); setErr("");
     try {
+      // r33: الإنشاء عبر الخادم (app_users في PostgreSQL — scrypt) بدل localStorage
       await createUser({
         email: form.email.trim(),
         password: form.password,
@@ -92,15 +85,7 @@ export default function CreateUserModal({ onClose, onCreated, companies }: Creat
       onCreated?.();
       onClose();
     } catch (e: any) {
-      const msgs: Record<string, string> = {
-        "auth/email-already-in-use": tr("هذا الإيميل مسجل مسبقاً — اختر إيميل آخر"),
-        "auth/invalid-email":         tr("صيغة الإيميل غير صحيحة"),
-        "auth/weak-password":         tr("كلمة المرور ضعيفة جداً (6 أحرف على الأقل)"),
-        "auth/configuration-not-found":tr("يرجى تفعيل Email/Password في Firebase Console"),
-        "auth/network-request-failed": tr("تعذّر الاتصال بالإنترنت — تحقق من الشبكة وأعد المحاولة"),
-        "auth/too-many-requests":      tr("محاولات كثيرة — انتظر قليلاً ثم أعد المحاولة"),
-      };
-      setErr(msgs[e.code] || e.message || tr("حدث خطأ غير متوقع، يرجى المحاولة مجدداً"));
+      setErr(e?.message || tr("حدث خطأ غير متوقع، يرجى المحاولة مجدداً"));
       setLoading(false);
     }
   };
