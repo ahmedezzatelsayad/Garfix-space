@@ -54,9 +54,10 @@ a public multi-page website, and signed server sessions guarding admin routes.]
 14. [🏭 البنية التحتية والحارس keepalive (Infrastructure)](#-البنية-التحتية-والحارس-keepalive-infrastructure)
 15. [💾 النسخ الاحتياطي والاستعادة (Backup and Recovery)](#-النسخ-الاحتياطي-والاستعادة-backup-and-recovery)
 16. [🩺 استكشاف الأخطاء (Troubleshooting)](#-استكشاف-الأخطاء-troubleshooting)
-17. [🗺️ خارطة الطريق (Roadmap)](#-خارطة-الطريق-roadmap)
-18. [🤝 المساهمة (Contributing)](#-المساهمة-contributing)
-19. [📄 الرخصة (License)](#-الرخصة-license)
+17. [🚀 النشر على Vercel (Deploy)](#-النشر-على-vercel-deploy)
+18. [🗺️ خارطة الطريق (Roadmap)](#-خارطة-الطريق-roadmap)
+19. [🤝 المساهمة (Contributing)](#-المساهمة-contributing)
+20. [📄 الرخصة (License)](#-الرخصة-license)
 
 ---
 
@@ -688,6 +689,84 @@ cd mini-services/keepalive && ( setsid nohup bun run dev > service.log 2>&1 < /d
 | تمرير أفقي على الجوال رغم وجود media queries سليمة | تنسيق inline (مثل `display:flex`) يتغلّب على أصناف CSS داخل الـ media query | انقل الاستثناء إلى صنف CSS يُفعّله الـ media query (كان سبب overflow 390px في صفحات الموقع) |
 
 > ملاحظة: زر «اختبار الاتصال» يستدعي `POST /api/ai/test` — المسار موجود الآن ومحمي بجلسة مدير (بدونها 401). في النسخ القديمة كان «يختفي» من المستودع بسبب نمط `test` في `.gitignore` (انظر صفّه في الجدول أعلاه).
+
+---
+
+## 🚀 النشر على Vercel (Deploy)
+
+> **تنبيه مهم:** المشروع مبني أصلاً على بنية تحتية محلية (PostgreSQL + Valkey + خدمة PDF منفصلة).
+> نشره على Vercel **بدون التجهيز أدناه** يعطي الأعراض الشهيرة: «لا تظهر الفواتير ولا أي شيء يعمل» —
+> والسبب دائماً نقص متغيرات البيئة أو قاعدة البيانات، وليس عيباً في الكود.
+
+### لماذا لا يعمل النشر مباشرة؟ (الأسباب الجذرية الخمسة)
+
+| # | السبب | العَرَض الظاهر |
+|---|---|---|
+| 1 | لا يوجد PostgreSQL على Vercel — `DATABASE_URL` إما مفقود أو يشير لقاعدة غير موجودة | كل مسارات الـ API ترجع 500 — الموقع يظهر لكن بلا أي بيانات |
+| 2 | `GARFIX_MASTER_PASSWORD` غير مضبوط — حساب المؤسس **لا يُبنى أصلاً** (فشل مغلق) | تسجيل الدخول يفشل دائماً «البريد أو كلمة المرور غير صحيحة» |
+| 3 | `SESSION_SECRET` غير مضبوط — كل نسخة serverless توقّع الجلسات بسر عشوائي مختلف | تسجّل الدخول ثم تُطرد فوراً في الطلب التالي (401) |
+| 4 | عميل Prisma لم يُولَّد أثناء البناء | كل الـ API تفشل بخطأ `@prisma/client did not initialize yet` |
+| 5 | `DEMO_MODE` غير مضبوط — الحسابات التجريبية الخمسة معطّلة | `info@tawfeer.com` وما شابه لا تدخل (هذا طبيعي — فقط حساب المؤسس يعمل) |
+
+### خطوات النشر الصحيحة (10 دقائق)
+
+**الخطوة 1 — أنشئ قاعدة PostgreSQL سحابية (مجانية):**
+
+- الأسرع: [Neon](https://neon.tech) → Create project → انسخ **Connection string** (`postgresql://user:pass@ep-…/neondb?sslmode=require`)
+- بديل: [Supabase](https://supabase.com) أو **Vercel Postgres** (Storage → Create Database → Neon)
+
+**الخطوة 2 — جهّز جداول القاعدة من جهازك (مرة واحدة):**
+
+```bash
+git clone https://github.com/ahmedezzatelsayad/Garfix-space.git && cd Garfix-space
+bun install
+# ضع رابط قاعدة السحابة هنا — انتبه: مع Neon أضف ?sslmode=require إن لم تكن موجودة
+export DATABASE_URL="postgresql://user:pass@ep-xxx.neon.tech/neondb?sslmode=require"
+bunx prisma db push          # ينشئ كل الجداول
+bun run prisma/seed.ts       # (اختياري) 4 شركات + 12 فاتورة تجريبية
+bun run scripts/seed-site.ts # (اختياري) محتوى الموقع العام
+```
+
+**الخطوة 3 — أضف متغيرات البيئة في Vercel:**
+
+من لوحة المشروع على Vercel → Settings → **Environment Variables** → أضف:
+
+| المتغير | القيمة | إلزامي؟ |
+|---|---|---|
+| `DATABASE_URL` | رابط قاعدة Neon/Supabase (نسخه من الخطوة 1) | ✅ إلزامي |
+| `GARFIX_MASTER_PASSWORD` | كلمة مرور قوية لحساب المؤسس | ✅ إلزامي عملياً |
+| `SESSION_SECRET` | ولّده بـ `openssl rand -hex 32` | ✅ إلزامي على Vercel |
+| `COOKIE_SECURE` | `true` (الموقع خلف HTTPS) | ✅ مستحسن |
+| `APP_BASE_URL` | `https://your-app.vercel.app` | مستحسن (روابط استعادة كلمة المرور) |
+| `DEMO_MODE` | `true` فقط لو أردت الحسابات التجريبية الخمسة | اختياري |
+
+> Valkey/Redis **غير مطلوب** على Vercel — الكاش يسقط تلقائياً إلى الذاكرة المحلية.
+
+**الخطوة 4 — انشر:**
+
+```bash
+vercel --prod
+# أو اربط المستودع من dashboard.vercel.com (Build Command و vercel.json جاهزان:
+# prisma generate && next build — لاحظ postinstall يولّد عميل Prisma تلقائياً)
+```
+
+**الخطوة 5 — تحقق من الصحة:**
+
+```bash
+curl https://your-app.vercel.app/api/healthz
+# المطلوب: "database":{"ok":true} — إن ظهر ok:false فالمشكلة في DATABASE_URL
+```
+
+ثم افتح الموقع → تسجيل الدخول بحساب المؤسس (بريد `ahmedezzatelsayad@gmail.com` + كلمة `GARFIX_MASTER_PASSWORD` التي ضبطتها) → ستظهر الفواتير والشركات.
+
+### ما لا يعمل على Vercel (قيود Serverless)
+
+| الميزة | الحالة | البديل |
+|---|---|---|
+| تصدير PDF الحقيقي | ❌ يحتاج خدمة Chromium منفصلة على 127.0.0.1:3040 | الطباعة من المتصفح (Ctrl+P) تعمل كالمعتاد |
+| المهام المجدولة (طوابير BullMQ) | ❌ تحتاج Valkey + عامل دائم | النظام يعمل كاملاً بدونها — لوحة المهام فقط ستعرض خطأ اتصال |
+| الكاش الموزع Valkey | ⚠️ يسقط تلقائياً لكاش الذاكرة | شفاف تماماً — لا يتأثر أي سلوك ظاهر |
+| الوكيل الذكي Agent | ⚠️ يعمل لكن بخدمة DeepSeek | أدخل مفتاح DeepSeek من التبويب 🧠 كما هو موثق |
 
 ---
 

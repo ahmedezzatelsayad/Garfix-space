@@ -8,7 +8,9 @@ const nextConfig: NextConfig = {
   reactStrictMode: false,
   // r14: bullmq يستخدم require ديناميكي لـ ioredis (اختيارية) + روابط msgpackr الأصلية —
   // يجب إبقاؤهما خارج حزمة Turbopack كي يعملان في وقت التشغيل.
-  serverExternalPackages: ["bullmq", "ioredis"],
+  // Vercel: @prisma/client يبقى خارجياً أيضاً حتى يُضمَّن محرك الاستعلام (query engine)
+  // في حزمة الـ lambda بدل أن يُعاد بناؤه ويُفقد الملف الثنائي .node.
+  serverExternalPackages: ["bullmq", "ioredis", "@prisma/client", ".prisma/client"],
   // r13: ترويسات أمان عامة (بدون X-Frame-Options حتى لا يتعطل لوحة المعاينة)
   async headers() {
     return [
