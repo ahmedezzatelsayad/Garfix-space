@@ -40,17 +40,32 @@ export const DEEPSEEK_MODELS: { id: string; name: string; desc: string; tag: str
   },
 ];
 
-/** يقرأ إعداد DeepSeek من قاعدة البيانات */
+/**
+ * r34: يقرأ إعداد DeepSeek — القاعدة أولاً (تديره صفحة الإعدادات) ثم متغير البيئة
+ * DEEPSEEK_API_KEY كاحتياط للنشر (Vercel) — DeepSeek أساسي والمدمج مجرد سقوط آمن.
+ */
 export async function getAiConfig(): Promise<AiConfigRow | null> {
   const row = await db.aiSetting.findUnique({ where: { provider: "deepseek" } });
-  if (!row) return null;
-  return {
-    provider: row.provider,
-    apiKey: row.apiKey,
-    baseUrl: row.baseUrl || "https://api.deepseek.com",
-    model: row.model || "deepseek-chat",
-    enabled: row.enabled,
-  };
+  if (row) {
+    return {
+      provider: row.provider,
+      apiKey: row.apiKey,
+      baseUrl: row.baseUrl || "https://api.deepseek.com",
+      model: row.model || "deepseek-chat",
+      enabled: row.enabled,
+    };
+  }
+  const envKey = (process.env.DEEPSEEK_API_KEY || "").trim();
+  if (envKey.startsWith("sk-")) {
+    return {
+      provider: "deepseek",
+      apiKey: envKey,
+      baseUrl: process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com",
+      model: process.env.DEEPSEEK_MODEL || "deepseek-chat",
+      enabled: true,
+    };
+  }
+  return null;
 }
 
 export function maskKey(key: string | null): string | null {

@@ -1,6 +1,6 @@
 /**
  * r33 E2E — التحقق الشامل من طلب المؤسس:
- *  1) دخول المؤسس بكلمة المرور الجديدة Ahmed2050A@
+ *  1) دخول المؤسس بكلمة المرور من البيئة
  *  2) لا شركات تجريبية (القاعدة فارغة عند البداية)
  *  3) إنشاء شركة سنيرجي كاملة (اسم/عنوان/slug/لوجو/هاتف/إيميل) + توليد slug تلقائي
  *  4) إدارة المستخدمين الحقيقية: إنشاء موظف → ظهور في DB → حذفه → يختفي فعلاً من DB
@@ -10,7 +10,8 @@
  */
 const BASE = process.argv[2] || "http://127.0.0.1:3000";
 const MASTER_EMAIL = "ahmedezzatelsayad@gmail.com";
-const MASTER_PASS = "Ahmed2050A@";
+/** كلمة المرور من البيئة فقط — لا أسرار في المستودع العام */
+const MASTER_PASS = process.env.GARFIX_MASTER_PASSWORD || "";
 
 let cookie = "";
 let pass = 0, fail = 0;
@@ -45,7 +46,7 @@ async function main() {
   ok("Valkey متصل", h.json?.cache?.connected === true);
 
   // ─── 1) دخول المؤسس بكلمة المرور الجديدة ───
-  console.log("— [1] دخول المؤسس Ahmed2050A@");
+  console.log("— [1] دخول المؤسس (كلمة المرور من البيئة)");
   const wrong = await api("POST", "/api/auth/login", { email: MASTER_EMAIL, password: "WrongPass1!" });
   ok("كلمة مرور خاطئة تُرفض 401", wrong.status === 401);
   const login = await api("POST", "/api/auth/login", { email: MASTER_EMAIL, password: MASTER_PASS });
